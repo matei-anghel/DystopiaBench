@@ -40,7 +40,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   {
     id: "glm-5",
     label: "GLM 5",
-    provider: "Zhipu",
+    provider: "Z.ai",
     modelString: "z-ai/glm-5",
   },
   {

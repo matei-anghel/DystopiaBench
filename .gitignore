@@ -7,4 +7,6 @@ __v0_jsx-dev-runtime.ts
 node_modules/
 .next/
 .env*.local
+tsconfig.tsbuildinfo
+public/data/benchmark-*.json
 .DS_Store

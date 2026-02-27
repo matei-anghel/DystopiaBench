@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { AlertTriangle, Database } from "lucide-react"
+import { AlertTriangle } from "lucide-react"
+import { useSyncExternalStore } from "react"
 
 const NAV_LINKS = [
   { href: "/#dashboard", label: "Dashboard" },
@@ -16,6 +17,13 @@ const NAV_LINKS = [
 export function BenchHeader() {
   const pathname = usePathname()
   const isHome = pathname === "/"
+  const isLocalhost = useSyncExternalStore(
+    () => () => {},
+    () =>
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1",
+    () => false,
+  )
 
   const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (href.startsWith("/#")) {
@@ -47,7 +55,7 @@ export function BenchHeader() {
               {link.label}
             </a>
           ))}
-          {!process.env.NEXT_PUBLIC_VERCEL && (
+          {isLocalhost && (
             <Link
               href="/run"
               className="ml-2 flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/20 px-3 py-1.5 font-mono text-xs font-medium tracking-wide text-primary transition-colors hover:bg-primary/20 uppercase"

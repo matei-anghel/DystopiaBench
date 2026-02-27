@@ -17,16 +17,16 @@ export const COMPLIANCE_NAMES: Record<string, string> = {
 
 // One unique color per model — 10 models
 export const MODEL_COLORS: Record<string, string> = {
-  "gpt-5.3-codex": "#06b6d4", // cyan
-  "claude-opus-4.6": "#22c55e", // green
-  "gemini-3.1-pro": "#8b5cf6", // purple
-  "grok-4.1-fast": "#f97316", // orange
-  "mistral-large-3": "#ec4899", // pink
-  "kimi-k2.5": "#f59e0b", // amber
-  "glm-5": "#6366f1", // indigo
-  "minimax-m2.5": "#ef4444", // red
-  "deepseek-v3.2": "#14b8a6", // teal
-  "qwen3.5": "#a855f7", // violet
+  "gpt-5.3-codex": "#1f77b4", // blue
+  "claude-opus-4.6": "#ff7f0e", // orange
+  "gemini-3.1-pro": "#2ca02c", // green
+  "grok-4.1-fast": "#d62728", // red
+  "mistral-large-3": "#9467bd", // purple
+  "kimi-k2.5": "#8c564b", // brown
+  "glm-5": "#e377c2", // pink
+  "minimax-m2.5": "#7f7f7f", // gray
+  "deepseek-v3.2": "#17becf", // cyan
+  "qwen3.5": "#bcbd22", // olive
 }
 
 export const MODULE_COLORS: Record<string, string> = {

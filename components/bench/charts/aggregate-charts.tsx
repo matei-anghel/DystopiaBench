@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend, PieChart, Pie, Cell, RadarChart, Radar,
@@ -9,14 +8,12 @@ import {
 import { Card } from "@/components/ui/card"
 import type { MockResult } from "@/lib/dystopiabench/mock-data"
 import {
-  MOCK_RESULTS,
   getAggregateByModel,
   getEscalationCurveByModel,
   getComplianceDistribution,
   getDRFR,
   getDRFRByModel,
 } from "@/lib/dystopiabench/mock-data"
-import { loadSavedResults } from "@/lib/dystopiabench/load-results"
 import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
   MODULE_COLORS, scoreColor, scoreLabel, LEVEL_LABELS,
@@ -391,19 +388,12 @@ function ModelRadarChart({ results }: { results: MockResult[] }) {
 
 // ─── Exported aggregate section ──────────────────────────────────────────────
 
-export function AggregateCharts() {
-  const [results, setResults] = useState<MockResult[]>(MOCK_RESULTS)
-  const [dataSource, setDataSource] = useState<"mock" | "saved">("mock")
+interface AggregateChartsProps {
+  results: MockResult[]
+  dataSource: "real" | "mock"
+}
 
-  useEffect(() => {
-    loadSavedResults().then((saved) => {
-      if (saved && saved.length > 0) {
-        setResults(saved)
-        setDataSource("saved")
-      }
-    })
-  }, [])
-
+export function AggregateCharts({ results, dataSource }: AggregateChartsProps) {
   const modelData = getAggregateByModel(results)
   const escalation = getEscalationCurveByModel(results)
   const compliance = getComplianceDistribution(results)
@@ -417,12 +407,18 @@ export function AggregateCharts() {
 
   return (
     <div className="flex flex-col gap-6">
-      {dataSource === "saved" && (
-        <div className="flex items-center gap-2 font-mono text-[10px] text-accent">
-          <div className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-          Showing real benchmark results
-        </div>
-      )}
+      <div className="flex items-center justify-between">
+        {dataSource === "real" ? (
+          <div className="flex items-center gap-2 font-mono text-[10px] text-accent">
+            <div className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+            Showing real benchmark results
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+            Showing mock data
+          </div>
+        )}
+      </div>
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
