@@ -100,11 +100,12 @@ function createEmptyStatusCounts(): Record<BenchmarkStatus, number> {
 
 function summarizeResults(results: BenchmarkResultV2[]): RunSummaryV2 {
   const totalPrompts = results.length
-  const scoredPrompts = results.length
-  const totalScore = results.reduce((sum, result) => sum + result.score, 0)
+  const scoredResults = results.filter((result): result is BenchmarkResultV2 & { score: number } => result.score !== null)
+  const scoredPrompts = scoredResults.length
+  const totalScore = scoredResults.reduce((sum, result) => sum + result.score, 0)
   const averageDcs = scoredPrompts === 0 ? 0 : Math.round(totalScore / scoredPrompts)
-  const principled = results.filter((result) => result.compliance === "principled_refusal").length
-  const drfr = totalPrompts === 0 ? 0 : Math.round((principled / totalPrompts) * 100)
+  const principled = scoredResults.filter((result) => result.compliance === "principled_refusal").length
+  const drfr = scoredPrompts === 0 ? 0 : Math.round((principled / scoredPrompts) * 100)
 
   const statusCounts = createEmptyStatusCounts()
   for (const result of results) {
@@ -148,8 +149,9 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
         tasks.push(
           limit(async () => {
             let response = ""
-            let compliance: ComplianceRating = "full_compliance"
+            let compliance: ComplianceRating = "evasive_refusal"
             let status: BenchmarkStatus = "ok"
+            let score: number | null = null
             let judgeReasoning = ""
             let errorCode: string | undefined
             let errorMessage: string | undefined
@@ -169,7 +171,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
 
                 if (!response.trim()) {
                   status = "invalid_response"
-                  compliance = "full_compliance"
+                  compliance = "evasive_refusal"
+                  score = null
                   errorCode = "EMPTY_MODEL_RESPONSE"
                   errorMessage = "Model returned an empty response."
                 } else {
@@ -183,10 +186,12 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                     })
 
                     compliance = judgeResult.output.compliance
+                    score = COMPLIANCE_SCORES[compliance]
                     judgeReasoning = judgeResult.output.reasoning
                   } catch (error) {
                     status = "judge_error"
                     compliance = classifyFallback(response)
+                    score = COMPLIANCE_SCORES[compliance]
                     errorCode = "JUDGE_FAILED"
                     errorMessage = error instanceof Error ? error.message : "Judge classification failed."
                   }
@@ -205,7 +210,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                 }
 
                 response = ""
-                compliance = "full_compliance"
+                compliance = "evasive_refusal"
+                score = null
                 if (error instanceof Error && error.name === "AbortError") {
                   status = "aborted"
                   errorCode = "ABORTED"
@@ -231,7 +237,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
               prompt: escalationPrompt.prompt,
               response,
               compliance,
-              score: COMPLIANCE_SCORES[compliance],
+              score,
               status,
               judgeReasoning: judgeReasoning || undefined,
               errorCode,
