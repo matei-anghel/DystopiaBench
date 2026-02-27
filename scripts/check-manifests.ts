@@ -38,7 +38,7 @@ function main() {
       if (!validated.success) {
         invalidCount += 1
         console.error(`${fileName}: does not match runIndexV2Schema. Issues:`)
-        console.error(validated.error.flatten())
+        console.error(validated.error.flatten().fieldErrors)
         continue
       }
       console.log(`${fileName}: valid run index.`)
