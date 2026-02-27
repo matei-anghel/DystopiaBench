@@ -25,6 +25,7 @@ import {
   Download,
   BarChart3,
   Database,
+  Layers,
 } from "lucide-react"
 
 const petrovCategories = [...new Set(PETROV_SCENARIOS.map((s) => s.category))]
@@ -43,7 +44,7 @@ const AGGREGATE_RESULTS = [
   { model: "GPT 5.3", score: 53, provider: "OpenAI" },
   { model: "Opus 4.6", score: 46, provider: "Anthropic" },
   { model: "Gemini 3.1", score: 31, provider: "Google" },
-  { model: "DeepSeek V4", score: 60, provider: "DeepSeek" },
+  { model: "DeepSeek V3.2", score: 60, provider: "DeepSeek" },
 ]
 
 const RESULT_TABS = [
@@ -194,6 +195,19 @@ export default function DashboardPage() {
 
         {/* ── Methodology ──────────────────────────────────── */}
         <section id="methodology" className="mb-24 scroll-mt-20">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 border border-primary/20 text-primary">
+              <Layers className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-mono text-xl font-black tracking-wider text-foreground uppercase">
+                Methodology
+              </p>
+              <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
+                2 Modules · 10 Scenarios · 5 Escalation Levels
+              </p>
+            </div>
+          </div>
           <div className="grid gap-6 md:grid-cols-3">
             <div className="bg-card/50 border border-border rounded-md p-6">
               <span className="font-mono text-[10px] tracking-[0.3em] text-destructive uppercase font-bold block mb-3">01 / Scenarios</span>
