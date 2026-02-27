@@ -7,6 +7,7 @@ import { ScenarioCharts } from "@/components/bench/charts/scenario-charts"
 import { PromptCharts } from "@/components/bench/charts/prompt-charts"
 import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
 import { Database } from "lucide-react"
+import type { MockResult } from "@/lib/dystopiabench/mock-data"
 
 const RESULT_TABS = [
     { id: "aggregate", label: "Aggregate", sub: "All models - Both modules" },
@@ -30,7 +31,7 @@ export function DashboardTabs({
     scenarioCount,
     availableModelIds
 }: {
-    results: any[]
+    results: MockResult[]
     dataSource: "real" | "mock"
     modelCount: number
     scenarioCount: number
@@ -70,7 +71,7 @@ export function DashboardTabs({
                     </p>
                     <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
                         {dataSource === "real" ? "Real run data" : "Mock data fallback"} ·{" "}
-                        {filteredResults.length.toLocaleString()} tests · {selectedModelIds.length}/{availableModelIds.length} models · {scenarioCount} scenarios
+                        {filteredResults.length.toLocaleString()} tests · {selectedModelIds.length}/{modelCount} models · {scenarioCount} scenarios
                     </p>
                 </div>
             </div>

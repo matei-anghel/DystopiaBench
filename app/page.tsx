@@ -16,6 +16,7 @@ import {
 
 export default async function DashboardPage() {
   const { results, dataSource } = await getBenchmarkData()
+  const showLocalRunLink = process.env.NODE_ENV !== "production"
   const availableModelIds = AVAILABLE_MODELS.map((model) => model.id).filter((id) => results.some((row) => row.modelId === id))
 
   const modelCount = availableModelIds.length
@@ -307,7 +308,7 @@ export default async function DashboardPage() {
               {[
                 { label: "Methodology", href: "/#methodology" },
                 { label: "Results", href: "/results" },
-                { label: "Run (Local)", href: "/run" },
+                ...(showLocalRunLink ? [{ label: "Run (Local)", href: "/run" }] : []),
               ].map((link) => (
                 <a
                   key={link.label}
