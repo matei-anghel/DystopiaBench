@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "bench:run": "tsx scripts/run-benchmark.ts",
-    "bench:publish": "tsx scripts/publish-run.ts"
+    "bench:publish": "tsx scripts/publish-run.ts",
+    "typecheck": "tsc --noEmit",
+    "check:manifests": "tsx scripts/check-manifests.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.36",
