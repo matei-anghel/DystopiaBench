@@ -1,17 +1,22 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend, PieChart, Pie, Cell, RadarChart, Radar,
   PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts"
 import { Card } from "@/components/ui/card"
+import type { MockResult } from "@/lib/dystopiabench/mock-data"
 import {
   MOCK_RESULTS,
   getAggregateByModel,
   getEscalationCurveByModel,
   getComplianceDistribution,
+  getDRFR,
+  getDRFRByModel,
 } from "@/lib/dystopiabench/mock-data"
+import { loadSavedResults } from "@/lib/dystopiabench/load-results"
 import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
   MODULE_COLORS, scoreColor, scoreLabel, LEVEL_LABELS,
@@ -19,9 +24,6 @@ import {
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { SectionHeader } from "./section-header"
 
-const modelData     = getAggregateByModel(MOCK_RESULTS)
-const escalation    = getEscalationCurveByModel(MOCK_RESULTS)
-const compliance    = getComplianceDistribution(MOCK_RESULTS)
 // ─── Custom tooltips ──────────────────────────────────────────────────────────
 
 function ModelBarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; avgScore: number; provider: string } }> }) {
@@ -77,17 +79,31 @@ function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ p
   )
 }
 
+function DRFRTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; drfr: number; provider: string } }> }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+      <p className="font-mono text-[10px] text-muted-foreground mb-1">{d.provider}</p>
+      <p className="font-mono text-xs font-bold text-foreground">{d.label}</p>
+      <p className="font-mono text-sm font-black mt-1 text-accent">
+        {d.drfr}% <span className="text-[10px] font-normal text-muted-foreground">principled refusals</span>
+      </p>
+    </div>
+  )
+}
+
 // ─── Chart 1: Model Avg Score bar chart ──────────────────────────────────────
 
-function ModelBarChart() {
+function ModelBarChart({ data }: { data: ReturnType<typeof getAggregateByModel> }) {
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label="Average Compliance Score by Model"
-        sub="Lower = stronger refusal = better safety. Across all scenarios and escalation levels."
+        label="Average DCS by Model"
+        sub="Dystopian Compliance Score. Lower = stronger refusal = better safety."
       />
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={modelData} layout="vertical" margin={{ left: 16, right: 32, top: 4, bottom: 4 }}>
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={data} layout="vertical" margin={{ left: 16, right: 32, top: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
           <XAxis
             type="number" domain={[0, 100]}
@@ -97,13 +113,13 @@ function ModelBarChart() {
             tickLine={false}
           />
           <YAxis
-            type="category" dataKey="label" width={100}
+            type="category" dataKey="label" width={120}
             tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
             axisLine={false} tickLine={false}
           />
           <Tooltip content={<ModelBarTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} />
           <Bar dataKey="avgScore" radius={[0, 3, 3, 0]} maxBarSize={22}>
-            {modelData.map((entry) => (
+            {data.map((entry) => (
               <Cell key={entry.modelId} fill={scoreColor(entry.avgScore)} />
             ))}
           </Bar>
@@ -113,17 +129,54 @@ function ModelBarChart() {
   )
 }
 
-// ─── Chart 2: Escalation Curve (all models, multi-line) ──────────────────────
+// ─── Chart 2: DRFR by Model ─────────────────────────────────────────────────
 
-function EscalationCurveChart() {
+function DRFRChart({ data }: { data: ReturnType<typeof getDRFRByModel> }) {
+  return (
+    <Card className="bg-card border-border p-5">
+      <SectionHeader
+        label="DRFR by Model"
+        sub="Directed Refusal to Failure Ratio. Higher = more principled refusals = safer."
+      />
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={data} layout="vertical" margin={{ left: 16, right: 32, top: 4, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+          <XAxis
+            type="number" domain={[0, 100]}
+            tickFormatter={(v) => `${v}%`}
+            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+            axisLine={{ stroke: "hsl(var(--border))" }}
+            tickLine={false}
+          />
+          <YAxis
+            type="category" dataKey="label" width={120}
+            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+            axisLine={false} tickLine={false}
+          />
+          <Tooltip content={<DRFRTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} />
+          <Bar dataKey="drfr" radius={[0, 3, 3, 0]} maxBarSize={22}>
+            {data.map((entry) => (
+              <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? "#888"} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </Card>
+  )
+}
+
+// ─── Chart 3: Escalation Curve (all models, multi-line) ──────────────────────
+
+function EscalationCurveChart({ data }: { data: ReturnType<typeof getEscalationCurveByModel> }) {
+  const modelIds = data.length > 0 ? Object.keys(data[0]).filter((k) => k !== "level") : []
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
         label="Escalation Curve — All Models"
-        sub="How each model's compliance score rises as pressure escalates from L1 to L5."
+        sub="How each model's DCS rises as pressure escalates from L1 to L5."
       />
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={escalation} margin={{ left: 0, right: 12, top: 8, bottom: 4 }}>
+        <LineChart data={data} margin={{ left: 0, right: 12, top: 8, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis
             dataKey="level"
@@ -138,35 +191,37 @@ function EscalationCurveChart() {
             width={28}
           />
           <Tooltip content={<EscalationTooltip />} />
-          {AVAILABLE_MODELS.map((model) => (
+          {modelIds.map((id) => (
             <Line
-              key={model.id}
+              key={id}
               type="monotone"
-              dataKey={model.id}
-              stroke={MODEL_COLORS[model.id] ?? "#888"}
+              dataKey={id}
+              stroke={MODEL_COLORS[id] ?? "#888"}
               strokeWidth={2}
-              dot={{ r: 3, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
+              dot={{ r: 3, fill: MODEL_COLORS[id] ?? "#888", strokeWidth: 0 }}
               activeDot={{ r: 5 }}
             />
           ))}
         </LineChart>
       </ResponsiveContainer>
-      {/* Legend */}
       <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border">
-        {AVAILABLE_MODELS.map((m) => (
-          <div key={m.id} className="flex items-center gap-1.5">
-            <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[m.id] }} />
-            <span className="font-mono text-[10px] text-muted-foreground">{m.label}</span>
-          </div>
-        ))}
+        {modelIds.map((id) => {
+          const m = AVAILABLE_MODELS.find((m) => m.id === id)
+          return (
+            <div key={id} className="flex items-center gap-1.5">
+              <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[id] ?? "#888" }} />
+              <span className="font-mono text-[10px] text-muted-foreground">{m?.label ?? id}</span>
+            </div>
+          )
+        })}
       </div>
     </Card>
   )
 }
 
-// ─── Chart 3: Compliance Distribution Pie ────────────────────────────────────
+// ─── Chart 4: Compliance Distribution Pie ────────────────────────────────────
 
-function CompliancePieChart() {
+function CompliancePieChart({ data }: { data: ReturnType<typeof getComplianceDistribution> }) {
   const RADIAN = Math.PI / 180
   const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, pct }: { cx: number; cy: number; midAngle: number; innerRadius: number; outerRadius: number; pct: number }) => {
     if (pct < 4) return null
@@ -184,21 +239,21 @@ function CompliancePieChart() {
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label="Compliance Distribution"
-        sub="Share of all test results across compliance tiers."
+        label="DCS Distribution"
+        sub="Share of all test results across DCS compliance tiers."
       />
       <div className="flex items-center gap-4">
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <Pie
-              data={compliance}
+              data={data}
               cx="50%" cy="50%"
               innerRadius={55} outerRadius={90}
               dataKey="count"
               labelLine={false}
               label={renderLabel}
             >
-              {compliance.map((entry) => (
+              {data.map((entry) => (
                 <Cell key={entry.key} fill={COMPLIANCE_COLORS[entry.key]} />
               ))}
             </Pie>
@@ -206,7 +261,7 @@ function CompliancePieChart() {
           </PieChart>
         </ResponsiveContainer>
         <div className="flex flex-col gap-2 shrink-0 pr-2">
-          {compliance.map((c) => (
+          {data.map((c) => (
             <div key={c.key} className="flex items-center gap-2">
               <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: COMPLIANCE_COLORS[c.key] }} />
               <div>
@@ -221,33 +276,34 @@ function CompliancePieChart() {
   )
 }
 
-// ─── Chart 4: Module Comparison ──────────────────────────────────────────────
+// ─── Chart 5: Module Comparison ──────────────────────────────────────────────
 
-function ModuleComparisonChart() {
-  // Per-module, per-model breakdown
-  const data = AVAILABLE_MODELS.map((m) => {
-    const petrov = MOCK_RESULTS.filter((r) => r.modelId === m.id && r.module === "petrov")
-    const orwell = MOCK_RESULTS.filter((r) => r.modelId === m.id && r.module === "orwell")
+function ModuleComparisonChart({ results }: { results: MockResult[] }) {
+  const modelIds = [...new Set(results.map((r) => r.modelId))]
+  const data = modelIds.map((id) => {
+    const petrov = results.filter((r) => r.modelId === id && r.module === "petrov")
+    const orwell = results.filter((r) => r.modelId === id && r.module === "orwell")
+    const model = AVAILABLE_MODELS.find((m) => m.id === id)
     const avg = (arr: typeof petrov) =>
       arr.length ? Math.round(arr.reduce((s, r) => s + r.score, 0) / arr.length) : 0
-    return { label: m.label, petrov: avg(petrov), orwell: avg(orwell) }
+    return { label: model?.label ?? id, petrov: avg(petrov), orwell: avg(orwell) }
   })
 
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
         label="Petrov vs Orwell — Model Breakdown"
-        sub="Average compliance score per module per model. Compare safety profiles across domain types."
+        sub="Average DCS per module per model. Compare safety profiles across domain types."
       />
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 40 }}>
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 60 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis
             dataKey="label"
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
+            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8, fontFamily: "var(--font-mono)" }}
             axisLine={{ stroke: "hsl(var(--border))" }}
             tickLine={false}
-            angle={-35} textAnchor="end" interval={0}
+            angle={-40} textAnchor="end" interval={0}
           />
           <YAxis
             domain={[0, 100]}
@@ -267,23 +323,23 @@ function ModuleComparisonChart() {
             wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: 10, paddingTop: 8 }}
             formatter={(val) => <span style={{ color: "hsl(var(--muted-foreground))", textTransform: "uppercase" }}>{val}</span>}
           />
-          <Bar dataKey="petrov" name="Petrov" fill={MODULE_COLORS.petrov} radius={[3, 3, 0, 0]} maxBarSize={18} />
-          <Bar dataKey="orwell" name="Orwell" fill={MODULE_COLORS.orwell} radius={[3, 3, 0, 0]} maxBarSize={18} />
+          <Bar dataKey="petrov" name="Petrov" fill={MODULE_COLORS.petrov} radius={[3, 3, 0, 0]} maxBarSize={16} />
+          <Bar dataKey="orwell" name="Orwell" fill={MODULE_COLORS.orwell} radius={[3, 3, 0, 0]} maxBarSize={16} />
         </BarChart>
       </ResponsiveContainer>
     </Card>
   )
 }
 
-// ─── Chart 5: Radar — model profile ─────────────────────────────────────────
+// ─── Chart 6: Radar — model profile ─────────────────────────────────────────
 
-function ModelRadarChart() {
-  // Axes: L1, L2, L3, L4, L5
+function ModelRadarChart({ results }: { results: MockResult[] }) {
+  const modelIds = [...new Set(results.map((r) => r.modelId))]
   const data = [1, 2, 3, 4, 5].map((level) => {
     const row: Record<string, string | number> = { level: `L${level}\n${LEVEL_LABELS[level]}` }
-    for (const m of AVAILABLE_MODELS) {
-      const rows = MOCK_RESULTS.filter((r) => r.modelId === m.id && r.level === level)
-      row[m.id] = rows.length ? Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length) : 0
+    for (const id of modelIds) {
+      const rows = results.filter((r) => r.modelId === id && r.level === level)
+      row[id] = rows.length ? Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length) : 0
     }
     return row
   })
@@ -292,7 +348,7 @@ function ModelRadarChart() {
     <Card className="bg-card border-border p-5">
       <SectionHeader
         label="Escalation Radar — All Models"
-        sub="Compliance score by escalation pressure level."
+        sub="DCS by escalation pressure level."
       />
       <ResponsiveContainer width="100%" height={300}>
         <RadarChart data={data} margin={{ top: 8, right: 32, bottom: 8, left: 32 }}>
@@ -302,26 +358,32 @@ function ModelRadarChart() {
             tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
           />
           <PolarRadiusAxis domain={[0, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8, fontFamily: "var(--font-mono)" }} />
-          {AVAILABLE_MODELS.map((m) => (
-            <Radar
-              key={m.id}
-              name={m.label}
-              dataKey={m.id}
-              stroke={MODEL_COLORS[m.id]}
-              fill={MODEL_COLORS[m.id]}
-              fillOpacity={0.07}
-              strokeWidth={1.5}
-            />
-          ))}
+          {modelIds.map((id) => {
+            const m = AVAILABLE_MODELS.find((m) => m.id === id)
+            return (
+              <Radar
+                key={id}
+                name={m?.label ?? id}
+                dataKey={id}
+                stroke={MODEL_COLORS[id] ?? "#888"}
+                fill={MODEL_COLORS[id] ?? "#888"}
+                fillOpacity={0.07}
+                strokeWidth={1.5}
+              />
+            )
+          })}
         </RadarChart>
       </ResponsiveContainer>
       <div className="flex flex-wrap gap-3 mt-2 pt-3 border-t border-border">
-        {AVAILABLE_MODELS.map((m) => (
-          <div key={m.id} className="flex items-center gap-1.5">
-            <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[m.id] }} />
-            <span className="font-mono text-[10px] text-muted-foreground">{m.label}</span>
-          </div>
-        ))}
+        {modelIds.map((id) => {
+          const m = AVAILABLE_MODELS.find((m) => m.id === id)
+          return (
+            <div key={id} className="flex items-center gap-1.5">
+              <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[id] ?? "#888" }} />
+              <span className="font-mono text-[10px] text-muted-foreground">{m?.label ?? id}</span>
+            </div>
+          )
+        })}
       </div>
     </Card>
   )
@@ -330,18 +392,46 @@ function ModelRadarChart() {
 // ─── Exported aggregate section ──────────────────────────────────────────────
 
 export function AggregateCharts() {
-  const total = MOCK_RESULTS.length
-  const overallAvg = Math.round(MOCK_RESULTS.reduce((s, r) => s + r.score, 0) / total)
+  const [results, setResults] = useState<MockResult[]>(MOCK_RESULTS)
+  const [dataSource, setDataSource] = useState<"mock" | "saved">("mock")
+
+  useEffect(() => {
+    loadSavedResults().then((saved) => {
+      if (saved && saved.length > 0) {
+        setResults(saved)
+        setDataSource("saved")
+      }
+    })
+  }, [])
+
+  const modelData = getAggregateByModel(results)
+  const escalation = getEscalationCurveByModel(results)
+  const compliance = getComplianceDistribution(results)
+  const drfrData = getDRFRByModel(results)
+  const total = results.length
+  const overallAvg = total > 0 ? Math.round(results.reduce((s, r) => s + r.score, 0) / total) : 0
+  const overallDRFR = getDRFR(results)
+
+  const uniqueModels = new Set(results.map((r) => r.modelId)).size
+  const uniqueScenarios = new Set(results.map((r) => r.scenarioId)).size
 
   return (
     <div className="flex flex-col gap-6">
+      {dataSource === "saved" && (
+        <div className="flex items-center gap-2 font-mono text-[10px] text-accent">
+          <div className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+          Showing real benchmark results
+        </div>
+      )}
+
       {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {[
-          { label: "Total Tests",    value: total.toLocaleString(),   sub: "prompts evaluated" },
-          { label: "Overall Score",  value: overallAvg,               sub: scoreLabel(overallAvg), color: scoreColor(overallAvg) },
-          { label: "Models Tested",  value: AVAILABLE_MODELS.length,  sub: "AI systems" },
-          { label: "Scenarios",      value: 10,                       sub: "5 Petrov + 5 Orwell" },
+          { label: "Total Tests", value: total.toLocaleString(), sub: "prompts evaluated" },
+          { label: "Avg DCS", value: overallAvg, sub: scoreLabel(overallAvg), color: scoreColor(overallAvg) },
+          { label: "Overall DRFR", value: `${overallDRFR}%`, sub: "principled refusals", color: "#00cc00" },
+          { label: "Models Tested", value: uniqueModels, sub: "AI systems" },
+          { label: "Scenarios", value: uniqueScenarios, sub: "benchmark prompts" },
         ].map((kpi) => (
           <Card key={kpi.label} className="bg-card border-border p-4">
             <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-1">{kpi.label}</p>
@@ -352,14 +442,15 @@ export function AggregateCharts() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ModelBarChart />
-        <CompliancePieChart />
+        <ModelBarChart data={modelData} />
+        <DRFRChart data={drfrData} />
       </div>
-      <EscalationCurveChart />
       <div className="grid gap-6 lg:grid-cols-2">
-        <ModuleComparisonChart />
-        <ModelRadarChart />
+        <CompliancePieChart data={compliance} />
+        <ModuleComparisonChart results={results} />
       </div>
+      <EscalationCurveChart data={escalation} />
+      <ModelRadarChart results={results} />
     </div>
   )
 }
