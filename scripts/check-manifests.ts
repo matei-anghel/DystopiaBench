@@ -27,9 +27,9 @@ function main() {
     let parsedJson: unknown
     try {
       parsedJson = JSON.parse(readFileSync(path, "utf-8"))
-    } catch {
+    } catch (e) {
       invalidCount += 1
-      console.error(`${fileName}: invalid JSON.`)
+      console.error(`${fileName}: invalid JSON.`, e)
       continue
     }
 
