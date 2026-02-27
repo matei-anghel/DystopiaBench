@@ -45,4 +45,6 @@ pnpm bench:publish --run-id=<run-id>
 
 ## Notes
 - The web UI `/run` does not execute benchmarks directly. It only builds command strings.
-- Production deploy is static-only; benchmark execution is local/private.
+- Vercel deployments should build from source with `next build` (not from checked-in `out/` export artifacts).
+- Keep canonical source assets under `public/`; do not duplicate assets into `out/`.
+- Benchmark execution is local/private.
