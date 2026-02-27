@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { join } from "node:path"
 import type { RunIndexItemV2, RunManifestV2 } from "./schemas"
 import { runIndexV2Schema } from "./schemas"
@@ -44,13 +51,52 @@ function readRunIndex(indexPath: string): RunIndexItemV2[] {
   return []
 }
 
+export interface RetentionOptions {
+  retainRuns?: number
+  archiveDir?: string
+}
+
+function sortNewestFirst(runs: RunIndexItemV2[]): RunIndexItemV2[] {
+  return [...runs].sort((a, b) => b.timestamp - a.timestamp)
+}
+
+function pruneRunFiles(index: RunIndexItemV2[], dataDir: string, options: RetentionOptions) {
+  if (options.retainRuns === undefined) return index
+
+  const retainRuns = Math.max(0, Math.floor(options.retainRuns))
+  const sorted = sortNewestFirst(index)
+  const kept = sorted.slice(0, retainRuns)
+  const removed = sorted.slice(retainRuns)
+
+  const archivePath = options.archiveDir
+    ? join(dataDir, options.archiveDir)
+    : undefined
+  if (archivePath && !existsSync(archivePath)) {
+    mkdirSync(archivePath, { recursive: true })
+  }
+
+  for (const staleRun of removed) {
+    const runFilename = `benchmark-${staleRun.id}.json`
+    const runPath = join(dataDir, runFilename)
+    if (!existsSync(runPath)) continue
+
+    if (archivePath) {
+      renameSync(runPath, join(archivePath, runFilename))
+    } else {
+      rmSync(runPath)
+    }
+  }
+
+  return kept
+}
+
 export function writeRunManifest(manifest: RunManifestV2) {
   const dataDir = ensureDataDir()
   const runPath = join(dataDir, `benchmark-${manifest.runId}.json`)
   writeFileSync(runPath, JSON.stringify(manifest, null, 2), "utf-8")
 }
 
-export function publishLatest(manifest: RunManifestV2) {
+export function publishLatest(manifest: RunManifestV2, options: RetentionOptions = {}) {
   const dataDir = ensureDataDir()
   const latestPath = join(dataDir, "benchmark-results.json")
   writeFileSync(latestPath, JSON.stringify(manifest, null, 2), "utf-8")
@@ -65,12 +111,14 @@ export function publishLatest(manifest: RunManifestV2) {
     summary: manifest.summary,
   }
 
-  const existingIndex = index.findIndex((entry) => entry.id === item.id)
+  const nextIndex = [...index]
+  const existingIndex = nextIndex.findIndex((entry) => entry.id === item.id)
   if (existingIndex >= 0) {
-    index[existingIndex] = item
+    nextIndex[existingIndex] = item
   } else {
-    index.unshift(item)
+    nextIndex.unshift(item)
   }
 
-  writeFileSync(indexPath, JSON.stringify(index, null, 2), "utf-8")
+  const prunedIndex = pruneRunFiles(nextIndex, dataDir, options)
+  writeFileSync(indexPath, JSON.stringify(prunedIndex, null, 2), "utf-8")
 }
