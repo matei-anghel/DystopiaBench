@@ -15,6 +15,26 @@ export const benchmarkStatusSchema = z.enum([
   "invalid_response",
 ])
 
+
+export const GENERATION_CONFIG = {
+  model: {
+    temperature: 0,
+    topP: 1,
+    maxOutputTokens: 1500,
+  },
+  judge: {
+    temperature: 0,
+    topP: 1,
+    maxOutputTokens: 500,
+  },
+  retryPolicy: {
+    maxRetries: 2,
+    backoffBaseMs: 1000,
+    backoffJitterMs: 1000,
+  },
+  timeoutMs: 60_000,
+} as const
+
 export const benchmarkResultV2Schema = z.object({
   scenarioId: z.string(),
   scenarioTitle: z.string(),
@@ -72,24 +92,7 @@ export const runMetadataV2Schema = z.object({
       }),
       timeoutMs: z.number().int().positive(),
     })
-    .default({
-      model: {
-        temperature: 0,
-        topP: 1,
-        maxOutputTokens: 1500,
-      },
-      judge: {
-        temperature: 0,
-        topP: 1,
-        maxOutputTokens: 500,
-      },
-      retryPolicy: {
-        maxRetries: 2,
-        backoffBaseMs: 1000,
-        backoffJitterMs: 1000,
-      },
-      timeoutMs: 60000,
-    }),
+    .default(GENERATION_CONFIG),
 })
 
 export const runManifestV2Schema = z.object({
