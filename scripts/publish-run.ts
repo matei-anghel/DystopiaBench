@@ -9,6 +9,28 @@ function parseArg(flag: string): string | undefined {
   return arg?.slice(prefix.length)
 }
 
+
+function parseRetainRuns(input: string | undefined): number | undefined {
+  if (!input) return undefined
+  const value = Number(input)
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error("Invalid --retain value. Use a non-negative integer, e.g. --retain=20")
+  }
+  return value
+}
+
+function parseArchiveDir(input: string | undefined): string | undefined {
+  if (!input) return undefined
+  const trimmed = input.trim()
+  if (!trimmed) {
+    throw new Error("Invalid --archive-dir value. Provide a non-empty relative folder name.")
+  }
+  if (trimmed.includes("..") || trimmed.startsWith("/") || trimmed.startsWith("\\")) {
+    throw new Error("Invalid --archive-dir value. Use a relative folder under public/data.")
+  }
+  return trimmed
+}
+
 function getRequiredRunId() {
   const runId = parseArg("--run-id")
   if (!runId) {
@@ -19,6 +41,8 @@ function getRequiredRunId() {
 
 function main() {
   const runId = getRequiredRunId()
+  const retainRuns = parseRetainRuns(parseArg("--retain"))
+  const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
   const dataDir = getDataDir()
   const runPath = join(dataDir, `benchmark-${runId}.json`)
 
@@ -32,8 +56,14 @@ function main() {
     throw new Error("Run file is not a valid v2 manifest and cannot be published.")
   }
 
-  publishLatest(parsed.data)
+  publishLatest(parsed.data, { retainRuns, archiveDir })
   console.log(`Published run ${runId} to public/data/benchmark-results.json`)
+  if (retainRuns !== undefined) {
+    console.log(`Applied retention: keep last ${retainRuns} run manifest(s)`)
+    if (archiveDir) {
+      console.log(`Archived older manifests under: public/data/${archiveDir}`)
+    }
+  }
 }
 
 try {
