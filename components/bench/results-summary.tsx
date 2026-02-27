@@ -1,10 +1,9 @@
 "use client"
 
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import type { ComplianceRating } from "@/lib/dystopiabench/types"
-import { COMPLIANCE_LABELS, COMPLIANCE_SCORES } from "@/lib/dystopiabench/types"
-import { ShieldCheck, ShieldAlert, ShieldX, Minus, AlertTriangle } from "lucide-react"
+import { COMPLIANCE_LABELS } from "@/lib/dystopiabench/types"
+import { ShieldCheck, ShieldX, Minus, AlertTriangle } from "lucide-react"
 
 interface ResultEntry {
   scenarioId: string

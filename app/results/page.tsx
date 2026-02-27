@@ -1,48 +1,112 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { BenchHeader } from "@/components/bench/header"
 import { AggregateCharts } from "@/components/bench/charts/aggregate-charts"
 import { ModuleCharts } from "@/components/bench/charts/module-charts"
 import { ScenarioCharts } from "@/components/bench/charts/scenario-charts"
 import { PromptCharts } from "@/components/bench/charts/prompt-charts"
-import { MOCK_RESULTS } from "@/lib/dystopiabench/mock-data"
+import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
+import { useBenchmarkData } from "@/hooks/use-benchmark-data"
+import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { Database } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const TABS = [
-  { id: "aggregate", label: "Aggregate",   sub: "All models · Both modules" },
-  { id: "petrov",    label: "Petrov",       sub: "Nuclear · Weapons · Strikes" },
-  { id: "orwell",    label: "Orwell",       sub: "Surveillance · Control · Censorship" },
-  { id: "scenario",  label: "Per Scenario", sub: "10 scenarios · Model × Scenario grid" },
-  { id: "prompt",    label: "Per Prompt",   sub: "L1–L5 escalation · Deep dive" },
+  { id: "aggregate", label: "Aggregate", sub: "All models - Both modules" },
+  { id: "petrov", label: "Petrov", sub: "Nuclear - Weapons - Strikes" },
+  { id: "orwell", label: "Orwell", sub: "Surveillance - Control - Censorship" },
+  { id: "scenario", label: "Per Scenario", sub: "10 scenarios - Model x Scenario grid" },
+  { id: "prompt", label: "Per Prompt", sub: "L1-L5 escalation - Deep dive" },
 ] as const
 
-type TabId = typeof TABS[number]["id"]
+type TabId = (typeof TABS)[number]["id"]
+
+function normalizeSelection(selected: string[], available: string[]): string[] {
+  const next = selected.filter((id) => available.includes(id))
+  return next.length > 0 ? next : available
+}
 
 export default function ResultsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("aggregate")
+  const { dataSource, results, runs, selectedRunId, setSelectedRunId, manifest } = useBenchmarkData()
+  const availableModelIds = useMemo(
+    () => AVAILABLE_MODELS.map((model) => model.id).filter((id) => results.some((row) => row.modelId === id)),
+    [results],
+  )
+  const [rawSelectedModelIds, setRawSelectedModelIds] = useState<string[]>([])
+  const selectedModelIds = useMemo(
+    () => normalizeSelection(rawSelectedModelIds, availableModelIds),
+    [availableModelIds, rawSelectedModelIds],
+  )
+
+  const filteredResults = useMemo(() => {
+    const selectedSet = new Set(selectedModelIds)
+    return results.filter((row) => selectedSet.has(row.modelId))
+  }, [results, selectedModelIds])
+
+  const modelCount = selectedModelIds.length
+  const scenarioCount = new Set(filteredResults.map((r) => r.scenarioId)).size
+
+  const toggleModel = (modelId: string) => {
+    setRawSelectedModelIds((current) => {
+      const next = normalizeSelection(current, availableModelIds)
+      if (!next.includes(modelId)) return [...next, modelId]
+      if (next.length === 1) return next
+      return next.filter((id) => id !== modelId)
+    })
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <BenchHeader />
       <main className="mx-auto max-w-7xl px-6 py-10">
-
-        {/* Page heading */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 border border-primary/20">
-            <Database className="h-5 w-5 text-primary" />
+        <div className="flex items-center justify-between gap-3 mb-8 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 border border-primary/20">
+              <Database className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="font-mono text-xl font-black tracking-wider text-foreground uppercase">
+                Benchmark Results
+              </h1>
+              <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
+                {dataSource === "real" ? "Real run data" : "Mock data fallback"} -{" "}
+                {filteredResults.length.toLocaleString()} tests - {modelCount}/{availableModelIds.length} models - {scenarioCount} scenarios
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-mono text-xl font-black tracking-wider text-foreground uppercase">
-              Benchmark Results
-            </h1>
-            <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
-              Mock data · {MOCK_RESULTS.length.toLocaleString()} tests · 9 models · 10 scenarios · 5 levels
-            </p>
+
+          <div className="flex items-center gap-2">
+            <Select value={selectedRunId} onValueChange={(value) => void setSelectedRunId(value)}>
+              <SelectTrigger className="w-[240px] h-8 text-xs font-mono">
+                <SelectValue placeholder="Select a run" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="latest">Latest Run</SelectItem>
+                {runs.map((run) => (
+                  <SelectItem key={run.id} value={run.id}>
+                    {new Date(run.timestamp).toLocaleString()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        {/* Tab bar */}
+        {manifest ? (
+          <p className="font-mono text-[10px] text-muted-foreground mb-6 uppercase">
+            Run {manifest.runId} - judge {manifest.metadata.judgeModel} - avg DCS {manifest.summary.averageDcs}
+          </p>
+        ) : null}
+
+        <ModelVisibilityControls
+          modelIds={availableModelIds}
+          selectedModelIds={selectedModelIds}
+          onToggleModel={toggleModel}
+          onSelectAll={() => setRawSelectedModelIds(availableModelIds)}
+        />
+
         <div className="flex gap-1.5 mb-8 overflow-x-auto pb-1">
           {TABS.map((tab) => (
             <button
@@ -54,28 +118,27 @@ export default function ResultsPage() {
                   : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-muted-foreground/40"
               }`}
             >
-              <span className="font-mono text-xs font-bold tracking-wide uppercase">
-                {tab.label}
-              </span>
-              <span className={`font-mono text-[9px] mt-0.5 ${
-                activeTab === tab.id ? "text-primary/70" : "text-muted-foreground"
-              }`}>
+              <span className="font-mono text-xs font-bold tracking-wide uppercase">{tab.label}</span>
+              <span
+                className={`font-mono text-[9px] mt-0.5 ${
+                  activeTab === tab.id ? "text-primary/70" : "text-muted-foreground"
+                }`}
+              >
                 {tab.sub}
               </span>
             </button>
           ))}
         </div>
 
-        {/* Tab content */}
-        {activeTab === "aggregate" && <AggregateCharts />}
-        {activeTab === "petrov"    && <ModuleCharts module="petrov" />}
-        {activeTab === "orwell"    && <ModuleCharts module="orwell" />}
-        {activeTab === "scenario"  && <ScenarioCharts />}
-        {activeTab === "prompt"    && <PromptCharts />}
+        {activeTab === "aggregate" && <AggregateCharts results={filteredResults} dataSource={dataSource} />}
+        {activeTab === "petrov" && <ModuleCharts module="petrov" results={filteredResults} selectedModelIds={selectedModelIds} />}
+        {activeTab === "orwell" && <ModuleCharts module="orwell" results={filteredResults} selectedModelIds={selectedModelIds} />}
+        {activeTab === "scenario" && <ScenarioCharts results={filteredResults} selectedModelIds={selectedModelIds} />}
+        {activeTab === "prompt" && <PromptCharts results={filteredResults} selectedModelIds={selectedModelIds} />}
 
         <footer className="mt-14 border-t border-border pt-6 pb-8">
           <p className="font-mono text-[10px] tracking-wider text-muted-foreground text-center uppercase">
-            DystopiaBench v1.0 · Mock Data · For AI Safety Research Purposes Only
+            DystopiaBench v1.0 - Research use only
           </p>
         </footer>
       </main>
