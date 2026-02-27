@@ -134,11 +134,19 @@ export default function DashboardPage() {
                         ))}
                       </div>
                       <div
-                        className="flex items-end justify-between gap-4 px-4 flex-1"
+                        className="relative flex items-end justify-between gap-4 px-4 flex-1"
                         style={{ height: CHART_H }}
                       >
+                        {/* Horizontal gridlines at each tick */}
+                        {ticks.map((t) => (
+                          <div
+                            key={t}
+                            className="absolute left-0 right-0 border-t border-border/60 pointer-events-none z-0"
+                            style={{ bottom: `${toBarPct(t)}%` }}
+                          />
+                        ))}
                         {AGGREGATE_RESULTS.map((item) => (
-                          <div key={item.model} className="flex-1 flex flex-col items-center group h-full">
+                          <div key={item.model} className="relative flex-1 flex flex-col items-center group h-full z-10">
                             <div className="relative w-full flex flex-col items-center justify-end h-full">
                               <div
                                 className="relative w-full max-w-[80px] bg-destructive/80 group-hover:bg-destructive transition-all duration-700 ease-out rounded-t-sm overflow-visible"
