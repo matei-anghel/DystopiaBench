@@ -1,64 +1,30 @@
-"use client"
-
-import { useState } from "react"
-import Link from "next/link"
 import { BenchHeader } from "@/components/bench/header"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { ModuleOverview } from "@/components/bench/module-overview"
-import { AggregateCharts } from "@/components/bench/charts/aggregate-charts"
-import { ModuleCharts } from "@/components/bench/charts/module-charts"
-import { ScenarioCharts } from "@/components/bench/charts/scenario-charts"
-import { PromptCharts } from "@/components/bench/charts/prompt-charts"
-import { PETROV_SCENARIOS, ORWELL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
-import { MOCK_RESULTS } from "@/lib/dystopiabench/mock-data"
+import { DashboardTabs } from "@/components/bench/dashboard-tabs"
+import { getBenchmarkData } from "@/lib/dystopiabench/data-fetcher"
+import { getAggregateByModel } from "@/lib/dystopiabench/mock-data"
+import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import {
   Radiation,
-  Eye,
-  AlertTriangle,
-  Crosshair,
-  MonitorSpeaker,
-  Scale,
   Mail,
   Github,
   FileText,
   Download,
   BarChart3,
-  Database,
   Layers,
 } from "lucide-react"
 
-const petrovCategories = [...new Set(PETROV_SCENARIOS.map((s) => s.category))]
-const orwellCategories = [...new Set(ORWELL_SCENARIOS.map((s) => s.category))]
+export default async function DashboardPage() {
+  const { results, dataSource } = await getBenchmarkData()
+  const availableModelIds = AVAILABLE_MODELS.map((model) => model.id).filter((id) => results.some((row) => row.modelId === id))
 
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  "Nuclear Safety": <Radiation className="h-3.5 w-3.5" />,
-  "Autonomous Weapons": <Crosshair className="h-3.5 w-3.5" />,
-  "Preemptive Strikes": <Scale className="h-3.5 w-3.5" />,
-  Surveillance: <Eye className="h-3.5 w-3.5" />,
-  "Population Control": <MonitorSpeaker className="h-3.5 w-3.5" />,
-  Censorship: <MonitorSpeaker className="h-3.5 w-3.5" />,
-}
-
-const AGGREGATE_RESULTS = [
-  { model: "GPT 5.3", score: 53, provider: "OpenAI" },
-  { model: "Opus 4.6", score: 46, provider: "Anthropic" },
-  { model: "Gemini 3.1", score: 31, provider: "Google" },
-  { model: "DeepSeek V3.2", score: 60, provider: "DeepSeek" },
-]
-
-const RESULT_TABS = [
-  { id: "aggregate", label: "Aggregate", sub: "All models · Both modules" },
-  { id: "petrov", label: "Petrov", sub: "Nuclear · Weapons · Strikes" },
-  { id: "orwell", label: "Orwell", sub: "Surveillance · Control · Censorship" },
-  { id: "scenario", label: "Per Scenario", sub: "10 scenarios · Model × Scenario grid" },
-  { id: "prompt", label: "Per Prompt", sub: "L1–L5 escalation · Deep dive" },
-] as const
-
-type TabId = typeof RESULT_TABS[number]["id"]
-
-export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<TabId>("aggregate")
+  const modelCount = availableModelIds.length
+  const scenarioCount = new Set(results.map((r) => r.scenarioId)).size
+  const heroAggregate = getAggregateByModel(results).slice(0, 4).map((entry) => ({
+    model: entry.label,
+    score: entry.avgScore,
+    provider: entry.provider,
+  }))
 
   return (
     <div className="min-h-screen bg-background scanline">
@@ -90,14 +56,13 @@ export default function DashboardPage() {
             <div className="flex flex-wrap gap-4">
               <a
                 href="#results"
-                onClick={(e) => { e.preventDefault(); document.getElementById("results")?.scrollIntoView({ behavior: "smooth" }) }}
                 className="inline-flex items-center gap-2 rounded-md bg-destructive px-6 py-3 font-mono text-sm font-bold tracking-wider text-destructive-foreground uppercase transition-all hover:bg-destructive/90 hover:scale-[1.02] active:scale-[0.98] glow-danger"
               >
                 <BarChart3 className="h-4 w-4" />
                 Explore Results
               </a>
               <a
-                href="#"
+                href="/results"
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 font-mono text-sm font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50 hover:border-primary/50"
               >
                 <FileText className="h-4 w-4" />
@@ -112,7 +77,16 @@ export default function DashboardPage() {
               {(() => {
                 const CHART_H = 256
                 const NUM_TICKS = 5
-                const scores = AGGREGATE_RESULTS.map((r) => r.score)
+                const scores = heroAggregate.map((r) => r.score)
+                if (scores.length === 0) {
+                  return (
+                    <div className="flex h-64 items-center justify-center rounded-md border border-border bg-card/40 px-6 text-center">
+                      <p className="font-mono text-xs text-muted-foreground uppercase">
+                        No benchmark data available
+                      </p>
+                    </div>
+                  )
+                }
                 const rawMin = Math.min(...scores)
                 const scaleMax = 100
                 const scaleMin = Math.max(0, Math.floor((rawMin - 10) / 5) * 5)
@@ -146,7 +120,7 @@ export default function DashboardPage() {
                             style={{ bottom: `${toBarPct(t)}%` }}
                           />
                         ))}
-                        {AGGREGATE_RESULTS.map((item) => (
+                        {heroAggregate.map((item) => (
                           <div key={item.model} className="relative flex-1 flex flex-col items-center group h-full z-10">
                             <div className="relative w-full flex flex-col items-center justify-end h-full">
                               <div
@@ -169,7 +143,7 @@ export default function DashboardPage() {
                     <div className="flex mt-3">
                       <div className="w-12 shrink-0 pr-4" />
                       <div className="flex justify-between gap-4 px-4 flex-1">
-                        {AGGREGATE_RESULTS.map((item) => (
+                        {heroAggregate.map((item) => (
                           <div key={item.model} className="flex-1 flex flex-col items-center text-center">
                             <span className="font-mono text-[10px] font-bold text-foreground leading-tight uppercase line-clamp-1">
                               {item.model.split(' ')[0]}
@@ -248,50 +222,13 @@ export default function DashboardPage() {
 
         {/* ── Results Section ───────────────────────────────── */}
         <section id="results" className="mb-24 scroll-mt-20">
-
-          {/* Heading */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 border border-primary/20">
-              <Database className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-mono text-xl font-black tracking-wider text-foreground uppercase">
-                Benchmark Results
-              </p>
-              <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
-                Mock data · {MOCK_RESULTS.length.toLocaleString()} tests · 9 models · 10 scenarios · 5 levels
-              </p>
-            </div>
-          </div>
-
-          {/* Tab bar */}
-          <div className="flex gap-1.5 mb-8 overflow-x-auto pb-1">
-            {RESULT_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`shrink-0 flex flex-col items-start rounded-md border px-4 py-2.5 transition-colors ${activeTab === tab.id
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-muted-foreground/40"
-                  }`}
-              >
-                <span className="font-mono text-xs font-bold tracking-wide uppercase">
-                  {tab.label}
-                </span>
-                <span className={`font-mono text-[9px] mt-0.5 ${activeTab === tab.id ? "text-primary/70" : "text-muted-foreground"
-                  }`}>
-                  {tab.sub}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content */}
-          {activeTab === "aggregate" && <AggregateCharts />}
-          {activeTab === "petrov" && <ModuleCharts module="petrov" />}
-          {activeTab === "orwell" && <ModuleCharts module="orwell" />}
-          {activeTab === "scenario" && <ScenarioCharts />}
-          {activeTab === "prompt" && <PromptCharts />}
+          <DashboardTabs
+            results={results}
+            dataSource={dataSource}
+            modelCount={modelCount}
+            scenarioCount={scenarioCount}
+            availableModelIds={availableModelIds}
+          />
         </section>
 
         {/* ── Get Involved / Contact ────────────────────────── */}
@@ -348,7 +285,7 @@ export default function DashboardPage() {
                     Request Dataset
                   </a>
                   <a
-                    href="#"
+                    href="/results"
                     className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card px-5 py-3 font-mono text-xs font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50"
                   >
                     <FileText className="h-3.5 w-3.5" />
@@ -358,28 +295,33 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        </section>
+        </section >
 
         {/* ── Footer ───────────────────────────────────────── */}
-        <footer className="border-t border-border pt-6 pb-6">
+        < footer className="border-t border-border pt-6 pb-6" >
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <p className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
               © 2026 DystopiaBench. Open source safety research.
             </p>
             <div className="flex gap-8">
-              {["Methodology", "Cite", "License"].map((link) => (
+              {[
+                { label: "Methodology", href: "/#methodology" },
+                { label: "Results", href: "/results" },
+                { label: "Run (Local)", href: "/run" },
+              ].map((link) => (
                 <a
-                  key={link}
-                  href="#"
+                  key={link.label}
+                  href={link.href}
                   className="font-mono text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors uppercase border-b border-transparent hover:border-muted-foreground/30"
                 >
-                  {link}
+                  {link.label}
                 </a>
               ))}
             </div>
           </div>
-        </footer>
-      </main>
-    </div>
+        </footer >
+      </main >
+    </div >
   )
 }
+

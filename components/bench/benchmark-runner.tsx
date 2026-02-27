@@ -1,282 +1,77 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useMemo, useState } from "react"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import { ALL_SCENARIOS, PETROV_SCENARIOS, ORWELL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
-import type {
-  Module,
-  EscalationLevel,
-  ScenarioResult,
-  ComplianceRating,
-  BenchmarkRun,
-} from "@/lib/dystopiabench/types"
-import { COMPLIANCE_LABELS, COMPLIANCE_SCORES } from "@/lib/dystopiabench/types"
+import { ALL_SCENARIOS, ORWELL_SCENARIOS, PETROV_SCENARIOS } from "@/lib/dystopiabench/scenarios"
+import type { EscalationLevel, Module } from "@/lib/dystopiabench/types"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Button } from "@/components/ui/button"
-import {
-  AlertTriangle,
-  Play,
-  Square,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react"
-
-type RunStatus = "idle" | "running" | "completed" | "failed"
-type SaveStatus = "idle" | "saving" | "saved" | "error"
-
-interface RunResult {
-  scenarioId: string
-  scenarioTitle: string
-  modelId: string
-  modelLabel: string
-  level: EscalationLevel
-  response: string
-  compliance: ComplianceRating
-  score: number
-}
+import { AlertTriangle, Terminal } from "lucide-react"
 
 export function BenchmarkRunner() {
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [selectedModule, setSelectedModule] = useState<Module | "both">("both")
   const [selectedLevels, setSelectedLevels] = useState<EscalationLevel[]>([1, 2, 3, 4, 5])
-  const [status, setStatus] = useState<RunStatus>("idle")
-  const [results, setResults] = useState<RunResult[]>([])
-  const [progress, setProgress] = useState({ current: 0, total: 0, label: "" })
-  const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set())
-  const [abortController, setAbortController] = useState<AbortController | null>(null)
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
 
   const toggleModel = (id: string) => {
-    setSelectedModels((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
-    )
+    setSelectedModels((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
   }
 
   const toggleLevel = (level: EscalationLevel) => {
     setSelectedLevels((prev) =>
-      prev.includes(level)
-        ? prev.filter((l) => l !== level)
-        : [...prev, level].sort()
+      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level].sort()
     )
   }
 
-  const toggleResultExpand = (key: string) => {
-    setExpandedResults((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) {
-        next.delete(key)
-      } else {
-        next.add(key)
-      }
-      return next
-    })
-  }
+  const scenarioCount = useMemo(() => {
+    if (selectedModule === "petrov") return PETROV_SCENARIOS.length
+    if (selectedModule === "orwell") return ORWELL_SCENARIOS.length
+    return ALL_SCENARIOS.length
+  }, [selectedModule])
 
-  const getScenarios = () => {
-    if (selectedModule === "petrov") return PETROV_SCENARIOS
-    if (selectedModule === "orwell") return ORWELL_SCENARIOS
-    return ALL_SCENARIOS
-  }
+  const totalPrompts = selectedModels.length * selectedLevels.length * scenarioCount
 
-  const runBenchmark = useCallback(async () => {
-    const scenarios = getScenarios()
-    const models = AVAILABLE_MODELS.filter((m) => selectedModels.includes(m.id))
-
-    if (models.length === 0 || selectedLevels.length === 0) return
-
-    const controller = new AbortController()
-    setAbortController(controller)
-    setStatus("running")
-    setResults([])
-
-    const totalRuns = scenarios.length * models.length * selectedLevels.length
-    setProgress({ current: 0, total: totalRuns, label: "Starting..." })
-
-    let current = 0
-
-    try {
-      for (const scenario of scenarios) {
-        for (const model of models) {
-          for (const level of selectedLevels) {
-            if (controller.signal.aborted) throw new Error("Aborted")
-
-            const prompt = scenario.escalationPrompts.find((p) => p.level === level)
-            if (!prompt) continue
-
-            setProgress({
-              current,
-              total: totalRuns,
-              label: `${model.label} / ${scenario.id} / L${level}`,
-            })
-
-            try {
-              const res = await fetch("/api/bench", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  modelString: model.modelString,
-                  prompt: prompt.prompt,
-                  scenarioId: scenario.id,
-                }),
-                signal: controller.signal,
-              })
-
-              if (!res.ok) {
-                const errorData = await res.json().catch(() => ({ error: "Unknown error" }))
-                setResults((prev) => [
-                  ...prev,
-                  {
-                    scenarioId: scenario.id,
-                    scenarioTitle: scenario.title,
-                    modelId: model.id,
-                    modelLabel: model.label,
-                    level,
-                    response: `Error: ${errorData.error || res.statusText}`,
-                    compliance: "principled_refusal" as ComplianceRating,
-                    score: 0,
-                  },
-                ])
-              } else {
-                const data = await res.json()
-                setResults((prev) => [
-                  ...prev,
-                  {
-                    scenarioId: scenario.id,
-                    scenarioTitle: scenario.title,
-                    modelId: model.id,
-                    modelLabel: model.label,
-                    level,
-                    response: data.response,
-                    compliance: data.compliance,
-                    score: COMPLIANCE_SCORES[data.compliance as ComplianceRating] ?? 0,
-                  },
-                ])
-              }
-            } catch (err: unknown) {
-              if (err instanceof Error && err.name === "AbortError") throw err
-              setResults((prev) => [
-                ...prev,
-                {
-                  scenarioId: scenario.id,
-                  scenarioTitle: scenario.title,
-                  modelId: model.id,
-                  modelLabel: model.label,
-                  level,
-                  response: `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
-                  compliance: "principled_refusal" as ComplianceRating,
-                  score: 0,
-                },
-              ])
-            }
-
-            current++
-            setProgress({
-              current,
-              total: totalRuns,
-              label: `${model.label} / ${scenario.id} / L${level}`,
-            })
-          }
-        }
-      }
-
-      setStatus("completed")
-
-      // Auto-save results to disk
-      try {
-        setSaveStatus("saving")
-        const allResults = [...results]
-        // We need to get the final results from the last setResults call.
-        // Use the current value via a ref-like approach:
-        setResults((prev) => {
-          // Save the fully accumulated results
-          fetch("/api/bench/save", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              results: prev,
-              metadata: {
-                module: selectedModule,
-                models: selectedModels,
-                levels: selectedLevels,
-                totalPrompts: totalRuns,
-              },
-            }),
-          })
-            .then((r) => r.json())
-            .then((data) => {
-              if (data.saved) {
-                setSaveStatus("saved")
-              } else {
-                setSaveStatus("error")
-              }
-            })
-            .catch(() => setSaveStatus("error"))
-          return prev
-        })
-      } catch {
-        setSaveStatus("error")
-      }
-    } catch {
-      setStatus("failed")
-    } finally {
-      setAbortController(null)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedModels, selectedModule, selectedLevels])
-
-  const stopBenchmark = () => {
-    abortController?.abort()
-    setStatus("failed")
-  }
-
-  const complianceColor = (c: ComplianceRating) => {
-    switch (c) {
-      case "principled_refusal": return "text-accent"
-      case "evasive_refusal": return "text-chart-2"
-      case "partial_compliance": return "text-warning"
-      case "full_compliance": return "text-destructive"
-    }
-  }
+  const runCommand = useMemo(() => {
+    if (selectedModels.length === 0) return "Select at least one model."
+    const modelsArg = selectedModels.join(",")
+    const levelsArg = selectedLevels.join(",")
+    return `pnpm bench:run --module=${selectedModule} --models=${modelsArg} --levels=${levelsArg}`
+  }, [selectedModels, selectedLevels, selectedModule])
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Control Panel */}
       <Card className="bg-card border-border p-6">
         <div className="flex items-center gap-2 mb-6">
           <AlertTriangle className="h-4 w-4 text-primary" />
           <h2 className="font-mono text-sm font-bold tracking-wider text-foreground uppercase">
-            Benchmark Configuration
+            Local Benchmark Runner
           </h2>
         </div>
 
-        {/* Module Selection */}
+        <p className="font-mono text-xs text-muted-foreground mb-6">
+          This page only builds commands. It never calls model APIs directly from the browser.
+        </p>
+
         <div className="mb-6">
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
             Module
           </label>
           <div className="flex gap-2">
-            {(["both", "petrov", "orwell"] as const).map((mod) => (
+            {(["both", "petrov", "orwell"] as const).map((moduleOption) => (
               <button
-                key={mod}
-                onClick={() => setSelectedModule(mod)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors uppercase ${selectedModule === mod
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
+                key={moduleOption}
+                onClick={() => setSelectedModule(moduleOption)}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors uppercase ${
+                  selectedModule === moduleOption
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}
               >
-                {mod === "both" ? "Both Modules" : `${mod} Module`}
+                {moduleOption === "both" ? "Both Modules" : `${moduleOption} Module`}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Escalation Levels */}
         <div className="mb-6">
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
             Escalation Levels
@@ -286,10 +81,11 @@ export function BenchmarkRunner() {
               <button
                 key={level}
                 onClick={() => toggleLevel(level)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedLevels.includes(level)
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
+                  selectedLevels.includes(level)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}
               >
                 L{level}
               </button>
@@ -297,7 +93,6 @@ export function BenchmarkRunner() {
           </div>
         </div>
 
-        {/* Model Selection */}
         <div className="mb-6">
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
             Models ({selectedModels.length} selected)
@@ -307,10 +102,11 @@ export function BenchmarkRunner() {
               <button
                 key={model.id}
                 onClick={() => toggleModel(model.id)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedModels.includes(model.id)
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
+                  selectedModels.includes(model.id)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}
               >
                 <span className="opacity-50 mr-1">{model.provider}/</span>
                 {model.label}
@@ -319,142 +115,33 @@ export function BenchmarkRunner() {
           </div>
         </div>
 
-        {/* Run Controls */}
-        <div className="flex items-center gap-4">
-          {status === "running" ? (
-            <Button
-              onClick={stopBenchmark}
-              variant="destructive"
-              className="font-mono text-xs tracking-wider uppercase gap-2"
-            >
-              <Square className="h-3 w-3" />
-              Abort
-            </Button>
-          ) : (
-            <Button
-              onClick={runBenchmark}
-              disabled={selectedModels.length === 0 || selectedLevels.length === 0}
-              className="font-mono text-xs tracking-wider uppercase gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Play className="h-3 w-3" />
-              Run Benchmark
-            </Button>
-          )}
-          {status !== "idle" && (
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  {progress.label}
-                </span>
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  {progress.current}/{progress.total}
-                </span>
-              </div>
-              <Progress
-                value={(progress.current / Math.max(progress.total, 1)) * 100}
-              />
-            </div>
-          )}
-          {status === "completed" && (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 text-accent">
-                <CheckCircle2 className="h-4 w-4" />
-                <span className="font-mono text-xs">Complete</span>
-              </div>
-              {saveStatus === "saving" && (
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span className="font-mono text-[10px]">Saving...</span>
-                </div>
-              )}
-              {saveStatus === "saved" && (
-                <div className="flex items-center gap-1 text-accent">
-                  <CheckCircle2 className="h-3 w-3" />
-                  <span className="font-mono text-[10px]">Results saved to disk</span>
-                </div>
-              )}
-              {saveStatus === "error" && (
-                <div className="flex items-center gap-1 text-destructive">
-                  <XCircle className="h-3 w-3" />
-                  <span className="font-mono text-[10px]">Save failed</span>
-                </div>
-              )}
-            </div>
-          )}
-          {status === "failed" && (
-            <div className="flex items-center gap-1 text-destructive">
-              <XCircle className="h-4 w-4" />
-              <span className="font-mono text-xs">Stopped</span>
-            </div>
-          )}
+        <div className="rounded-md border border-border bg-muted/30 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Terminal className="h-4 w-4 text-primary" />
+            <p className="font-mono text-xs font-bold uppercase">Generated Command</p>
+          </div>
+          <code className="block whitespace-pre-wrap font-mono text-xs text-foreground">{runCommand}</code>
         </div>
       </Card>
 
-      {/* Live Results */}
-      {results.length > 0 && (
-        <Card className="bg-card border-border overflow-hidden">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h3 className="font-mono text-xs font-bold tracking-wider text-foreground uppercase">
-              Results ({results.length})
-            </h3>
-            {status === "running" && (
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            )}
-          </div>
-          <ScrollArea className="max-h-[600px] overflow-y-auto">
-            <div className="divide-y divide-border">
-              {results.map((r, i) => {
-                const key = `${r.scenarioId}-${r.modelId}-${r.level}-${i}`
-                const isExpanded = expandedResults.has(key)
-
-                return (
-                  <div key={key} className="p-4">
-                    <button
-                      onClick={() => toggleResultExpand(key)}
-                      className="w-full flex items-center justify-between gap-3 text-left"
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <span className="font-mono text-[10px] text-muted-foreground shrink-0 w-20">
-                          {r.scenarioId}
-                        </span>
-                        <Badge variant="outline" className="font-mono text-[10px] shrink-0">
-                          {r.modelLabel}
-                        </Badge>
-                        <span className="font-mono text-[10px] text-muted-foreground shrink-0">
-                          L{r.level}
-                        </span>
-                        <span className={`font-mono text-[10px] font-bold ${complianceColor(r.compliance)}`}>
-                          {COMPLIANCE_LABELS[r.compliance]}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`font-mono text-sm font-bold ${complianceColor(r.compliance)}`}>
-                          {r.score}
-                        </span>
-                        {isExpanded ? (
-                          <ChevronUp className="h-3 w-3 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                        )}
-                      </div>
-                    </button>
-                    {isExpanded && (
-                      <div className="mt-3 rounded-md bg-muted/50 p-3">
-                        <p className="font-mono text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">
-                          Model Response
-                        </p>
-                        <p className="text-xs leading-relaxed text-secondary-foreground whitespace-pre-wrap">
-                          {r.response}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </ScrollArea>
-        </Card>
-      )}
+      <Card className="bg-card border-border p-6">
+        <h3 className="font-mono text-sm font-bold tracking-wider text-foreground uppercase mb-4">
+          Run Steps
+        </h3>
+        <ol className="font-mono text-xs text-muted-foreground space-y-2 list-decimal pl-4">
+          <li>Put your key in `.env.local` as `OPENROUTER_API_KEY=...`.</li>
+          <li>Run the generated command from your terminal.</li>
+          <li>
+            Optional: publish a specific run as latest with
+            {" "}
+            <code>pnpm bench:publish --run-id=&lt;run-id&gt;</code>.
+          </li>
+        </ol>
+        <p className="font-mono text-[10px] mt-4 text-muted-foreground uppercase">
+          Selected workload: {scenarioCount} scenarios x {selectedLevels.length} levels x{" "}
+          {selectedModels.length} models = {totalPrompts} prompts
+        </p>
+      </Card>
     </div>
   )
 }
