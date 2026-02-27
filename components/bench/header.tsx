@@ -17,6 +17,7 @@ const NAV_LINKS = [
 export function BenchHeader() {
   const pathname = usePathname()
   const isHome = pathname === "/"
+  const isProduction = process.env.NODE_ENV === "production"
   const isLocalhost = useSyncExternalStore(
     () => () => {},
     () =>
@@ -55,7 +56,7 @@ export function BenchHeader() {
               {link.label}
             </a>
           ))}
-          {isLocalhost && (
+          {isLocalhost && !isProduction && (
             <Link
               href="/run"
               className="ml-2 flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/20 px-3 py-1.5 font-mono text-xs font-medium tracking-wide text-primary transition-colors hover:bg-primary/20 uppercase"
