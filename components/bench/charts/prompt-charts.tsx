@@ -29,7 +29,7 @@ function buildPromptData(scenarioId: string) {
 
     const modelScores = AVAILABLE_MODELS.map((m) => {
       const r = scenarioResults.find((r) => r.modelId === m.id && r.level === level)
-      return { modelId: m.id, label: m.label, score: r?.score ?? 0, compliance: r?.compliance ?? "full_refusal" }
+      return { modelId: m.id, label: m.label, score: r?.score ?? 0, compliance: r?.compliance ?? "principled_refusal" }
     })
 
     return {
@@ -216,11 +216,10 @@ function ScenarioPromptDrillDown() {
             <button
               key={s.id}
               onClick={() => setSelectedId(s.id)}
-              className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
-                selectedId === s.id
+              className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedId === s.id
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               {s.module === "petrov"
                 ? <Radiation className="h-3 w-3" />

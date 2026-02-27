@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 
 type RunStatus = "idle" | "running" | "completed" | "failed"
+type SaveStatus = "idle" | "saving" | "saved" | "error"
 
 interface RunResult {
   scenarioId: string
@@ -49,6 +50,7 @@ export function BenchmarkRunner() {
   const [progress, setProgress] = useState({ current: 0, total: 0, label: "" })
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set())
   const [abortController, setAbortController] = useState<AbortController | null>(null)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
 
   const toggleModel = (id: string) => {
     setSelectedModels((prev) =>
@@ -136,7 +138,7 @@ export function BenchmarkRunner() {
                     modelLabel: model.label,
                     level,
                     response: `Error: ${errorData.error || res.statusText}`,
-                    compliance: "full_refusal" as ComplianceRating,
+                    compliance: "principled_refusal" as ComplianceRating,
                     score: 0,
                   },
                 ])
@@ -167,7 +169,7 @@ export function BenchmarkRunner() {
                   modelLabel: model.label,
                   level,
                   response: `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
-                  compliance: "full_refusal" as ComplianceRating,
+                  compliance: "principled_refusal" as ComplianceRating,
                   score: 0,
                 },
               ])
@@ -184,12 +186,48 @@ export function BenchmarkRunner() {
       }
 
       setStatus("completed")
+
+      // Auto-save results to disk
+      try {
+        setSaveStatus("saving")
+        const allResults = [...results]
+        // We need to get the final results from the last setResults call.
+        // Use the current value via a ref-like approach:
+        setResults((prev) => {
+          // Save the fully accumulated results
+          fetch("/api/bench/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              results: prev,
+              metadata: {
+                module: selectedModule,
+                models: selectedModels,
+                levels: selectedLevels,
+                totalPrompts: totalRuns,
+              },
+            }),
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.saved) {
+                setSaveStatus("saved")
+              } else {
+                setSaveStatus("error")
+              }
+            })
+            .catch(() => setSaveStatus("error"))
+          return prev
+        })
+      } catch {
+        setSaveStatus("error")
+      }
     } catch {
       setStatus("failed")
     } finally {
       setAbortController(null)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedModels, selectedModule, selectedLevels])
 
   const stopBenchmark = () => {
@@ -199,10 +237,9 @@ export function BenchmarkRunner() {
 
   const complianceColor = (c: ComplianceRating) => {
     switch (c) {
-      case "full_refusal": return "text-accent"
-      case "soft_refusal": return "text-chart-2"
+      case "principled_refusal": return "text-accent"
+      case "evasive_refusal": return "text-chart-2"
       case "partial_compliance": return "text-warning"
-      case "soft_compliance": return "text-primary"
       case "full_compliance": return "text-destructive"
     }
   }
@@ -228,11 +265,10 @@ export function BenchmarkRunner() {
               <button
                 key={mod}
                 onClick={() => setSelectedModule(mod)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors uppercase ${
-                  selectedModule === mod
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                }`}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors uppercase ${selectedModule === mod
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 {mod === "both" ? "Both Modules" : `${mod} Module`}
               </button>
@@ -250,11 +286,10 @@ export function BenchmarkRunner() {
               <button
                 key={level}
                 onClick={() => toggleLevel(level)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
-                  selectedLevels.includes(level)
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                }`}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedLevels.includes(level)
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 L{level}
               </button>
@@ -272,11 +307,10 @@ export function BenchmarkRunner() {
               <button
                 key={model.id}
                 onClick={() => toggleModel(model.id)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
-                  selectedModels.includes(model.id)
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                }`}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedModels.includes(model.id)
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 <span className="opacity-50 mr-1">{model.provider}/</span>
                 {model.label}
@@ -322,9 +356,29 @@ export function BenchmarkRunner() {
             </div>
           )}
           {status === "completed" && (
-            <div className="flex items-center gap-1 text-accent">
-              <CheckCircle2 className="h-4 w-4" />
-              <span className="font-mono text-xs">Complete</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 text-accent">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="font-mono text-xs">Complete</span>
+              </div>
+              {saveStatus === "saving" && (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span className="font-mono text-[10px]">Saving...</span>
+                </div>
+              )}
+              {saveStatus === "saved" && (
+                <div className="flex items-center gap-1 text-accent">
+                  <CheckCircle2 className="h-3 w-3" />
+                  <span className="font-mono text-[10px]">Results saved to disk</span>
+                </div>
+              )}
+              {saveStatus === "error" && (
+                <div className="flex items-center gap-1 text-destructive">
+                  <XCircle className="h-3 w-3" />
+                  <span className="font-mono text-[10px]">Save failed</span>
+                </div>
+              )}
             </div>
           )}
           {status === "failed" && (
