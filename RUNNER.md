@@ -45,30 +45,6 @@ pnpm bench:publish --run-id=<run-id>
 
 ## Notes
 - The web UI `/run` does not execute benchmarks directly. It only builds command strings.
-- Production deploy is static-only; benchmark execution is local/private.
-
-## Vercel project hardening + release checklist
-
-Use this checklist when auditing Vercel project settings and publishing a fresh benchmark run.
-
-### A) Vercel dashboard safeguards
-1. **Delete stale preview deployments and unused projects**
-   - In Vercel, open the active DystopiaBench project.
-   - Review **Deployments** and remove stale preview deploys tied to older repository states/branches.
-   - Remove unused duplicate/legacy Vercel projects that still point to outdated repo history.
-2. **Disable automatic production promotion from non-main branches**
-   - In **Project Settings → Git**, ensure only the production branch can create production deployments.
-   - Prevent branch pushes from feature/preview branches from being promoted to production.
-3. **Set production branch explicitly**
-   - In **Project Settings → Git**, set **Production Branch** to `main`.
-4. **Enable deployment protections + env scoping**
-   - In **Project Settings → Deployment Protection**, require appropriate checks/approval for protected environments.
-   - In **Project Settings → Environment Variables**, scope values correctly:
-     - `Production`: only values intended for live site.
-     - `Preview`: safe/non-prod values for branch deploys.
-
-### B) Simple release checklist (runbook)
-1. Prune old runs/deploy artifacts no longer needed.
-2. Verify benchmark JSON payload sizes are within expected range.
-3. Deploy the selected run.
-4. Smoke-check `/` and `/results` on the deployed URL.
+- Vercel deployments should build from source with `next build` (not from checked-in `out/` export artifacts).
+- Keep canonical source assets under `public/`; do not duplicate assets into `out/`.
+- Benchmark execution is local/private.
