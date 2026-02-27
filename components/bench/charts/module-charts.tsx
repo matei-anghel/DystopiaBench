@@ -2,11 +2,11 @@
 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  LineChart, Line, Cell,
 } from "recharts"
 import { Card } from "@/components/ui/card"
 import type { Module } from "@/lib/dystopiabench/types"
-import { MOCK_RESULTS } from "@/lib/dystopiabench/mock-data"
+import type { MockResult } from "@/lib/dystopiabench/mock-data"
 import {
   getComplianceDistribution,
   getAggregateByModel,
@@ -14,18 +14,26 @@ import {
 } from "@/lib/dystopiabench/mock-data"
 import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
-  scoreColor, scoreLabel, LEVEL_LABELS,
+  scoreColor, scoreLabel,
 } from "@/lib/dystopiabench/chart-config"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { PETROV_SCENARIOS, ORWELL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { SectionHeader } from "./section-header"
 
-interface Props { module: Module }
+interface Props {
+  module: Module
+  results: MockResult[]
+  selectedModelIds?: string[]
+}
 
-export function ModuleCharts({ module }: Props) {
-  const moduleResults = MOCK_RESULTS.filter((r) => r.module === module)
+export function ModuleCharts({ module, results, selectedModelIds }: Props) {
+  const moduleResults = results.filter((r) => r.module === module)
   const scenarios = module === "petrov" ? PETROV_SCENARIOS : ORWELL_SCENARIOS
-  const accentColor = module === "petrov" ? "#f97316" : "#8b5cf6"
+  const activeModels = AVAILABLE_MODELS.filter((model) =>
+    selectedModelIds
+      ? selectedModelIds.includes(model.id)
+      : moduleResults.some((row) => row.modelId === model.id),
+  )
 
   // Model bar data for this module
   const modelData = getAggregateByModel(moduleResults)
@@ -40,7 +48,7 @@ export function ModuleCharts({ module }: Props) {
   const scenarioData = scenarios.map((s) => {
     const rows = moduleResults.filter((r) => r.scenarioId === s.id)
     const avg = rows.length ? Math.round(rows.reduce((sum, r) => sum + r.score, 0) / rows.length) : 0
-    return { id: s.id, title: s.title.length > 30 ? s.title.slice(0, 28) + "…" : s.title, avg, category: s.category }
+    return { id: s.id, title: s.title.length > 30 ? `${s.title.slice(0, 28)}...` : s.title, avg, category: s.category }
   })
 
   // Per-category avg
@@ -52,7 +60,7 @@ export function ModuleCharts({ module }: Props) {
   })
 
   const total = moduleResults.length
-  const overallAvg = Math.round(moduleResults.reduce((s, r) => s + r.score, 0) / total)
+  const overallAvg = total > 0 ? Math.round(moduleResults.reduce((s, r) => s + r.score, 0) / total) : 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,8 +83,8 @@ export function ModuleCharts({ module }: Props) {
       {/* Model scores (this module) */}
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label={`Model Avg Score — ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
-          sub="Sorted ascending — lower score = stronger refusal = safer."
+          label={`Model Avg Score - ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
+          sub="Sorted ascending - lower score = stronger refusal = safer."
         />
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={modelData} layout="vertical" margin={{ left: 16, right: 32, top: 4, bottom: 4 }}>
@@ -204,7 +212,7 @@ export function ModuleCharts({ module }: Props) {
       {/* Escalation curve for this module */}
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label={`Escalation Curve — ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
+          label={`Escalation Curve - ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
           sub="How compliance increases under escalating pressure, per model."
         />
         <ResponsiveContainer width="100%" height={280}>
@@ -227,7 +235,7 @@ export function ModuleCharts({ module }: Props) {
                 color: "hsl(var(--foreground))"
               }}
             />
-            {AVAILABLE_MODELS.map((m) => (
+            {activeModels.map((m) => (
               <Line
                 key={m.id}
                 type="monotone"
@@ -242,7 +250,7 @@ export function ModuleCharts({ module }: Props) {
           </LineChart>
         </ResponsiveContainer>
         <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border">
-          {AVAILABLE_MODELS.map((m) => (
+          {activeModels.map((m) => (
             <div key={m.id} className="flex items-center gap-1.5">
               <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[m.id] }} />
               <span className="font-mono text-[10px] text-muted-foreground">{m.label}</span>
@@ -253,3 +261,4 @@ export function ModuleCharts({ module }: Props) {
     </div>
   )
 }
+
