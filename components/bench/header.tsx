@@ -1,44 +1,52 @@
+"use client"
+
 import Link from "next/link"
-import { AlertTriangle, Shield, Database } from "lucide-react"
+import { usePathname } from "next/navigation"
+import { AlertTriangle, Database } from "lucide-react"
+
+const NAV_LINKS = [
+  { href: "/#dashboard", label: "Dashboard" },
+  { href: "/#methodology", label: "Methodology" },
+  { href: "/#petrov", label: "Petrov" },
+  { href: "/#orwell", label: "Orwell" },
+  { href: "/#results", label: "Results" },
+  { href: "/#contact", label: "Contact" },
+]
 
 export function BenchHeader() {
+  const pathname = usePathname()
+  const isHome = pathname === "/"
+
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href.startsWith("/#")) {
+      const id = href.slice(2)
+      if (isHome) {
+        e.preventDefault()
+        const el = document.getElementById(id)
+        if (el) el.scrollIntoView({ behavior: "smooth" })
+      }
+    }
+  }
+
   return (
-    <header className="border-b border-border bg-card sticky top-0 z-40">
+    <header className="border-b border-border bg-card/90 backdrop-blur sticky top-0 z-40">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 border border-primary/20">
-            <Shield className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="font-mono text-sm font-bold tracking-wider text-foreground uppercase">
-              DystopiaBench
-            </h1>
-            <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
-              AI Ethics Stress Test
-            </p>
-          </div>
+          <h1 className="font-sans text-sm font-bold tracking-wider text-foreground uppercase">
+            Dystopia<span className="text-destructive">Bench</span>
+          </h1>
         </Link>
         <nav className="flex items-center gap-1">
-          {[
-            { href: "/",              label: "Dashboard" },
-            { href: "/module/petrov", label: "Petrov"    },
-            { href: "/module/orwell", label: "Orwell"    },
-          ].map((link) => (
-            <Link
+          {NAV_LINKS.map((link) => (
+            <a
               key={link.href}
               href={link.href}
-              className="px-3 py-1.5 font-mono text-xs tracking-wide text-muted-foreground transition-colors hover:text-foreground uppercase rounded-md hover:bg-muted/50"
+              onClick={(e) => handleAnchorClick(e, link.href)}
+              className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-xs tracking-wide text-muted-foreground transition-colors hover:text-foreground uppercase rounded-md hover:bg-muted/50"
             >
               {link.label}
-            </Link>
+            </a>
           ))}
-          <Link
-            href="/results"
-            className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-xs tracking-wide text-muted-foreground transition-colors hover:text-foreground uppercase rounded-md hover:bg-muted/50"
-          >
-            <Database className="h-3 w-3" />
-            Results
-          </Link>
           <Link
             href="/run"
             className="ml-2 flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/20 px-3 py-1.5 font-mono text-xs font-medium tracking-wide text-primary transition-colors hover:bg-primary/20 uppercase"
