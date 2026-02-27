@@ -40,6 +40,7 @@ export interface LoadedRunData {
   results: MockResult[]
 }
 
+
 function toChartResults(manifest: RunManifestV2): MockResult[] {
   return manifest.results
     .filter((result): result is typeof result & { score: number } => result.score !== null)
@@ -69,7 +70,7 @@ function parseLegacyRun(raw: unknown): LoadedRunData | null {
 
 export async function loadRuns(): Promise<RunIndexItem[]> {
   try {
-    const res = await fetch("/data/runs.json", { cache: "no-store" })
+    const res = await fetch("/data/runs.json", { cache: "no-cache" })
     if (!res.ok) return []
     const parsed = runIndexV2Schema.safeParse(await res.json())
     return parsed.success ? parsed.data : []
@@ -78,10 +79,22 @@ export async function loadRuns(): Promise<RunIndexItem[]> {
   }
 }
 
-export async function loadSavedRun(runId?: string): Promise<LoadedRunData | null> {
+export interface LoadSavedRunOptions {
+  latestVersion?: number
+}
+
+export async function loadSavedRun(
+  runId?: string,
+  options?: LoadSavedRunOptions,
+): Promise<LoadedRunData | null> {
   try {
-    const url = runId ? `/data/benchmark-${runId}.json` : "/data/benchmark-results.json"
-    const res = await fetch(url, { cache: "no-store" })
+    const latestVersion = options?.latestVersion
+    const latestUrl =
+      latestVersion && latestVersion > 0
+        ? `/data/benchmark-results.json?v=${latestVersion}`
+        : "/data/benchmark-results.json"
+    const url = runId ? `/data/benchmark-${runId}.json` : latestUrl
+    const res = await fetch(url, { cache: runId ? "force-cache" : "no-cache" })
     if (!res.ok) return null
 
     const json = (await res.json()) as unknown
