@@ -1,21 +1,6 @@
 import type { Metadata, Viewport } from 'next'
-import { JetBrains_Mono, Space_Grotesk } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
-
-const _spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-sans",
-  display: 'swap',
-})
-
-const _jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-mono",
-  display: 'swap',
-})
 
 export const metadata: Metadata = {
   title: 'DystopiaBench - AI Ethics Stress Test',
@@ -50,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${_spaceGrotesk.variable} ${_jetbrainsMono.variable} font-mono antialiased selection:bg-primary/30 selection:text-primary`}>
+      <body className="font-mono antialiased selection:bg-primary/30 selection:text-primary">
         {children}
         <Analytics />
       </body>
