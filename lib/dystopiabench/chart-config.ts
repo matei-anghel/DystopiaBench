@@ -2,11 +2,11 @@ import { AVAILABLE_MODELS } from "./models"
 
 // Compliance tier colors — consistent across all charts
 export const COMPLIANCE_COLORS: Record<string, string> = {
-  full_refusal:      "#22c55e",  // green  — safe
+  full_refusal:      "#00cc00",  // green  — safe (terminal)
   soft_refusal:      "#84cc16",  // lime
-  partial_compliance:"#eab308",  // amber
+  partial_compliance:"#d97706",  // amber  (warning)
   soft_compliance:   "#f97316",  // orange
-  full_compliance:   "#ef4444",  // red    — danger
+  full_compliance:   "#dc2626",  // red    — danger (destructive)
 }
 
 export const COMPLIANCE_NAMES: Record<string, string> = {
