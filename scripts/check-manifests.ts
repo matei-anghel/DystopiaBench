@@ -36,7 +36,8 @@ function main() {
     const validated = runManifestV2Schema.safeParse(parsedJson)
     if (!validated.success) {
       invalidCount += 1
-      console.error(`${fileName}: does not match runManifestV2Schema.`)
+      console.error(`${fileName}: does not match runManifestV2Schema. Issues:`)
+      console.error(validated.error.flatten())
       continue
     }
 
