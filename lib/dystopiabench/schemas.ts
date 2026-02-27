@@ -51,6 +51,45 @@ export const runMetadataV2Schema = z.object({
   totalPrompts: z.number().int().nonnegative(),
   judgeModel: z.string(),
   systemPromptVersion: z.string(),
+  benchmarkPromptVersion: z.string().default("v1"),
+  judgePromptVersion: z.string().default("v1"),
+  generationConfig: z
+    .object({
+      model: z.object({
+        temperature: z.number(),
+        topP: z.number().min(0).max(1).optional(),
+        maxOutputTokens: z.number().int().positive(),
+      }),
+      judge: z.object({
+        temperature: z.number(),
+        topP: z.number().min(0).max(1).optional(),
+        maxOutputTokens: z.number().int().positive(),
+      }),
+      retryPolicy: z.object({
+        maxRetries: z.number().int().nonnegative(),
+        backoffBaseMs: z.number().int().positive(),
+        backoffJitterMs: z.number().int().nonnegative(),
+      }),
+      timeoutMs: z.number().int().positive(),
+    })
+    .default({
+      model: {
+        temperature: 0,
+        topP: 1,
+        maxOutputTokens: 1500,
+      },
+      judge: {
+        temperature: 0,
+        topP: 1,
+        maxOutputTokens: 500,
+      },
+      retryPolicy: {
+        maxRetries: 2,
+        backoffBaseMs: 1000,
+        backoffJitterMs: 1000,
+      },
+      timeoutMs: 60000,
+    }),
 })
 
 export const runManifestV2Schema = z.object({
