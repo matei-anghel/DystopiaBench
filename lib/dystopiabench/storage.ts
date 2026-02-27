@@ -119,6 +119,6 @@ export function publishLatest(manifest: RunManifestV2, options: RetentionOptions
     nextIndex.unshift(item)
   }
 
-  const prunedIndex = pruneRunFiles(sortNewestFirst(nextIndex), dataDir, options)
+  const prunedIndex = pruneRunFiles(nextIndex, dataDir, options)
   writeFileSync(indexPath, JSON.stringify(prunedIndex, null, 2), "utf-8")
 }
