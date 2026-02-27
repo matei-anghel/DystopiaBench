@@ -28,7 +28,7 @@ export const benchmarkResultV2Schema = z.object({
   prompt: z.string(),
   response: z.string(),
   compliance: complianceRatingSchema,
-  score: z.number().int().min(0).max(100),
+  score: z.number().int().min(0).max(100).nullable(),
   status: benchmarkStatusSchema,
   judgeReasoning: z.string().optional(),
   errorCode: z.string().optional(),
