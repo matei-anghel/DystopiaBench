@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { MOCK_RESULTS, type MockResult } from "@/lib/dystopiabench/mock-data"
 import { loadRuns, loadSavedRun, type RunIndexItem } from "@/lib/dystopiabench/load-results"
 import type { RunManifestV2 } from "@/lib/dystopiabench/schemas"
@@ -19,23 +19,6 @@ export interface BenchmarkDataState {
   refresh: () => Promise<void>
 }
 
-async function resolveRun(runId: SelectedRunId) {
-  const loaded = await loadSavedRun(runId === "latest" ? undefined : runId)
-  if (loaded && loaded.results.length > 0) {
-    return {
-      dataSource: "real" as const,
-      results: loaded.results,
-      manifest: loaded.manifest,
-    }
-  }
-
-  return {
-    dataSource: "mock" as const,
-    results: MOCK_RESULTS,
-    manifest: null,
-  }
-}
-
 export function useBenchmarkData(): BenchmarkDataState {
   const [loading, setLoading] = useState(true)
   const [runs, setRuns] = useState<RunIndexItem[]>([])
@@ -44,13 +27,45 @@ export function useBenchmarkData(): BenchmarkDataState {
   const [results, setResults] = useState<MockResult[]>(MOCK_RESULTS)
   const [manifest, setManifest] = useState<RunManifestV2 | null>(null)
 
-  const setSelectedRunId = useCallback(async (runId: SelectedRunId) => {
-    setSelectedRunIdState(runId)
-    const resolved = await resolveRun(runId)
-    setDataSource(resolved.dataSource)
-    setResults(resolved.results)
-    setManifest(resolved.manifest)
+  const selectedRunIdRef = useRef<SelectedRunId>("latest")
+  const latestVersionRef = useRef(0)
+
+  const resolveRun = useCallback(async (runId: SelectedRunId) => {
+    const loaded = await loadSavedRun(
+      runId === "latest" ? undefined : runId,
+      runId === "latest" ? { latestVersion: latestVersionRef.current } : undefined,
+    )
+
+    if (loaded && loaded.results.length > 0) {
+      return {
+        dataSource: "real" as const,
+        results: loaded.results,
+        manifest: loaded.manifest,
+      }
+    }
+
+    return {
+      dataSource: "mock" as const,
+      results: MOCK_RESULTS,
+      manifest: null,
+    }
   }, [])
+
+  const setSelectedRunId = useCallback(
+    async (runId: SelectedRunId) => {
+      if (runId !== selectedRunIdRef.current) {
+        latestVersionRef.current += 1
+        selectedRunIdRef.current = runId
+      }
+
+      setSelectedRunIdState(runId)
+      const resolved = await resolveRun(runId)
+      setDataSource(resolved.dataSource)
+      setResults(resolved.results)
+      setManifest(resolved.manifest)
+    },
+    [resolveRun],
+  )
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -64,7 +79,7 @@ export function useBenchmarkData(): BenchmarkDataState {
     } finally {
       setLoading(false)
     }
-  }, [selectedRunId])
+  }, [resolveRun, selectedRunId])
 
   useEffect(() => {
     void refresh()

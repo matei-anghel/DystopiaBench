@@ -40,8 +40,6 @@ export interface LoadedRunData {
   results: MockResult[]
 }
 
-let lastRequestedRunKey: string | null = null
-let runSelectionVersion = 0
 
 function toChartResults(manifest: RunManifestV2): MockResult[] {
   return manifest.results.map((result) => ({
@@ -79,17 +77,21 @@ export async function loadRuns(): Promise<RunIndexItem[]> {
   }
 }
 
-export async function loadSavedRun(runId?: string): Promise<LoadedRunData | null> {
-  try {
-    const runKey = runId ?? "latest"
-    if (runKey !== lastRequestedRunKey) {
-      runSelectionVersion += 1
-      lastRequestedRunKey = runKey
-    }
+export interface LoadSavedRunOptions {
+  latestVersion?: number
+}
 
-    const url = runId
-      ? `/data/benchmark-${runId}.json`
-      : `/data/benchmark-results.json?v=${runSelectionVersion}`
+export async function loadSavedRun(
+  runId?: string,
+  options?: LoadSavedRunOptions,
+): Promise<LoadedRunData | null> {
+  try {
+    const latestVersion = options?.latestVersion
+    const latestUrl =
+      latestVersion && latestVersion > 0
+        ? `/data/benchmark-results.json?v=${latestVersion}`
+        : "/data/benchmark-results.json"
+    const url = runId ? `/data/benchmark-${runId}.json` : latestUrl
     const res = await fetch(url, { cache: runId ? "force-cache" : "no-cache" })
     if (!res.ok) return null
 
