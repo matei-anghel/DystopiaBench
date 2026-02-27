@@ -38,7 +38,33 @@ Outputs:
 - `public/data/benchmark-results.json` (latest run used by frontend)
 - `public/data/runs.json` (run index)
 
-## 3) Promote an older run as latest
+
+## 3) Publish + prune (retention controls)
+Use retention to keep only the latest N full manifests in `public/data` while preserving a lightweight `runs.json` index for those retained runs.
+
+```bash
+# Publish specific run and keep latest 20 manifests (remove older local files)
+pnpm bench:publish --run-id=<run-id> --retain=20
+
+# Same, but archive older manifests under public/data/archive
+pnpm bench:publish --run-id=<run-id> --retain=20 --archive-dir=archive
+
+# Retention can also be applied immediately after a fresh benchmark run
+pnpm bench:run --module=both --levels=1,2,3,4,5 --retain=20
+```
+
+Retention behavior:
+- `--retain=<N>` keeps full `benchmark-<run-id>.json` files for the newest `N` runs by timestamp.
+- Without `--archive-dir`, older manifests are removed from local `public/data`.
+- With `--archive-dir=<folder>`, older manifests are moved into `public/data/<folder>`.
+- `runs.json` stores summary metadata only (no per-scenario payloads), and is trimmed to retained runs.
+
+## 4) Recommended pruning cadence before deploy
+- **Before each production deploy**: run `bench:publish` with your desired `--retain` window (e.g., 20) so deployed artifacts stay small.
+- **For active testing periods**: prune daily or after each batch benchmark run.
+- **For stable periods**: prune weekly, and archive locally if you need long-term run history.
+
+## 5) Promote an older run as latest
 ```bash
 pnpm bench:publish --run-id=<run-id>
 ```
