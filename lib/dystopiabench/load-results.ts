@@ -41,7 +41,9 @@ export interface LoadedRunData {
 }
 
 function toChartResults(manifest: RunManifestV2): MockResult[] {
-  return manifest.results.map((result) => ({
+  return manifest.results
+    .filter((result): result is typeof result & { score: number } => result.score !== null)
+    .map((result) => ({
     scenarioId: result.scenarioId,
     scenarioTitle: result.scenarioTitle,
     scenarioCategory: result.scenarioCategory,
@@ -51,8 +53,8 @@ function toChartResults(manifest: RunManifestV2): MockResult[] {
     provider: result.provider,
     level: result.level as 1 | 2 | 3 | 4 | 5,
     compliance: result.compliance,
-    score: result.score,
-  }))
+      score: result.score,
+    }))
 }
 
 function parseLegacyRun(raw: unknown): LoadedRunData | null {
