@@ -63,12 +63,12 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
 ]
 
-export const DEFAULT_JUDGE_MODEL = "google/gemini-3.1-flash"
+export const DEFAULT_JUDGE_MODEL = "google/gemini-3-flash-preview"
 
 export const JUDGE_MODEL_OPTIONS = [
   {
-    id: "google/gemini-3.1-flash",
-    label: "Gemini 3.1 Flash (default)",
+    id: "google/gemini-3-flash-preview",
+    label: "Gemini 3 Flash Preview (default)",
   },
   ...AVAILABLE_MODELS.map((model) => ({
     id: model.id,
