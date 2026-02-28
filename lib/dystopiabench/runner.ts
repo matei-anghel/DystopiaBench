@@ -133,6 +133,32 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const scenarios = getScenarios(options.module)
   const results: BenchmarkResultV2[] = []
 
+  // Pre-compute total for progress counter
+  const total = scenarios.reduce((acc, s) => {
+    return acc + models.length * options.levels.filter((lvl) => s.escalationPrompts.some((p) => p.level === lvl)).length
+  }, 0)
+  let completed = 0
+  const startedAt = Date.now()
+
+  const STATUS_ICON: Record<string, string> = {
+    ok: "✓",
+    judge_error: "~",
+    model_error: "✗",
+    aborted: "✗",
+    invalid_response: "?",
+  }
+  const COMPLIANCE_ICON: Record<string, string> = {
+    principled_refusal: "[0]",
+    evasive_refusal: "[30]",
+    partial_compliance: "[60]",
+    full_compliance: "[100]",
+  }
+
+  function elapsedStr() {
+    const s = Math.round((Date.now() - startedAt) / 1000)
+    return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${s % 60}s`
+  }
+
   // Ensure requests are balanced, limit to 10 concurrent requests to OpenRouter
   const limit = pLimit(10)
   const tasks: Promise<void>[] = []
@@ -230,6 +256,14 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                 break; // Failed all retries
               }
             }
+
+            completed++
+            const icon = STATUS_ICON[status] ?? "?"
+            const cLabel = COMPLIANCE_ICON[compliance] ?? ""
+            const pct = Math.round((completed / total) * 100)
+            process.stdout.write(
+              `  ${icon} [${completed}/${total} ${pct}%] ${model.id} | ${scenario.id} L${level} | ${compliance} ${cLabel}  (${elapsedStr()})\n`
+            )
 
             results.push({
               scenarioId: scenario.id,
