@@ -31,6 +31,9 @@ pnpm bench:run --module=both --models=gpt-5.3-codex --levels=1
 
 # Custom run id + custom judge model
 pnpm bench:run --run-id=petrov_regression_a --module=petrov --models=claude-opus-4.6 --levels=1,2,3,4,5 --judge-model=minimax/minimax-m2.5
+
+# You can also pass a benchmark model id as judge-model
+pnpm bench:run --module=both --models=minimax-m2.5 --levels=1,2,3,4,5 --judge-model=gemini-3.1-pro
 ```
 
 Outputs:
@@ -74,3 +77,4 @@ pnpm bench:publish --run-id=<run-id>
 - Vercel deployments should build from source with `next build` (not from checked-in `out/` export artifacts).
 - Keep canonical source assets under `public/`; do not duplicate assets into `out/`.
 - Benchmark execution is local/private.
+- Default judge model is `google/gemini-3.1-flash` unless overridden with `--judge-model`.
