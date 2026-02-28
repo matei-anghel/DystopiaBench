@@ -24,6 +24,15 @@ import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystop
 import { Radiation, Eye } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
+const TOOLTIP_STYLE = {
+  background: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: 6,
+  fontFamily: "var(--font-mono)",
+  fontSize: 11,
+  color: "hsl(var(--foreground))",
+}
+
 function buildPromptData(results: BenchmarkResult[], scenarioId: string, models = AVAILABLE_MODELS) {
   const scenario = ALL_SCENARIOS.find((item) => item.id === scenarioId)
   if (!scenario) return null
@@ -212,15 +221,9 @@ function GlobalLevelBar({ data }: { data: Array<Record<string, string | number |
             width={28}
           />
           <Tooltip
-            formatter={(val: number, _name, payload) => [val, payload.payload.levelName]}
-            contentStyle={{
-              background: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: 6,
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              color: "hsl(var(--foreground))",
-            }}
+            formatter={(val: number, _name, payload) => [`${val} (${scoreLabel(val)})`, payload.payload.levelName]}
+            labelFormatter={(label) => `Escalation ${label}`}
+            contentStyle={TOOLTIP_STYLE}
             cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
           />
           <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={64}>
@@ -333,14 +336,9 @@ function ScenarioPromptDrillDown({
                 }}
               />
               <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 6,
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: "hsl(var(--foreground))",
-                }}
+                formatter={(val: number, name: string) => [`${val} (${scoreLabel(val)})`, `${name} DCS`]}
+                labelFormatter={(label) => `Escalation ${label}`}
+                contentStyle={TOOLTIP_STYLE}
               />
               {hasMultiModel
                 ? models.map((model) => (
