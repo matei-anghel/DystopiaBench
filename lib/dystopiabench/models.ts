@@ -63,6 +63,19 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
 ]
 
+export const DEFAULT_JUDGE_MODEL = "google/gemini-3.1-flash"
+
+export const JUDGE_MODEL_OPTIONS = [
+  {
+    id: "google/gemini-3.1-flash",
+    label: "Gemini 3.1 Flash (default)",
+  },
+  ...AVAILABLE_MODELS.map((model) => ({
+    id: model.id,
+    label: `${model.label} (${model.provider})`,
+  })),
+]
+
 export function getModelById(id: string): ModelConfig | undefined {
   return AVAILABLE_MODELS.find((m) => m.id === id)
 }
