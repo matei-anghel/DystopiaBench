@@ -1,5 +1,6 @@
 import { z } from "zod"
-import type { MockResult } from "./mock-data"
+import type { BenchmarkResult } from "./types"
+import type { ComplianceRating, Module } from "./types"
 import {
   runIndexV2Schema,
   runManifestV2Schema,
@@ -7,7 +8,24 @@ import {
   type RunManifestV2,
 } from "./schemas"
 
-const legacyResultSchema: z.ZodType<MockResult> = z.object({
+/** Map legacy 4-tier compliance values to the new 6-tier system. */
+const LEGACY_COMPLIANCE_MAP: Record<string, ComplianceRating> = {
+  principled_refusal: "principled_refusal",
+  evasive_refusal: "qualified_refusal",
+  partial_compliance: "uncritical_compliance",
+  full_compliance: "full_compliance",
+  // New values pass through
+  qualified_refusal: "qualified_refusal",
+  flagged_compliance: "flagged_compliance",
+  uncritical_compliance: "uncritical_compliance",
+  enthusiastic_compliance: "enthusiastic_compliance",
+}
+
+function migrateCompliance(raw: string): ComplianceRating {
+  return LEGACY_COMPLIANCE_MAP[raw] ?? "qualified_refusal"
+}
+
+const legacyResultSchema = z.object({
   scenarioId: z.string(),
   scenarioTitle: z.string(),
   scenarioCategory: z.string(),
@@ -16,12 +34,7 @@ const legacyResultSchema: z.ZodType<MockResult> = z.object({
   modelLabel: z.string(),
   provider: z.string(),
   level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
-  compliance: z.enum([
-    "principled_refusal",
-    "evasive_refusal",
-    "partial_compliance",
-    "full_compliance",
-  ]),
+  compliance: z.string(),
   score: z.number().int().min(0).max(100),
 })
 
@@ -37,23 +50,22 @@ export type RunIndexItem = RunIndexItemV2
 
 export interface LoadedRunData {
   manifest: RunManifestV2 | null
-  results: MockResult[]
+  results: BenchmarkResult[]
 }
 
-
-function toChartResults(manifest: RunManifestV2): MockResult[] {
+function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
   return manifest.results
     .filter((result): result is typeof result & { score: number } => result.score !== null)
     .map((result) => ({
-    scenarioId: result.scenarioId,
-    scenarioTitle: result.scenarioTitle,
-    scenarioCategory: result.scenarioCategory,
-    module: result.module,
-    modelId: result.modelId,
-    modelLabel: result.modelLabel,
-    provider: result.provider,
-    level: result.level as 1 | 2 | 3 | 4 | 5,
-    compliance: result.compliance,
+      scenarioId: result.scenarioId,
+      scenarioTitle: result.scenarioTitle,
+      scenarioCategory: result.scenarioCategory,
+      module: result.module,
+      modelId: result.modelId,
+      modelLabel: result.modelLabel,
+      provider: result.provider,
+      level: result.level as 1 | 2 | 3 | 4 | 5,
+      compliance: migrateCompliance(result.compliance),
       score: result.score,
     }))
 }
@@ -64,7 +76,11 @@ function parseLegacyRun(raw: unknown): LoadedRunData | null {
 
   return {
     manifest: null,
-    results: parsed.data.results,
+    results: parsed.data.results.map((r) => ({
+      ...r,
+      module: r.module as Module,
+      compliance: migrateCompliance(r.compliance),
+    })),
   }
 }
 
@@ -112,7 +128,7 @@ export async function loadSavedRun(
   }
 }
 
-export async function loadSavedResults(runId?: string): Promise<MockResult[] | null> {
+export async function loadSavedResults(runId?: string): Promise<BenchmarkResult[] | null> {
   const loaded = await loadSavedRun(runId)
   if (!loaded || loaded.results.length === 0) return null
   return loaded.results

@@ -2,8 +2,10 @@ import { z } from "zod"
 
 export const complianceRatingSchema = z.enum([
   "principled_refusal",
-  "evasive_refusal",
-  "partial_compliance",
+  "qualified_refusal",
+  "flagged_compliance",
+  "uncritical_compliance",
+  "enthusiastic_compliance",
   "full_compliance",
 ])
 
@@ -53,6 +55,9 @@ export const benchmarkResultV2Schema = z.object({
   judgeReasoning: z.string().optional(),
   errorCode: z.string().optional(),
   errorMessage: z.string().optional(),
+  endpointUsed: z.enum(["ai_sdk_chat", "openrouter_chat_fallback"]).optional(),
+  transportAttempts: z.number().int().nonnegative().optional(),
+  scorable: z.boolean().optional(),
   timestamp: z.number().int(),
 })
 
@@ -62,6 +67,9 @@ export const runSummaryV2Schema = z.object({
   averageDcs: z.number().int().min(0).max(100),
   drfr: z.number().int().min(0).max(100),
   statusCounts: z.record(benchmarkStatusSchema, z.number().int().nonnegative()),
+  modelSuccessRate: z.number().min(0).max(100).optional(),
+  judgeSuccessRate: z.number().min(0).max(100).optional(),
+  scorableRate: z.number().min(0).max(100).optional(),
 })
 
 export const runMetadataV2Schema = z.object({
@@ -73,6 +81,9 @@ export const runMetadataV2Schema = z.object({
   systemPromptVersion: z.string(),
   benchmarkPromptVersion: z.string().default("v1"),
   judgePromptVersion: z.string().default("v1"),
+  transportPolicy: z.enum(["chat-first-fallback", "chat-only"]).optional(),
+  conversationMode: z.literal("stateful").optional(),
+  modelCapabilitiesSnapshot: z.record(z.unknown()).optional(),
   generationConfig: z
     .object({
       model: z.object({

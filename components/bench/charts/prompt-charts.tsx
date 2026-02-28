@@ -18,12 +18,12 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import type { MockResult } from "@/lib/dystopiabench/mock-data"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
 import { Radiation, Eye } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
-function buildPromptData(results: MockResult[], scenarioId: string, models = AVAILABLE_MODELS) {
+function buildPromptData(results: BenchmarkResult[], scenarioId: string, models = AVAILABLE_MODELS) {
   const scenario = ALL_SCENARIOS.find((item) => item.id === scenarioId)
   if (!scenario) return null
 
@@ -31,14 +31,14 @@ function buildPromptData(results: MockResult[], scenarioId: string, models = AVA
 
   const levels = [1, 2, 3, 4, 5].map((level) => {
     const rows = scenarioResults.filter((result) => result.level === level)
-    const levelAvg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : 0
+    const levelAvg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : null
 
     const modelScores = models.map((model) => {
       const row = scenarioResults.find((result) => result.modelId === model.id && result.level === level)
       return {
         modelId: model.id,
         label: model.label,
-        score: row?.score ?? 0,
+        score: row?.score ?? null,
       }
     })
 
@@ -52,7 +52,7 @@ function buildPromptData(results: MockResult[], scenarioId: string, models = AVA
   })
 
   const lineData = levels.map((levelEntry) => {
-    const row: Record<string, number | string> = {
+    const row: Record<string, number | string | null> = {
       label: `L${levelEntry.level}`,
       levelName: levelEntry.levelName,
       avg: levelEntry.levelAvg,
@@ -67,12 +67,12 @@ function buildPromptData(results: MockResult[], scenarioId: string, models = AVA
   return { scenario, levels, lineData }
 }
 
-function buildGlobalLevelData(results: MockResult[], models = AVAILABLE_MODELS) {
+function buildGlobalLevelData(results: BenchmarkResult[], models = AVAILABLE_MODELS) {
   return [1, 2, 3, 4, 5].map((level) => {
     const rows = results.filter((result) => result.level === level)
-    const avg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : 0
+    const avg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : null
 
-    const row: Record<string, string | number> = {
+    const row: Record<string, string | number | null> = {
       label: `L${level}`,
       levelName: LEVEL_LABELS[level],
       avg,
@@ -83,7 +83,7 @@ function buildGlobalLevelData(results: MockResult[], models = AVAILABLE_MODELS) 
       row[model.id] =
         modelRows.length > 0
           ? Math.round(modelRows.reduce((sum, result) => sum + result.score, 0) / modelRows.length)
-          : 0
+          : null
     }
 
     return row
@@ -94,7 +94,7 @@ function LevelModelGrid({
   data,
   models,
 }: {
-  data: Array<Record<string, string | number>>
+  data: Array<Record<string, string | number | null>>
   models: typeof AVAILABLE_MODELS
 }) {
   return (
@@ -143,7 +143,18 @@ function LevelModelGrid({
               <p className="font-mono text-[8px] text-muted-foreground">{row.levelName as string}</p>
             </div>
             {models.map((model) => {
-              const score = row[model.id] as number
+              const score = row[model.id] as number | null
+              if (score === null || score === undefined) {
+                return (
+                  <div
+                    key={model.id}
+                    className="w-16 h-10 flex items-center justify-center rounded-sm bg-muted/30"
+                    title={`${model.label} / ${row.label}: no data`}
+                  >
+                    <span className="font-mono text-[10px] text-muted-foreground">—</span>
+                  </div>
+                )
+              }
               return (
                 <div
                   key={model.id}
@@ -172,7 +183,7 @@ function LevelModelGrid({
   )
 }
 
-function GlobalLevelBar({ data }: { data: Array<Record<string, string | number>> }) {
+function GlobalLevelBar({ data }: { data: Array<Record<string, string | number | null>> }) {
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
@@ -218,7 +229,7 @@ function GlobalLevelBar({ data }: { data: Array<Record<string, string | number>>
   )
 }
 
-function ScenarioPromptDrillDown({ results, models }: { results: MockResult[]; models: typeof AVAILABLE_MODELS }) {
+function ScenarioPromptDrillDown({ results, models }: { results: BenchmarkResult[]; models: typeof AVAILABLE_MODELS }) {
   const [selectedId, setSelectedId] = useState<string>(ALL_SCENARIOS[0].id)
   const data = useMemo(() => buildPromptData(results, selectedId, models), [models, results, selectedId])
 
@@ -236,11 +247,10 @@ function ScenarioPromptDrillDown({ results, models }: { results: MockResult[]; m
             <button
               key={item.id}
               onClick={() => setSelectedId(item.id)}
-              className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
-                selectedId === item.id
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-              }`}
+              className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedId === item.id
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                }`}
             >
               {item.module === "petrov" ? <Radiation className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               {item.id}
@@ -326,6 +336,7 @@ function ScenarioPromptDrillDown({ results, models }: { results: MockResult[]; m
                 dot={{ r: 3.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
                 activeDot={{ r: 5 }}
                 name={model.label}
+                connectNulls
               />
             ))}
             <Line
@@ -354,34 +365,52 @@ function ScenarioPromptDrillDown({ results, models }: { results: MockResult[]; m
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-xl font-black" style={{ color: scoreColor(levelEntry.levelAvg) }}>
-                  {levelEntry.levelAvg}
-                </span>
-                <span className="font-mono text-[9px]" style={{ color: scoreColor(levelEntry.levelAvg) }}>
-                  {scoreLabel(levelEntry.levelAvg)}
-                </span>
+                {levelEntry.levelAvg !== null ? (
+                  <>
+                    <span className="font-mono text-xl font-black" style={{ color: scoreColor(levelEntry.levelAvg) }}>
+                      {levelEntry.levelAvg}
+                    </span>
+                    <span className="font-mono text-[9px]" style={{ color: scoreColor(levelEntry.levelAvg) }}>
+                      {scoreLabel(levelEntry.levelAvg)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-mono text-xl font-black text-muted-foreground">—</span>
+                    <span className="font-mono text-[9px] text-muted-foreground">no data</span>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="flex flex-col gap-1">
-              {[...levelEntry.modelScores].sort((a, b) => a.score - b.score).map((modelScore) => (
+              {[...levelEntry.modelScores].sort((a, b) => (a.score ?? -1) - (b.score ?? -1)).map((modelScore) => (
                 <div key={modelScore.modelId} className="flex items-center gap-1.5">
                   <div
                     className="h-1.5 w-1.5 rounded-full shrink-0"
                     style={{ background: MODEL_COLORS[modelScore.modelId] }}
                   />
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${modelScore.score}%`,
-                        background: scoreColor(modelScore.score),
-                      }}
-                    />
-                  </div>
-                  <span className="font-mono text-[9px] w-5 text-right" style={{ color: scoreColor(modelScore.score) }}>
-                    {modelScore.score}
-                  </span>
+                  {modelScore.score !== null ? (
+                    <>
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${modelScore.score}%`,
+                            background: scoreColor(modelScore.score),
+                          }}
+                        />
+                      </div>
+                      <span className="font-mono text-[9px] w-5 text-right" style={{ color: scoreColor(modelScore.score) }}>
+                        {modelScore.score}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex-1 h-1.5 rounded-full bg-muted/30" />
+                      <span className="font-mono text-[9px] w-5 text-right text-muted-foreground">—</span>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -404,7 +433,7 @@ export function PromptCharts({
   results,
   selectedModelIds,
 }: {
-  results: MockResult[]
+  results: BenchmarkResult[]
   selectedModelIds?: string[]
 }) {
   const activeModels = useMemo(
