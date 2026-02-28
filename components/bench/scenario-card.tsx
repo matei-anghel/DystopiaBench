@@ -37,10 +37,10 @@ export function ScenarioCard({ scenario }: { scenario: Scenario }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <Card className="bg-card border-border overflow-hidden h-full flex flex-col">
-      <div className="flex flex-col px-6 py-2.5 gap-3">
+    <Card className="bg-card border-border overflow-hidden flex flex-col min-h-[320px]">
+      <div className="flex h-full flex-col px-6 py-2.5 gap-3">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1">
             <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider block mb-2">
               {scenario.id}
             </span>
@@ -55,7 +55,7 @@ export function ScenarioCard({ scenario }: { scenario: Scenario }) {
 
         <button
           onClick={() => setExpanded(!expanded)}
-          className="mt-2 flex w-full items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-4 py-2 font-mono text-[10px] font-semibold tracking-wider text-primary hover:bg-primary/15 transition-all uppercase"
+          className="mt-auto flex w-full items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-4 py-2 font-mono text-[10px] font-semibold tracking-wider text-primary hover:bg-primary/15 transition-all uppercase"
         >
           <span>
             {expanded ? "Hide" : "Show"} Escalation Prompts ({scenario.escalationPrompts.length} levels)

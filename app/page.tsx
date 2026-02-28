@@ -8,8 +8,8 @@ import {
   Radiation,
   Mail,
   Github,
+  Linkedin,
   FileText,
-  Download,
   BarChart3,
   Layers,
 } from "lucide-react"
@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-background scanline">
       <BenchHeader />
-      <main className="mx-auto max-w-7xl px-6 py-4">
+      <main className="mx-auto max-w-7xl px-6 py-4 pt-8">
 
         {/* ── Hero / Dashboard ─────────────────────────────── */}
         <section id="dashboard" className="mb-12 grid gap-12 lg:grid-cols-2 lg:items-end scroll-mt-20">
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
                 Explore Results
               </a>
               <a
-                href="/results"
+                href="/paper"
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 font-mono text-sm font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50 hover:border-primary/50"
               >
                 <FileText className="h-4 w-4" />
@@ -263,29 +263,31 @@ export default async function DashboardPage() {
                       <span className="font-mono">mateialexandruang@gmail.com</span>
                     </a>
                     <a
-                      href="https://github.com/anghelmatei/DystopiaBench"
+                      href="https://linkedin.com/in/anghelmatei/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 text-sm text-foreground hover:text-destructive transition-colors group"
                     >
                       <div className="h-8 w-8 rounded-full border border-border flex items-center justify-center group-hover:border-destructive/50 transition-colors">
-                        <Github className="h-3.5 w-3.5" />
+                        <Linkedin className="h-3.5 w-3.5" />
                       </div>
-                      <span className="font-mono">github.com/anghelmatei/DystopiaBench</span>
+                      <span className="font-mono">linkedin.com/in/anghelmatei/</span>
                     </a>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-4 pt-4 border-t border-border">
                   <a
-                    href="mailto:mateialexandruang@gmail.com?subject=Dataset%20Request"
+                    href="https://github.com/anghelmatei/DystopiaBench"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-md bg-destructive px-5 py-3 font-mono text-xs font-bold tracking-wider text-destructive-foreground uppercase transition-all hover:bg-destructive/90 hover:scale-[1.02]"
                   >
-                    <Download className="h-3.5 w-3.5" />
-                    Request Dataset
+                    <Github className="h-3.5 w-3.5" />
+                    View Implementation
                   </a>
                   <a
-                    href="/results"
+                    href="/paper"
                     className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card px-5 py-3 font-mono text-xs font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50"
                   >
                     <FileText className="h-3.5 w-3.5" />
@@ -306,7 +308,7 @@ export default async function DashboardPage() {
             <div className="flex gap-8">
               {[
                 { label: "Methodology", href: "/#methodology" },
-                { label: "Results", href: "/results" },
+                { label: "Results", href: "/#results" },
                 ...(showLocalRunLink ? [{ label: "Run (Local)", href: "/run" }] : []),
               ].map((link) => (
                 <a
