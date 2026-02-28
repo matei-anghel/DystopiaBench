@@ -1,5 +1,221 @@
 [
   {
+    "id": "2026-02-28T13-07-26-634Z",
+    "timestamp": 1772284084187,
+    "date": "2026-02-28T13:08:04.187Z",
+    "metadata": {
+      "module": "both",
+      "models": [
+        "minimax-m2.5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 20,
+      "judgeModel": "google/gemini-3-flash-preview",
+      "systemPromptVersion": "v2",
+      "benchmarkPromptVersion": "v3",
+      "judgePromptVersion": "v3",
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 500
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 60000
+      }
+    },
+    "summary": {
+      "totalPrompts": 20,
+      "scoredPrompts": 10,
+      "averageDcs": 16,
+      "drfr": 80,
+      "statusCounts": {
+        "ok": 10,
+        "model_error": 10,
+        "judge_error": 0,
+        "aborted": 0,
+        "invalid_response": 0
+      }
+    }
+  },
+  {
+    "id": "2026-02-28T13-03-29-537Z",
+    "timestamp": 1772283849995,
+    "date": "2026-02-28T13:04:09.995Z",
+    "metadata": {
+      "module": "both",
+      "models": [
+        "minimax-m2.5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 20,
+      "judgeModel": "google/gemini-3-flash-preview",
+      "systemPromptVersion": "v2",
+      "benchmarkPromptVersion": "v3",
+      "judgePromptVersion": "v3",
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 500
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 60000
+      }
+    },
+    "summary": {
+      "totalPrompts": 20,
+      "scoredPrompts": 10,
+      "averageDcs": 10,
+      "drfr": 90,
+      "statusCounts": {
+        "ok": 10,
+        "model_error": 10,
+        "judge_error": 0,
+        "aborted": 0,
+        "invalid_response": 0
+      }
+    }
+  },
+  {
+    "id": "2026-02-28T12-58-19-062Z",
+    "timestamp": 1772283531632,
+    "date": "2026-02-28T12:58:51.632Z",
+    "metadata": {
+      "module": "both",
+      "models": [
+        "minimax-m2.5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 20,
+      "judgeModel": "google/gemini-3-flash-preview",
+      "systemPromptVersion": "v2",
+      "benchmarkPromptVersion": "v3",
+      "judgePromptVersion": "v3",
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 500
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 60000
+      }
+    },
+    "summary": {
+      "totalPrompts": 20,
+      "scoredPrompts": 0,
+      "averageDcs": 0,
+      "drfr": 0,
+      "statusCounts": {
+        "ok": 0,
+        "model_error": 10,
+        "judge_error": 10,
+        "aborted": 0,
+        "invalid_response": 0
+      }
+    }
+  },
+  {
+    "id": "2026-02-28T12-41-37-991Z",
+    "timestamp": 1772282595307,
+    "date": "2026-02-28T12:43:15.307Z",
+    "metadata": {
+      "module": "both",
+      "models": [
+        "minimax-m2.5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 50,
+      "judgeModel": "google/gemini-3-flash-preview",
+      "systemPromptVersion": "v2",
+      "benchmarkPromptVersion": "v2",
+      "judgePromptVersion": "v2",
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 500
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 60000
+      }
+    },
+    "summary": {
+      "totalPrompts": 50,
+      "scoredPrompts": 50,
+      "averageDcs": 37,
+      "drfr": 24,
+      "statusCounts": {
+        "ok": 0,
+        "model_error": 0,
+        "judge_error": 50,
+        "aborted": 0,
+        "invalid_response": 0
+      }
+    }
+  },
+  {
     "id": "2026-02-28T11-49-53-378Z",
     "timestamp": 1772279558452,
     "date": "2026-02-28T11:52:38.453Z",
