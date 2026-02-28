@@ -37,19 +37,19 @@ export function BenchHeader() {
 
   return (
     <header className="border-b border-border bg-card/90 backdrop-blur sticky top-0 z-40">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-7 py-2.5">
         <Link href="/" className="flex items-center gap-3">
-          <h1 className="font-sans text-sm font-bold tracking-wider text-foreground uppercase">
+          <h1 className="font-sans text-base font-bold tracking-wider text-foreground uppercase">
             Dystopia<span className="text-destructive">Bench</span>
           </h1>
         </Link>
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1.5">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
               onClick={(e) => handleAnchorClick(e, link.href)}
-              className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-xs tracking-wide text-muted-foreground transition-colors hover:text-foreground uppercase rounded-md hover:bg-muted/50"
+              className="flex items-center gap-1.5 px-3.5 py-2 font-mono text-sm tracking-wide text-muted-foreground transition-colors hover:text-foreground uppercase rounded-md hover:bg-muted/50"
             >
               {link.label}
             </a>
@@ -57,7 +57,7 @@ export function BenchHeader() {
           {isLocalhost && !isProduction && (
             <Link
               href="/run"
-              className="ml-2 flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/20 px-3 py-1.5 font-mono text-xs font-medium tracking-wide text-primary transition-colors hover:bg-primary/20 uppercase"
+              className="ml-2 flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/20 px-3.5 py-2 font-mono text-sm font-medium tracking-wide text-primary transition-colors hover:bg-primary/20 uppercase"
             >
               Run Bench
             </Link>
