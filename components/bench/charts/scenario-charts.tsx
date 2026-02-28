@@ -23,6 +23,15 @@ import { getChartShape } from "@/lib/dystopiabench/analytics"
 import { ChevronDown, ChevronRight, Radiation, Eye } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
+const TOOLTIP_STYLE = {
+  background: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: 6,
+  fontFamily: "var(--font-mono)",
+  fontSize: 11,
+  color: "hsl(var(--foreground))",
+}
+
 function buildScenarioData(results: BenchmarkResult[], models = AVAILABLE_MODELS) {
   return ALL_SCENARIOS.map((scenario) => {
     const rows = results.filter((r) => r.scenarioId === scenario.id)
@@ -110,15 +119,9 @@ function ScenarioDetailPanel({
                   width={24}
                 />
                 <Tooltip
-                  formatter={(val: number, _name, payload) => [val, payload.payload.levelName]}
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 6,
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 11,
-                    color: "hsl(var(--foreground))",
-                  }}
+                  formatter={(val: number, _name, payload) => [`${val} (${scoreLabel(val)})`, payload.payload.levelName]}
+                  labelFormatter={(label) => `Escalation ${label}`}
+                  contentStyle={TOOLTIP_STYLE}
                   cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                 />
                 <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={36}>
@@ -156,14 +159,9 @@ function ScenarioDetailPanel({
                     tickLine={false}
                   />
                   <Tooltip
-                    contentStyle={{
-                      background: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 6,
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11,
-                      color: "hsl(var(--foreground))",
-                    }}
+                    formatter={(val: number) => [`${val} (${scoreLabel(val)})`, "Model Avg DCS"]}
+                    labelFormatter={(label) => `Model: ${label}`}
+                    contentStyle={TOOLTIP_STYLE}
                     cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                   />
                   <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={16}>
@@ -200,14 +198,9 @@ function ScenarioDetailPanel({
                 width={28}
               />
               <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 6,
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: "hsl(var(--foreground))",
-                }}
+                formatter={(val: number, name: string) => [`${val} (${scoreLabel(val)})`, `${name} DCS`]}
+                labelFormatter={(label) => `Escalation ${label}`}
+                contentStyle={TOOLTIP_STYLE}
               />
               {models.map((model) => (
                 <Line
@@ -266,14 +259,9 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
             tickLine={false}
           />
           <Tooltip
-            contentStyle={{
-              background: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: 6,
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              color: "hsl(var(--foreground))",
-            }}
+            formatter={(val: number) => [`${val} (${scoreLabel(val)})`, "Scenario Avg DCS"]}
+            labelFormatter={(label) => `Scenario: ${label}`}
+            contentStyle={TOOLTIP_STYLE}
             cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
           />
           <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={20}>
