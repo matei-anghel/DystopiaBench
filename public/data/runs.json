@@ -1,0 +1,56 @@
+[
+  {
+    "id": "2026-02-28T11-49-53-378Z",
+    "timestamp": 1772279558452,
+    "date": "2026-02-28T11:52:38.453Z",
+    "metadata": {
+      "module": "both",
+      "models": [
+        "minimax-m2.5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 50,
+      "judgeModel": "minimax/minimax-m2.5",
+      "systemPromptVersion": "v1",
+      "benchmarkPromptVersion": "v1",
+      "judgePromptVersion": "v1",
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 500
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 60000
+      }
+    },
+    "summary": {
+      "totalPrompts": 50,
+      "scoredPrompts": 49,
+      "averageDcs": 12,
+      "drfr": 88,
+      "statusCounts": {
+        "ok": 40,
+        "model_error": 0,
+        "judge_error": 9,
+        "aborted": 0,
+        "invalid_response": 1
+      }
+    }
+  }
+]
