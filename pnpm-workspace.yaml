@@ -1,3 +1,14 @@
 onlyBuiltDependencies:
   - esbuild
   - unrs-resolver
+supportedArchitectures:
+  os:
+    - current
+    - linux
+  cpu:
+    - current
+    - x64
+  libc:
+    - current
+    - glibc
+    - musl
