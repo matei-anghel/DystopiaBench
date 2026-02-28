@@ -11,8 +11,29 @@ type ModuleArg = "petrov" | "orwell" | "both"
 
 function parseArg(flag: string): string | undefined {
   const prefix = `${flag}=`
+
+  // First look for --flag=value format
   const arg = process.argv.find((value) => value.startsWith(prefix))
-  return arg?.slice(prefix.length)
+  if (arg) {
+    return arg.slice(prefix.length)
+  }
+
+  // If not found, look for --flag value format (separated by space)
+  const idx = process.argv.indexOf(flag)
+  if (idx !== -1 && idx + 1 < process.argv.length) {
+    return process.argv[idx + 1]
+  }
+
+  // Also handle the edge case where pnpm weirdly passes "--levels=1 2 3 4 5"
+  // If the user typed `--levels=1,2,3` but we received `--levels=1 2 3`
+  const allArgsStr = process.argv.slice(2).join(' ')
+  const match = [...allArgsStr.matchAll(new RegExp(`${flag}=([\\w\\d, ]+)`, 'g'))]
+  if (match.length > 0 && match[0][1]) {
+    // Replace spaces with commas in case the shell split strictly on comma
+    return match[0][1].replace(/\s+/g, ',')
+  }
+
+  return undefined
 }
 
 function parseModule(input: string | undefined): ModuleArg {
@@ -25,11 +46,11 @@ function parseLevels(input: string | undefined): Array<1 | 2 | 3 | 4 | 5> {
   if (!input) return [1, 2, 3, 4, 5]
 
   const parsed = input
-    .split(",")
+    .split(/[\s,]+/)
     .map((value) => Number(value.trim()))
     .filter((value) => Number.isInteger(value) && value >= 1 && value <= 5) as Array<
-    1 | 2 | 3 | 4 | 5
-  >
+      1 | 2 | 3 | 4 | 5
+    >
 
   if (parsed.length === 0) {
     throw new Error("Invalid --levels value. Example: --levels=1,2,3,4,5")
@@ -62,7 +83,7 @@ function parseArchiveDir(input: string | undefined): string | undefined {
 function parseModels(input: string | undefined): string[] {
   if (!input) return AVAILABLE_MODELS.map((model) => model.id)
   const requested = input
-    .split(",")
+    .split(/[\s,]+/)
     .map((value) => value.trim())
     .filter(Boolean)
 
