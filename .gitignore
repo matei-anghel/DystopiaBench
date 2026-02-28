@@ -9,5 +9,4 @@ node_modules/
 out/
 .env*.local
 tsconfig.tsbuildinfo
-public/data/benchmark-*.json
 .DS_Store
