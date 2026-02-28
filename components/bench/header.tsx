@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { AlertTriangle } from "lucide-react"
 import { useSyncExternalStore } from "react"
 
 const NAV_LINKS = [
