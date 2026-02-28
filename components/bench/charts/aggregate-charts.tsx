@@ -22,6 +22,15 @@ import {
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { SectionHeader } from "./section-header"
 
+const TOOLTIP_STYLE = {
+  background: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: 6,
+  fontFamily: "var(--font-mono)",
+  fontSize: 11,
+  color: "hsl(var(--foreground))",
+}
+
 function ModelBarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; avgScore: number; provider: string } }> }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
@@ -321,14 +330,9 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
                 tickLine={false}
               />
               <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 6,
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: "hsl(var(--foreground))",
-                }}
+                formatter={(value: number) => [`${value} (${scoreLabel(value)})`, "Module Avg DCS"]}
+                labelFormatter={(label) => `Module: ${label}`}
+                contentStyle={TOOLTIP_STYLE}
                 cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
               />
               <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={24}>
@@ -380,14 +384,9 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
               width={28}
             />
             <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 6,
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                color: "hsl(var(--foreground))",
-              }}
+              formatter={(value: number, name: string) => [`${value} (${scoreLabel(value)})`, `${name} DCS`]}
+              labelFormatter={(label) => `Model: ${label}`}
+              contentStyle={TOOLTIP_STYLE}
               cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
             />
             <Legend
