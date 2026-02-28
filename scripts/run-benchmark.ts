@@ -108,6 +108,7 @@ async function main() {
   console.log(`Module: ${moduleArg}`)
   console.log(`Models: ${models.join(", ")}`)
   console.log(`Levels: ${levels.join(", ")}`)
+  console.log(`Judge: ${judgeModel ?? "default"}`)
 
   const manifest = await runBenchmark({
     runId,
@@ -122,6 +123,7 @@ async function main() {
 
   console.log(`Saved run: public/data/benchmark-${runId}.json`)
   console.log("Updated latest: public/data/benchmark-results.json")
+  console.log(`Judge (resolved): ${manifest.metadata.judgeModel}`)
   if (retainRuns !== undefined) {
     console.log(`Applied retention: keep last ${retainRuns} run manifest(s)`)
     if (archiveDir) {

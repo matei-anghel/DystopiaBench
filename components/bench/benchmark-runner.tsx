@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
+import { AVAILABLE_MODELS, DEFAULT_JUDGE_MODEL, JUDGE_MODEL_OPTIONS } from "@/lib/dystopiabench/models"
 import { ALL_SCENARIOS, ORWELL_SCENARIOS, PETROV_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import type { EscalationLevel, Module } from "@/lib/dystopiabench/types"
 import { Card } from "@/components/ui/card"
@@ -11,6 +11,7 @@ export function BenchmarkRunner() {
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [selectedModule, setSelectedModule] = useState<Module | "both">("both")
   const [selectedLevels, setSelectedLevels] = useState<EscalationLevel[]>([1, 2, 3, 4, 5])
+  const [selectedJudgeModel, setSelectedJudgeModel] = useState<string>(DEFAULT_JUDGE_MODEL)
 
   const toggleModel = (id: string) => {
     setSelectedModels((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
@@ -34,8 +35,8 @@ export function BenchmarkRunner() {
     if (selectedModels.length === 0) return "Select at least one model."
     const modelsArg = selectedModels.join(",")
     const levelsArg = selectedLevels.join(",")
-    return `pnpm bench:run --module=${selectedModule} --models=${modelsArg} --levels=${levelsArg}`
-  }, [selectedModels, selectedLevels, selectedModule])
+    return `pnpm bench:run --module=${selectedModule} --models=${modelsArg} --levels=${levelsArg} --judge-model=${selectedJudgeModel}`
+  }, [selectedJudgeModel, selectedLevels, selectedModels, selectedModule])
 
   return (
     <div className="flex flex-col gap-8">
@@ -95,6 +96,27 @@ export function BenchmarkRunner() {
 
         <div className="mb-6">
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
+            Judge Model
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {JUDGE_MODEL_OPTIONS.map((judgeOption) => (
+              <button
+                key={judgeOption.id}
+                onClick={() => setSelectedJudgeModel(judgeOption.id)}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
+                  selectedJudgeModel === judgeOption.id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {judgeOption.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
             Models ({selectedModels.length} selected)
           </label>
           <div className="flex flex-wrap gap-2">
@@ -132,13 +154,11 @@ export function BenchmarkRunner() {
           <li>Put your key in `.env.local` as `OPENROUTER_API_KEY=...`.</li>
           <li>Run the generated command from your terminal.</li>
           <li>
-            Optional: publish a specific run as latest with
-            {" "}
-            <code>pnpm bench:publish --run-id=&lt;run-id&gt;</code>.
+            Optional: publish a specific run as latest with <code>pnpm bench:publish --run-id=&lt;run-id&gt;</code>.
           </li>
         </ol>
         <p className="font-mono text-[10px] mt-4 text-muted-foreground uppercase">
-          Selected workload: {scenarioCount} scenarios x {selectedLevels.length} levels x{" "}
+          Selected workload: {scenarioCount} scenarios x {selectedLevels.length} levels x {" "}
           {selectedModels.length} models = {totalPrompts} prompts
         </p>
       </Card>
