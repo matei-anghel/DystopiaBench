@@ -11,6 +11,7 @@ import {
   getComplianceDistribution,
   getAggregateByModel,
   getEscalationCurveByModel,
+  getChartShape,
 } from "@/lib/dystopiabench/analytics"
 import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
@@ -28,6 +29,7 @@ interface Props {
 
 export function ModuleCharts({ module, results, selectedModelIds }: Props) {
   const moduleResults = results.filter((r) => r.module === module)
+  const shape = getChartShape(moduleResults)
   const scenarios = module === "petrov" ? PETROV_SCENARIOS : ORWELL_SCENARIOS
   const activeModels = AVAILABLE_MODELS.filter((model) =>
     selectedModelIds
@@ -81,40 +83,54 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
       </div>
 
       {/* Model scores (this module) */}
-      <Card className="bg-card border-border p-5">
-        <SectionHeader
-          label={`Model Avg Score - ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
-          sub="Sorted ascending - lower score = stronger refusal = safer."
-        />
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={modelData} layout="vertical" margin={{ left: 16, right: 32, top: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-            <XAxis
-              type="number" domain={[0, 100]}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false}
-            />
-            <YAxis
-              type="category" dataKey="label" width={100}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={false} tickLine={false}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
-                borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: 11,
-                color: "hsl(var(--foreground))"
-              }}
-              cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
-            />
-            <Bar dataKey="avgScore" radius={[0, 3, 3, 0]} maxBarSize={20}>
-              {modelData.map((entry) => (
-                <Cell key={entry.modelId} fill={scoreColor(entry.avgScore)} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
+      {shape.hasMultiModel ? (
+        <Card className="bg-card border-border p-5">
+          <SectionHeader
+            label={`Model Avg Score - ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
+            sub="Sorted ascending - lower score = stronger refusal = safer."
+          />
+          <div className="h-[220px] md:h-[320px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={modelData} layout="vertical" margin={{ left: 16, right: 32, top: 4, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis
+                  type="number" domain={[0, 100]}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                  axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false}
+                />
+                <YAxis
+                  type="category" dataKey="label" width={100}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                  axisLine={false} tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
+                    borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: 11,
+                    color: "hsl(var(--foreground))"
+                  }}
+                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                />
+                <Bar dataKey="avgScore" radius={[0, 3, 3, 0]} maxBarSize={20}>
+                  {modelData.map((entry) => (
+                    <Cell key={entry.modelId} fill={scoreColor(entry.avgScore)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      ) : (
+        <Card className="bg-card border-border p-5">
+          <SectionHeader
+            label="Single Model Mode"
+            sub="Model comparison chart hidden because this run has one model."
+          />
+          <p className="font-mono text-sm text-muted-foreground">
+            Scenario and escalation charts remain available for this module.
+          </p>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Per-scenario bar */}
@@ -215,40 +231,42 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
           label={`Escalation Curve - ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
           sub="How compliance increases under escalating pressure, per model."
         />
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={escalation} margin={{ left: 0, right: 12, top: 8, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis
-              dataKey="level"
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={false} tickLine={false} width={28}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
-                borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: 11,
-                color: "hsl(var(--foreground))"
-              }}
-            />
-            {activeModels.map((m) => (
-              <Line
-                key={m.id}
-                type="monotone"
-                dataKey={m.id}
-                stroke={MODEL_COLORS[m.id] ?? "#888"}
-                strokeWidth={2}
-                dot={{ r: 3, fill: MODEL_COLORS[m.id] ?? "#888", strokeWidth: 0 }}
-                activeDot={{ r: 5 }}
-                name={m.label}
+        <div className="h-[220px] md:h-[320px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={escalation} margin={{ left: 0, right: 12, top: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="level"
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false}
               />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                axisLine={false} tickLine={false} width={28}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
+                  borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: 11,
+                  color: "hsl(var(--foreground))"
+                }}
+              />
+              {activeModels.map((m) => (
+                <Line
+                  key={m.id}
+                  type="linear"
+                  dataKey={m.id}
+                  stroke={MODEL_COLORS[m.id] ?? "#888"}
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: MODEL_COLORS[m.id] ?? "#888", strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                  name={m.label}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
         <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border">
           {activeModels.map((m) => (
             <div key={m.id} className="flex items-center gap-1.5">

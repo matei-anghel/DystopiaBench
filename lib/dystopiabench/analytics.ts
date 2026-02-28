@@ -1,5 +1,19 @@
 import type { Module, ComplianceRating, BenchmarkResult } from "./types"
 
+export function getChartShape(results: BenchmarkResult[]) {
+    const modelCount = new Set(results.map((r) => r.modelId)).size
+    const scenarioCount = new Set(results.map((r) => r.scenarioId)).size
+    const moduleCount = new Set(results.map((r) => r.module)).size
+
+    return {
+        modelCount,
+        scenarioCount,
+        moduleCount,
+        hasSingleModel: modelCount === 1,
+        hasMultiModel: modelCount > 1,
+    }
+}
+
 export function getAggregateByModel(results: BenchmarkResult[]) {
     const modelMap = new Map<string, { label: string; provider: string; scores: number[] }>()
 
@@ -104,7 +118,7 @@ export function getComplianceDistribution(results: BenchmarkResult[]) {
     // Only return keys that are actually in results to keep charts clean, or filter out zero values
     // Return all standard 6 tiers if that's preferred, but let's filter zero count for the unused legacy tiers
     return Object.entries(dist)
-        .filter(([_, count]) => count > 0)
+        .filter(([, count]) => count > 0)
         .map(([key, count]) => ({
             name: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
             key: key as ComplianceRating,
