@@ -22,22 +22,24 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"]
 
-function normalizeSelection(selected: string[], available: string[]): string[] {
+function normalizeSelection(selected: string[], available: string[], { initial = false } = {}): string[] {
   const next = selected.filter((id) => available.includes(id))
-  return next.length > 0 ? next : available
+  if (initial && next.length === 0) return available
+  return next
 }
 
 export default function ResultsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("aggregate")
-  const { dataSource, results, runs, selectedRunId, setSelectedRunId, manifest } = useBenchmarkData()
+  const { results, runs, selectedRunId, setSelectedRunId, manifest } = useBenchmarkData()
   const availableModelIds = useMemo(
     () => AVAILABLE_MODELS.map((model) => model.id).filter((id) => results.some((row) => row.modelId === id)),
     [results],
   )
+  const [hasInteracted, setHasInteracted] = useState(false)
   const [rawSelectedModelIds, setRawSelectedModelIds] = useState<string[]>([])
   const selectedModelIds = useMemo(
-    () => normalizeSelection(rawSelectedModelIds, availableModelIds),
-    [availableModelIds, rawSelectedModelIds],
+    () => normalizeSelection(rawSelectedModelIds, availableModelIds, { initial: !hasInteracted }),
+    [availableModelIds, rawSelectedModelIds, hasInteracted],
   )
 
   const filteredResults = useMemo(() => {
@@ -49,11 +51,22 @@ export default function ResultsPage() {
   const scenarioCount = new Set(filteredResults.map((r) => r.scenarioId)).size
 
   const toggleModel = (modelId: string) => {
+    setHasInteracted(true)
     setRawSelectedModelIds((current) => {
-      const next = normalizeSelection(current, availableModelIds)
+      const next = normalizeSelection(current, availableModelIds, { initial: !hasInteracted })
       if (!next.includes(modelId)) return [...next, modelId]
-      if (next.length === 1) return next
       return next.filter((id) => id !== modelId)
+    })
+  }
+
+  const toggleAll = () => {
+    setHasInteracted(true)
+    setRawSelectedModelIds((current) => {
+      const next = normalizeSelection(current, availableModelIds, { initial: !hasInteracted })
+      if (next.length === availableModelIds.length) {
+        return []
+      }
+      return availableModelIds
     })
   }
 
@@ -71,7 +84,6 @@ export default function ResultsPage() {
                 Benchmark Results
               </h1>
               <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
-                {dataSource === "real" ? "Real run data" : "Mock data fallback"} -{" "}
                 {filteredResults.length.toLocaleString()} tests - {modelCount}/{availableModelIds.length} models - {scenarioCount} scenarios
               </p>
             </div>
@@ -104,7 +116,7 @@ export default function ResultsPage() {
           modelIds={availableModelIds}
           selectedModelIds={selectedModelIds}
           onToggleModel={toggleModel}
-          onSelectAll={() => setRawSelectedModelIds(availableModelIds)}
+          onToggleAll={toggleAll}
         />
 
         <div className="flex gap-1.5 mb-8 overflow-x-auto pb-1">
@@ -112,17 +124,15 @@ export default function ResultsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`shrink-0 flex flex-col items-start rounded-md border px-4 py-2.5 transition-colors ${
-                activeTab === tab.id
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-muted-foreground/40"
-              }`}
+              className={`shrink-0 flex flex-col items-start rounded-md border px-4 py-2.5 transition-colors ${activeTab === tab.id
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-muted-foreground/40"
+                }`}
             >
               <span className="font-mono text-xs font-bold tracking-wide uppercase">{tab.label}</span>
               <span
-                className={`font-mono text-[9px] mt-0.5 ${
-                  activeTab === tab.id ? "text-primary/70" : "text-muted-foreground"
-                }`}
+                className={`font-mono text-[9px] mt-0.5 ${activeTab === tab.id ? "text-primary/70" : "text-muted-foreground"
+                  }`}
               >
                 {tab.sub}
               </span>
@@ -130,7 +140,7 @@ export default function ResultsPage() {
           ))}
         </div>
 
-        {activeTab === "aggregate" && <AggregateCharts results={filteredResults} dataSource={dataSource} />}
+        {activeTab === "aggregate" && <AggregateCharts results={filteredResults} />}
         {activeTab === "petrov" && <ModuleCharts module="petrov" results={filteredResults} selectedModelIds={selectedModelIds} />}
         {activeTab === "orwell" && <ModuleCharts module="orwell" results={filteredResults} selectedModelIds={selectedModelIds} />}
         {activeTab === "scenario" && <ScenarioCharts results={filteredResults} selectedModelIds={selectedModelIds} />}

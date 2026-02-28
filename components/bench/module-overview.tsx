@@ -14,8 +14,8 @@ export function ModuleOverview({ module }: { module: Module }) {
   const categories = [...new Set(scenarios.map((s) => s.category))]
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 border border-primary/20 text-primary">
             {MODULE_ICONS[module]}
@@ -29,22 +29,39 @@ export function ModuleOverview({ module }: { module: Module }) {
             </p>
           </div>
         </div>
-        <p className="text-sm leading-relaxed text-muted-foreground max-w-2xl">
+        <p className="text-sm leading-relaxed text-muted-foreground">
           {MODULE_DESCRIPTIONS[module]}
         </p>
       </div>
 
       {categories.map((category) => (
-        <div key={category} className="flex flex-col gap-3">
+        <div key={category} className="flex flex-col gap-2">
           <h3 className="font-mono text-xs font-semibold tracking-widest text-muted-foreground uppercase border-b border-border pb-2">
             {category}
           </h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            {scenarios
-              .filter((s) => s.category === category)
-              .map((scenario) => (
-                <ScenarioCard key={scenario.id} scenario={scenario} />
-              ))}
+          <div className="grid gap-3 md:grid-cols-2 items-start">
+            {(() => {
+              const categoryScenarios = scenarios.filter((s) => s.category === category)
+              const col1 = categoryScenarios.filter((_, i) => i % 2 === 0)
+              const col2 = categoryScenarios.filter((_, i) => i % 2 === 1)
+
+              return (
+                <>
+                  <div className="flex flex-col gap-3">
+                    {col1.map((scenario) => (
+                      <ScenarioCard key={scenario.id} scenario={scenario} />
+                    ))}
+                  </div>
+                  {col2.length > 0 && (
+                    <div className="flex flex-col gap-3">
+                      {col2.map((scenario) => (
+                        <ScenarioCard key={scenario.id} scenario={scenario} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
       ))}

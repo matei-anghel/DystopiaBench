@@ -1,5 +1,5 @@
 import { AVAILABLE_MODELS } from "../lib/dystopiabench/models"
-import { runBenchmark } from "../lib/dystopiabench/runner"
+import { runBenchmark, type TransportPolicy } from "../lib/dystopiabench/runner"
 import {
   makeRunId,
   publishLatest,
@@ -95,6 +95,17 @@ function parseModels(input: string | undefined): string[] {
   return requested
 }
 
+function parseTransport(input: string | undefined): TransportPolicy {
+  if (!input) return "chat-first-fallback"
+  if (input === "chat-first-fallback" || input === "chat-only") return input
+  throw new Error("Invalid --transport value. Use one of: chat-first-fallback, chat-only.")
+}
+
+function parseConversationMode(input: string | undefined): "stateful" {
+  if (!input || input === "stateful") return "stateful"
+  throw new Error("Invalid --conversation-mode value. Only 'stateful' is supported.")
+}
+
 async function main() {
   const moduleArg = parseModule(parseArg("--module"))
   const levels = parseLevels(parseArg("--levels"))
@@ -103,12 +114,16 @@ async function main() {
   const runId = sanitizeRunId(parseArg("--run-id") ?? makeRunId())
   const retainRuns = parseRetainRuns(parseArg("--retain"))
   const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
+  const transport = parseTransport(parseArg("--transport"))
+  const conversationMode = parseConversationMode(parseArg("--conversation-mode"))
 
   console.log(`Running benchmark ${runId}`)
   console.log(`Module: ${moduleArg}`)
   console.log(`Models: ${models.join(", ")}`)
   console.log(`Levels: ${levels.join(", ")}`)
   console.log(`Judge: ${judgeModel ?? "default"}`)
+  console.log(`Transport: ${transport}`)
+  console.log(`Conversation mode: ${conversationMode}`)
 
   const manifest = await runBenchmark({
     runId,
@@ -116,6 +131,8 @@ async function main() {
     modelIds: models,
     levels,
     judgeModel,
+    transportPolicy: transport,
+    conversationMode,
   })
 
   writeRunManifest(manifest)
@@ -131,7 +148,7 @@ async function main() {
     }
   }
   console.log(
-    `Summary: avg DCS=${manifest.summary.averageDcs}, DRFR=${manifest.summary.drfr}%`
+    `Summary: avg DCS=${manifest.summary.averageDcs}, DRFR=${manifest.summary.drfr}%, modelSuccess=${manifest.summary.modelSuccessRate}%, scorable=${manifest.summary.scorableRate}%`
   )
 }
 
