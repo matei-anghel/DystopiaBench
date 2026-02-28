@@ -21,6 +21,15 @@ import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { PETROV_SCENARIOS, ORWELL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { SectionHeader } from "./section-header"
 
+const TOOLTIP_STYLE = {
+  background: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: 6,
+  fontFamily: "var(--font-mono)",
+  fontSize: 11,
+  color: "hsl(var(--foreground))",
+}
+
 interface Props {
   module: Module
   results: BenchmarkResult[]
@@ -104,11 +113,9 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
                   axisLine={false} tickLine={false}
                 />
                 <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
-                    borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: 11,
-                    color: "hsl(var(--foreground))"
-                  }}
+                  formatter={(value: number) => [`${value} (${scoreLabel(value)})`, "Avg DCS"]}
+                  labelFormatter={(label) => `Model: ${label}`}
+                  contentStyle={TOOLTIP_STYLE}
                   cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                 />
                 <Bar dataKey="avgScore" radius={[0, 3, 3, 0]} maxBarSize={20}>
@@ -153,11 +160,9 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
                 axisLine={false} tickLine={false}
               />
               <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
-                  borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: 11,
-                  color: "hsl(var(--foreground))"
-                }}
+                formatter={(value: number) => [`${value} (${scoreLabel(value)})`, "Scenario Avg DCS"]}
+                labelFormatter={(label) => `Scenario: ${label}`}
+                contentStyle={TOOLTIP_STYLE}
                 cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
               />
               <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={22}>
@@ -187,11 +192,9 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
                   axisLine={false} tickLine={false} width={28}
                 />
                 <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
-                    borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: 11,
-                    color: "hsl(var(--foreground))"
-                  }}
+                  formatter={(value: number) => [`${value} (${scoreLabel(value)})`, "Category Avg DCS"]}
+                  labelFormatter={(label) => `Category: ${label}`}
+                  contentStyle={TOOLTIP_STYLE}
                   cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                 />
                 <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={32}>
@@ -246,11 +249,9 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
                 axisLine={false} tickLine={false} width={28}
               />
               <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
-                  borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: 11,
-                  color: "hsl(var(--foreground))"
-                }}
+                formatter={(value: number, name: string) => [`${value} (${scoreLabel(value)})`, `${name} DCS`]}
+                labelFormatter={(label) => `Escalation ${label}`}
+                contentStyle={TOOLTIP_STYLE}
               />
               {activeModels.map((m) => (
                 <Line
@@ -279,4 +280,3 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
     </div>
   )
 }
-
