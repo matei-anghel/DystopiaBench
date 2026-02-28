@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
+import { getChartShape } from "@/lib/dystopiabench/analytics"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
 import { Radiation, Eye } from "lucide-react"
 import { SectionHeader } from "./section-header"
@@ -93,15 +94,19 @@ function buildGlobalLevelData(results: BenchmarkResult[], models = AVAILABLE_MOD
 function LevelModelGrid({
   data,
   models,
+  hasSingleModel,
 }: {
   data: Array<Record<string, string | number | null>>
   models: typeof AVAILABLE_MODELS
+  hasSingleModel: boolean
 }) {
   return (
     <Card className="bg-card border-border p-5 overflow-x-auto">
       <SectionHeader
         label="Level x Model Score Grid"
-        sub="Avg compliance score at each escalation level per model. Color = compliance tier."
+        sub={hasSingleModel
+          ? "Single model mode. Avg compliance score at each escalation level for the active model."
+          : "Avg compliance score at each escalation level per model. Color = compliance tier."}
       />
       <div className="min-w-max">
         <div className="flex items-center gap-px mb-1">
@@ -151,7 +156,7 @@ function LevelModelGrid({
                     className="w-16 h-10 flex items-center justify-center rounded-sm bg-muted/30"
                     title={`${model.label} / ${row.label}: no data`}
                   >
-                    <span className="font-mono text-[10px] text-muted-foreground">—</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">-</span>
                   </div>
                 )
               }
@@ -229,7 +234,15 @@ function GlobalLevelBar({ data }: { data: Array<Record<string, string | number |
   )
 }
 
-function ScenarioPromptDrillDown({ results, models }: { results: BenchmarkResult[]; models: typeof AVAILABLE_MODELS }) {
+function ScenarioPromptDrillDown({
+  results,
+  models,
+  hasMultiModel,
+}: {
+  results: BenchmarkResult[]
+  models: typeof AVAILABLE_MODELS
+  hasMultiModel: boolean
+}) {
   const [selectedId, setSelectedId] = useState<string>(ALL_SCENARIOS[0].id)
   const data = useMemo(() => buildPromptData(results, selectedId, models), [models, results, selectedId])
 
@@ -284,72 +297,78 @@ function ScenarioPromptDrillDown({ results, models }: { results: BenchmarkResult
       <Card className="bg-card border-border p-5">
         <SectionHeader
           label="Per-Prompt Escalation - All Models"
-          sub="Each model's score at each of the 5 escalation levels for this scenario."
+          sub={hasMultiModel
+            ? "Each model's score at each of the 5 escalation levels for this scenario."
+            : "Single model mode. Average score per escalation level for this scenario."}
         />
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={lineData} margin={{ left: 0, right: 12, top: 8, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={{ stroke: "hsl(var(--border))" }}
-              tickLine={false}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={false}
-              tickLine={false}
-              width={28}
-            />
-            <ReferenceLine
-              y={50}
-              stroke="hsl(var(--border))"
-              strokeDasharray="6 3"
-              label={{
-                value: "threshold",
-                position: "right",
-                style: {
-                  fontSize: 9,
-                  fontFamily: "var(--font-mono)",
-                  fill: "hsl(var(--muted-foreground))",
-                },
-              }}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 6,
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                color: "hsl(var(--foreground))",
-              }}
-            />
-            {models.map((model) => (
-              <Line
-                key={model.id}
-                type="monotone"
-                dataKey={model.id}
-                stroke={MODEL_COLORS[model.id] ?? "#888"}
-                strokeWidth={2}
-                dot={{ r: 3.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
-                activeDot={{ r: 5 }}
-                name={model.label}
-                connectNulls
+        <div className="h-[220px] md:h-[320px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={lineData} margin={{ left: 0, right: 12, top: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="label"
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                tickLine={false}
               />
-            ))}
-            <Line
-              type="monotone"
-              dataKey="avg"
-              stroke="hsl(var(--foreground))"
-              strokeWidth={1.5}
-              strokeDasharray="4 2"
-              dot={false}
-              name="Average"
-            />
-          </LineChart>
-        </ResponsiveContainer>
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                axisLine={false}
+                tickLine={false}
+                width={28}
+              />
+              <ReferenceLine
+                y={50}
+                stroke="hsl(var(--border))"
+                strokeDasharray="6 3"
+                label={{
+                  value: "threshold",
+                  position: "right",
+                  style: {
+                    fontSize: 9,
+                    fontFamily: "var(--font-mono)",
+                    fill: "hsl(var(--muted-foreground))",
+                  },
+                }}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: 6,
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  color: "hsl(var(--foreground))",
+                }}
+              />
+              {hasMultiModel
+                ? models.map((model) => (
+                  <Line
+                    key={model.id}
+                    type="linear"
+                    dataKey={model.id}
+                    stroke={MODEL_COLORS[model.id] ?? "#888"}
+                    strokeWidth={2}
+                    dot={{ r: 3.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
+                    name={model.label}
+                    connectNulls
+                  />
+                ))
+                : null}
+              <Line
+                type="linear"
+                dataKey="avg"
+                stroke="hsl(var(--foreground))"
+                strokeWidth={hasMultiModel ? 1.5 : 2.5}
+                strokeDasharray={hasMultiModel ? "4 2" : undefined}
+                dot={!hasMultiModel ? { r: 3.5, fill: "hsl(var(--foreground))", strokeWidth: 0 } : false}
+                name="Average"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-5">
@@ -376,44 +395,50 @@ function ScenarioPromptDrillDown({ results, models }: { results: BenchmarkResult
                   </>
                 ) : (
                   <>
-                    <span className="font-mono text-xl font-black text-muted-foreground">—</span>
+                    <span className="font-mono text-xl font-black text-muted-foreground">-</span>
                     <span className="font-mono text-[9px] text-muted-foreground">no data</span>
                   </>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-col gap-1">
-              {[...levelEntry.modelScores].sort((a, b) => (a.score ?? -1) - (b.score ?? -1)).map((modelScore) => (
-                <div key={modelScore.modelId} className="flex items-center gap-1.5">
-                  <div
-                    className="h-1.5 w-1.5 rounded-full shrink-0"
-                    style={{ background: MODEL_COLORS[modelScore.modelId] }}
-                  />
-                  {modelScore.score !== null ? (
-                    <>
-                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${modelScore.score}%`,
-                            background: scoreColor(modelScore.score),
-                          }}
-                        />
-                      </div>
-                      <span className="font-mono text-[9px] w-5 text-right" style={{ color: scoreColor(modelScore.score) }}>
-                        {modelScore.score}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex-1 h-1.5 rounded-full bg-muted/30" />
-                      <span className="font-mono text-[9px] w-5 text-right text-muted-foreground">—</span>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
+            {hasMultiModel ? (
+              <div className="flex flex-col gap-1">
+                {[...levelEntry.modelScores].sort((a, b) => (a.score ?? -1) - (b.score ?? -1)).map((modelScore) => (
+                  <div key={modelScore.modelId} className="flex items-center gap-1.5">
+                    <div
+                      className="h-1.5 w-1.5 rounded-full shrink-0"
+                      style={{ background: MODEL_COLORS[modelScore.modelId] }}
+                    />
+                    {modelScore.score !== null ? (
+                      <>
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${modelScore.score}%`,
+                              background: scoreColor(modelScore.score),
+                            }}
+                          />
+                        </div>
+                        <span className="font-mono text-[9px] w-5 text-right" style={{ color: scoreColor(modelScore.score) }}>
+                          {modelScore.score}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1 h-1.5 rounded-full bg-muted/30" />
+                        <span className="font-mono text-[9px] w-5 text-right text-muted-foreground">-</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+                Single model mode
+              </p>
+            )}
 
             {levelEntry.prompt ? (
               <div className="mt-3 pt-2 border-t border-border">
@@ -436,6 +461,7 @@ export function PromptCharts({
   results: BenchmarkResult[]
   selectedModelIds?: string[]
 }) {
+  const shape = getChartShape(results)
   const activeModels = useMemo(
     () =>
       AVAILABLE_MODELS.filter((model) =>
@@ -450,12 +476,12 @@ export function PromptCharts({
   return (
     <div className="flex flex-col gap-6">
       <GlobalLevelBar data={globalData} />
-      <LevelModelGrid data={globalData} models={activeModels} />
+      <LevelModelGrid data={globalData} models={activeModels} hasSingleModel={shape.hasSingleModel} />
       <div className="border-t border-border pt-6">
         <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase mb-5">
           Per-Scenario Prompt Drill Down
         </p>
-        <ScenarioPromptDrillDown results={results} models={activeModels} />
+        <ScenarioPromptDrillDown results={results} models={activeModels} hasMultiModel={shape.hasMultiModel} />
       </div>
     </div>
   )

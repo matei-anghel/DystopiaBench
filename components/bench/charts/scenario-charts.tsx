@@ -19,6 +19,7 @@ import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
+import { getChartShape } from "@/lib/dystopiabench/analytics"
 import { ChevronDown, ChevronRight, Radiation, Eye } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
@@ -73,74 +74,130 @@ function buildScenarioData(results: BenchmarkResult[], models = AVAILABLE_MODELS
 
 type ScenarioDataRow = ReturnType<typeof buildScenarioData>[number]
 
-function ScenarioDetailPanel({ data, models }: { data: ScenarioDataRow; models: typeof AVAILABLE_MODELS }) {
+function ScenarioDetailPanel({
+  data,
+  models,
+  hasMultiModel,
+}: {
+  data: ScenarioDataRow
+  models: typeof AVAILABLE_MODELS
+  hasMultiModel: boolean
+}) {
   const { levelAvgs, modelAvgs, escalationByModel } = data
 
   return (
     <div className="flex flex-col gap-5 pt-4 border-t border-border mt-1">
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className={`grid gap-5 ${hasMultiModel ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
         <div>
           <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
             Avg Score by Escalation Level
           </p>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={levelAvgs} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                axisLine={{ stroke: "hsl(var(--border))" }}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                axisLine={false}
-                tickLine={false}
-                width={24}
-              />
-              <Tooltip
-                formatter={(val: number, _name, payload) => [val, payload.payload.levelName]}
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 6,
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: "hsl(var(--foreground))",
-                }}
-                cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
-              />
-              <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={36}>
-                {levelAvgs.map((entry) => (
-                  <Cell key={entry.level} fill={scoreColor(entry.avg)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="h-[170px] md:h-[190px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={levelAvgs} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={24}
+                />
+                <Tooltip
+                  formatter={(val: number, _name, payload) => [val, payload.payload.levelName]}
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 6,
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    color: "hsl(var(--foreground))",
+                  }}
+                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                />
+                <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={36}>
+                  {levelAvgs.map((entry) => (
+                    <Cell key={entry.level} fill={scoreColor(entry.avg)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
+        {hasMultiModel ? (
+          <div>
+            <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
+              Avg Score by Model (all levels)
+            </p>
+            <div className="h-[170px] md:h-[190px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={modelAvgs} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    domain={[0, 100]}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    width={88}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 6,
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 11,
+                      color: "hsl(var(--foreground))",
+                    }}
+                    cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                  />
+                  <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={16}>
+                    {modelAvgs.map((entry) => (
+                      <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? scoreColor(entry.avg)} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {hasMultiModel ? (
         <div>
           <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
-            Avg Score by Model (all levels)
+            Per-Model Escalation Curve (this scenario)
           </p>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={modelAvgs} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={escalationByModel} margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
-                type="number"
-                domain={[0, 100]}
+                dataKey="label"
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
                 axisLine={{ stroke: "hsl(var(--border))" }}
                 tickLine={false}
               />
               <YAxis
-                type="category"
-                dataKey="label"
-                width={88}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                domain={[0, 100]}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
                 axisLine={false}
                 tickLine={false}
+                width={28}
               />
               <Tooltip
                 contentStyle={{
@@ -151,64 +208,28 @@ function ScenarioDetailPanel({ data, models }: { data: ScenarioDataRow; models: 
                   fontSize: 11,
                   color: "hsl(var(--foreground))",
                 }}
-                cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
               />
-              <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={16}>
-                {modelAvgs.map((entry) => (
-                  <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? scoreColor(entry.avg)} />
-                ))}
-              </Bar>
-            </BarChart>
+              {models.map((model) => (
+                <Line
+                  key={model.id}
+                  type="linear"
+                  dataKey={model.id}
+                  stroke={MODEL_COLORS[model.id] ?? "#888"}
+                  strokeWidth={1.5}
+                  dot={{ r: 2.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
+                  activeDot={{ r: 4 }}
+                  name={model.label}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      <div>
-        <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
-          Per-Model Escalation Curve (this scenario)
+      ) : (
+        <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-wide">
+          Single model mode: per-model comparison charts are hidden.
         </p>
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={escalationByModel} margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={{ stroke: "hsl(var(--border))" }}
-              tickLine={false}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={false}
-              tickLine={false}
-              width={28}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 6,
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                color: "hsl(var(--foreground))",
-              }}
-            />
-            {models.map((model) => (
-              <Line
-                key={model.id}
-                type="monotone"
-                dataKey={model.id}
-                stroke={MODEL_COLORS[model.id] ?? "#888"}
-                strokeWidth={1.5}
-                dot={{ r: 2.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
-                activeDot={{ r: 4 }}
-                name={model.label}
-                connectNulls
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      )}
     </div>
   )
 }
@@ -270,10 +291,12 @@ function ScenarioModelGrid({
   data,
   results,
   models,
+  hasSingleModel,
 }: {
   data: ScenarioDataRow[]
   results: BenchmarkResult[]
   models: typeof AVAILABLE_MODELS
+  hasSingleModel: boolean
 }) {
   const grandAverage =
     results.length > 0 ? Math.round(results.reduce((sum, row) => sum + row.score, 0) / results.length) : 0
@@ -282,7 +305,9 @@ function ScenarioModelGrid({
     <Card className="bg-card border-border p-5 overflow-x-auto">
       <SectionHeader
         label="Score Grid - Model x Scenario"
-        sub="Each cell = avg score for that model on that scenario. Color = compliance tier."
+        sub={hasSingleModel
+          ? "Single model mode. Each cell = avg score for the active model on that scenario."
+          : "Each cell = avg score for that model on that scenario. Color = compliance tier."}
       />
       <div className="min-w-max">
         <div className="flex items-center gap-px mb-px">
@@ -406,6 +431,7 @@ export function ScenarioCharts({
   selectedModelIds?: string[]
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const shape = getChartShape(results)
   const activeModels = useMemo(
     () =>
       AVAILABLE_MODELS.filter((model) =>
@@ -420,7 +446,12 @@ export function ScenarioCharts({
   return (
     <div className="flex flex-col gap-6">
       <AllScenariosBar data={scenarioData} />
-      <ScenarioModelGrid data={scenarioData} results={results} models={activeModels} />
+      <ScenarioModelGrid
+        data={scenarioData}
+        results={results}
+        models={activeModels}
+        hasSingleModel={shape.hasSingleModel}
+      />
 
       <div>
         <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase mb-4">
@@ -477,7 +508,7 @@ export function ScenarioCharts({
                 </button>
                 {isOpen ? (
                   <div className="px-4 pb-5">
-                    <ScenarioDetailPanel data={row} models={activeModels} />
+                    <ScenarioDetailPanel data={row} models={activeModels} hasMultiModel={shape.hasMultiModel} />
                   </div>
                 ) : null}
               </Card>

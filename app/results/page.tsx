@@ -73,7 +73,7 @@ export default function ResultsPage() {
   return (
     <div className="min-h-screen bg-background">
       <BenchHeader />
-      <main className="mx-auto max-w-7xl px-6 py-10">
+      <main className="mx-auto max-w-[1600px] px-6 py-10 2xl:max-w-[1760px]">
         <div className="flex items-center justify-between gap-3 mb-8 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 border border-primary/20">
