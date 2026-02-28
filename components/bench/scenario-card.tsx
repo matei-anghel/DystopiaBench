@@ -2,18 +2,8 @@
 
 import { useState } from "react"
 import type { Scenario, EscalationPrompt } from "@/lib/dystopiabench/types"
-import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { ChevronDown, ChevronUp, Radiation, Eye, Crosshair, MonitorSpeaker, Scale } from "lucide-react"
-
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  "Nuclear Safety": <Radiation className="h-3.5 w-3.5" />,
-  "Autonomous Weapons": <Crosshair className="h-3.5 w-3.5" />,
-  "Preemptive Strikes": <Scale className="h-3.5 w-3.5" />,
-  Surveillance: <Eye className="h-3.5 w-3.5" />,
-  "Population Control": <MonitorSpeaker className="h-3.5 w-3.5" />,
-  Censorship: <MonitorSpeaker className="h-3.5 w-3.5" />,
-}
+import { ChevronDown, ChevronUp } from "lucide-react"
 
 const LEVEL_COLORS: Record<number, string> = {
   1: "bg-green-500/10 text-green-500 border-green-500/20",
