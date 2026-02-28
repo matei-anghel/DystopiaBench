@@ -7,7 +7,7 @@ import { ScenarioCharts } from "@/components/bench/charts/scenario-charts"
 import { PromptCharts } from "@/components/bench/charts/prompt-charts"
 import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
 import { Database } from "lucide-react"
-import type { MockResult } from "@/lib/dystopiabench/mock-data"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 
 const RESULT_TABS = [
     { id: "aggregate", label: "Aggregate", sub: "All models - Both modules" },
@@ -19,30 +19,30 @@ const RESULT_TABS = [
 
 type TabId = typeof RESULT_TABS[number]["id"]
 
-function normalizeSelection(selected: string[], available: string[]): string[] {
+function normalizeSelection(selected: string[], available: string[], { initial = false } = {}): string[] {
     const next = selected.filter((id) => available.includes(id))
-    return next.length > 0 ? next : available
+    if (initial && next.length === 0) return available
+    return next
 }
 
 export function DashboardTabs({
     results,
-    dataSource,
     modelCount,
     scenarioCount,
     availableModelIds
 }: {
-    results: MockResult[]
-    dataSource: "real" | "mock"
+    results: BenchmarkResult[]
     modelCount: number
     scenarioCount: number
     availableModelIds: string[]
 }) {
     const [activeTab, setActiveTab] = useState<TabId>("aggregate")
+    const [hasInteracted, setHasInteracted] = useState(false)
     const [rawSelectedModelIds, setRawSelectedModelIds] = useState<string[]>([])
 
     const selectedModelIds = useMemo(
-        () => normalizeSelection(rawSelectedModelIds, availableModelIds),
-        [availableModelIds, rawSelectedModelIds],
+        () => normalizeSelection(rawSelectedModelIds, availableModelIds, { initial: !hasInteracted }),
+        [availableModelIds, rawSelectedModelIds, hasInteracted],
     )
 
     const filteredResults = useMemo(() => {
@@ -51,11 +51,22 @@ export function DashboardTabs({
     }, [results, selectedModelIds])
 
     const toggleModel = (modelId: string) => {
+        setHasInteracted(true)
         setRawSelectedModelIds((current) => {
-            const next = normalizeSelection(current, availableModelIds)
+            const next = normalizeSelection(current, availableModelIds, { initial: !hasInteracted })
             if (!next.includes(modelId)) return [...next, modelId]
-            if (next.length === 1) return next
             return next.filter((id) => id !== modelId)
+        })
+    }
+
+    const toggleAll = () => {
+        setHasInteracted(true)
+        setRawSelectedModelIds((current) => {
+            const next = normalizeSelection(current, availableModelIds, { initial: !hasInteracted })
+            if (next.length === availableModelIds.length) {
+                return []
+            }
+            return availableModelIds
         })
     }
 
@@ -70,7 +81,6 @@ export function DashboardTabs({
                         Benchmark Results
                     </p>
                     <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
-                        {dataSource === "real" ? "Real run data" : "Mock data fallback"} ·{" "}
                         {filteredResults.length.toLocaleString()} tests · {selectedModelIds.length}/{modelCount} models · {scenarioCount} scenarios
                     </p>
                 </div>
@@ -80,7 +90,7 @@ export function DashboardTabs({
                 modelIds={availableModelIds}
                 selectedModelIds={selectedModelIds}
                 onToggleModel={toggleModel}
-                onSelectAll={() => setRawSelectedModelIds(availableModelIds)}
+                onToggleAll={toggleAll}
             />
 
             <div className="flex gap-1.5 mb-8 overflow-x-auto pb-1">
@@ -104,7 +114,7 @@ export function DashboardTabs({
                 ))}
             </div>
 
-            {activeTab === "aggregate" && <AggregateCharts results={filteredResults} dataSource={dataSource} />}
+            {activeTab === "aggregate" && <AggregateCharts results={filteredResults} />}
             {activeTab === "petrov" && <ModuleCharts module="petrov" results={filteredResults} selectedModelIds={selectedModelIds} />}
             {activeTab === "orwell" && <ModuleCharts module="orwell" results={filteredResults} selectedModelIds={selectedModelIds} />}
             {activeTab === "scenario" && <ScenarioCharts results={filteredResults} selectedModelIds={selectedModelIds} />}

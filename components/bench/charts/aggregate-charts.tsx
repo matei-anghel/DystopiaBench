@@ -6,14 +6,14 @@ import {
   PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts"
 import { Card } from "@/components/ui/card"
-import type { MockResult } from "@/lib/dystopiabench/mock-data"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import {
   getAggregateByModel,
   getEscalationCurveByModel,
   getComplianceDistribution,
   getDRFR,
   getDRFRByModel,
-} from "@/lib/dystopiabench/mock-data"
+} from "@/lib/dystopiabench/analytics"
 import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
   MODULE_COLORS, scoreColor, scoreLabel, LEVEL_LABELS,
@@ -275,7 +275,7 @@ function CompliancePieChart({ data }: { data: ReturnType<typeof getComplianceDis
 
 // ─── Chart 5: Module Comparison ──────────────────────────────────────────────
 
-function ModuleComparisonChart({ results }: { results: MockResult[] }) {
+function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
   const modelIds = [...new Set(results.map((r) => r.modelId))]
   const data = modelIds.map((id) => {
     const petrov = results.filter((r) => r.modelId === id && r.module === "petrov")
@@ -330,7 +330,7 @@ function ModuleComparisonChart({ results }: { results: MockResult[] }) {
 
 // ─── Chart 6: Radar — model profile ─────────────────────────────────────────
 
-function ModelRadarChart({ results }: { results: MockResult[] }) {
+function ModelRadarChart({ results }: { results: BenchmarkResult[] }) {
   const modelIds = [...new Set(results.map((r) => r.modelId))]
   const data = [1, 2, 3, 4, 5].map((level) => {
     const row: Record<string, string | number> = { level: `L${level}\n${LEVEL_LABELS[level]}` }
@@ -389,11 +389,10 @@ function ModelRadarChart({ results }: { results: MockResult[] }) {
 // ─── Exported aggregate section ──────────────────────────────────────────────
 
 interface AggregateChartsProps {
-  results: MockResult[]
-  dataSource: "real" | "mock"
+  results: BenchmarkResult[]
 }
 
-export function AggregateCharts({ results, dataSource }: AggregateChartsProps) {
+export function AggregateCharts({ results }: AggregateChartsProps) {
   const modelData = getAggregateByModel(results)
   const escalation = getEscalationCurveByModel(results)
   const compliance = getComplianceDistribution(results)
@@ -408,16 +407,6 @@ export function AggregateCharts({ results, dataSource }: AggregateChartsProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        {dataSource === "real" ? (
-          <div className="flex items-center gap-2 font-mono text-[10px] text-accent">
-            <div className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-            Showing real benchmark results
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
-            Showing mock data
-          </div>
-        )}
       </div>
 
       {/* KPI strip */}

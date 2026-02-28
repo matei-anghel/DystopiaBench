@@ -1,20 +1,21 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { MOCK_RESULTS, type MockResult } from "@/lib/dystopiabench/mock-data"
 import { loadRuns, loadSavedRun, type RunIndexItem } from "@/lib/dystopiabench/load-results"
-import type { RunManifestV2 } from "@/lib/dystopiabench/schemas"
+import type { RunManifestV2, BenchmarkResultV2 } from "@/lib/dystopiabench/schemas"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 
-export type DataSource = "real" | "mock"
 export type SelectedRunId = "latest" | string
 
 export interface BenchmarkDataState {
   loading: boolean
   runs: RunIndexItem[]
   selectedRunId: SelectedRunId
-  dataSource: DataSource
-  results: MockResult[]
+  results: BenchmarkResult[]
   manifest: RunManifestV2 | null
+  rawManifestResults: BenchmarkResultV2[] | null
+  loadError: string | null
+  missingRun: boolean
   setSelectedRunId: (runId: SelectedRunId) => Promise<void>
   refresh: () => Promise<void>
 }
@@ -23,31 +24,49 @@ export function useBenchmarkData(): BenchmarkDataState {
   const [loading, setLoading] = useState(true)
   const [runs, setRuns] = useState<RunIndexItem[]>([])
   const [selectedRunId, setSelectedRunIdState] = useState<SelectedRunId>("latest")
-  const [dataSource, setDataSource] = useState<DataSource>("mock")
-  const [results, setResults] = useState<MockResult[]>(MOCK_RESULTS)
+  const [results, setResults] = useState<BenchmarkResult[]>([])
   const [manifest, setManifest] = useState<RunManifestV2 | null>(null)
+  const [rawManifestResults, setRawManifestResults] = useState<BenchmarkResultV2[] | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [missingRun, setMissingRun] = useState(false)
 
   const selectedRunIdRef = useRef<SelectedRunId>("latest")
   const latestVersionRef = useRef(0)
 
   const resolveRun = useCallback(async (runId: SelectedRunId) => {
-    const loaded = await loadSavedRun(
-      runId === "latest" ? undefined : runId,
-      runId === "latest" ? { latestVersion: latestVersionRef.current } : undefined,
-    )
+    try {
+      const loaded = await loadSavedRun(
+        runId === "latest" ? undefined : runId,
+        runId === "latest" ? { latestVersion: latestVersionRef.current } : undefined,
+      )
 
-    if (loaded && loaded.results.length > 0) {
-      return {
-        dataSource: "real" as const,
-        results: loaded.results,
-        manifest: loaded.manifest,
+      if (loaded && loaded.results.length > 0) {
+        return {
+          results: loaded.results,
+          manifest: loaded.manifest,
+          rawManifestResults: loaded.manifest?.results ?? null,
+          loadError: null,
+          missingRun: false,
+        }
       }
-    }
 
-    return {
-      dataSource: "mock" as const,
-      results: MOCK_RESULTS,
-      manifest: null,
+      // No data found for a specific run ID
+      // No data found
+      return {
+        results: [],
+        manifest: null,
+        rawManifestResults: null,
+        loadError: null,
+        missingRun: runId !== "latest",
+      }
+    } catch (error) {
+      return {
+        results: [],
+        manifest: null,
+        rawManifestResults: null,
+        loadError: error instanceof Error ? error.message : "Failed to load run data.",
+        missingRun: false,
+      }
     }
   }, [])
 
@@ -60,9 +79,11 @@ export function useBenchmarkData(): BenchmarkDataState {
 
       setSelectedRunIdState(runId)
       const resolved = await resolveRun(runId)
-      setDataSource(resolved.dataSource)
       setResults(resolved.results)
       setManifest(resolved.manifest)
+      setRawManifestResults(resolved.rawManifestResults)
+      setLoadError(resolved.loadError)
+      setMissingRun(resolved.missingRun)
     },
     [resolveRun],
   )
@@ -73,9 +94,11 @@ export function useBenchmarkData(): BenchmarkDataState {
       const runIndex = await loadRuns()
       setRuns(runIndex)
       const resolved = await resolveRun(selectedRunId)
-      setDataSource(resolved.dataSource)
       setResults(resolved.results)
       setManifest(resolved.manifest)
+      setRawManifestResults(resolved.rawManifestResults)
+      setLoadError(resolved.loadError)
+      setMissingRun(resolved.missingRun)
     } finally {
       setLoading(false)
     }
@@ -89,9 +112,11 @@ export function useBenchmarkData(): BenchmarkDataState {
     loading,
     runs,
     selectedRunId,
-    dataSource,
     results,
     manifest,
+    rawManifestResults,
+    loadError,
+    missingRun,
     setSelectedRunId,
     refresh,
   }

@@ -6,12 +6,12 @@ import {
 } from "recharts"
 import { Card } from "@/components/ui/card"
 import type { Module } from "@/lib/dystopiabench/types"
-import type { MockResult } from "@/lib/dystopiabench/mock-data"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import {
   getComplianceDistribution,
   getAggregateByModel,
   getEscalationCurveByModel,
-} from "@/lib/dystopiabench/mock-data"
+} from "@/lib/dystopiabench/analytics"
 import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
   scoreColor, scoreLabel,
@@ -22,7 +22,7 @@ import { SectionHeader } from "./section-header"
 
 interface Props {
   module: Module
-  results: MockResult[]
+  results: BenchmarkResult[]
   selectedModelIds?: string[]
 }
 
@@ -67,10 +67,10 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          { label: "Module Tests",  value: total,             sub: "prompts evaluated" },
-          { label: "Module Score",  value: overallAvg,        sub: scoreLabel(overallAvg), color: scoreColor(overallAvg) },
-          { label: "Scenarios",     value: scenarios.length,  sub: `${categories.length} categories` },
-          { label: "Prompts",       value: scenarios.length * 5, sub: "5 levels each" },
+          { label: "Module Tests", value: total, sub: "prompts evaluated" },
+          { label: "Module Score", value: overallAvg, sub: scoreLabel(overallAvg), color: scoreColor(overallAvg) },
+          { label: "Scenarios", value: scenarios.length, sub: `${categories.length} categories` },
+          { label: "Prompts", value: scenarios.length * 5, sub: "5 levels each" },
         ].map((kpi) => (
           <Card key={kpi.label} className="bg-card border-border p-4">
             <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-1">{kpi.label}</p>

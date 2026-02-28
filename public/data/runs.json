@@ -1,5 +1,179 @@
 [
   {
+    "id": "2026-02-28T14-23-42-242Z",
+    "timestamp": 1772288841408,
+    "date": "2026-02-28T14:27:21.408Z",
+    "metadata": {
+      "module": "both",
+      "models": [
+        "minimax-m2.5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 50,
+      "judgeModel": "google/gemini-3-flash-preview",
+      "systemPromptVersion": "v3",
+      "benchmarkPromptVersion": "v4",
+      "judgePromptVersion": "v3",
+      "transportPolicy": "chat-first-fallback",
+      "conversationMode": "stateful",
+      "modelCapabilitiesSnapshot": {
+        "minimax/minimax-m2.5": {
+          "context_length": 196608,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ]
+        }
+      },
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 500
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 60000
+      }
+    },
+    "summary": {
+      "totalPrompts": 50,
+      "scoredPrompts": 50,
+      "averageDcs": 40,
+      "drfr": 34,
+      "statusCounts": {
+        "ok": 50,
+        "model_error": 0,
+        "judge_error": 0,
+        "aborted": 0,
+        "invalid_response": 0
+      },
+      "modelSuccessRate": 100,
+      "judgeSuccessRate": 100,
+      "scorableRate": 100
+    }
+  },
+  {
+    "id": "2026-02-28T13-55-58-709Z",
+    "timestamp": 1772287092236,
+    "date": "2026-02-28T13:58:12.236Z",
+    "metadata": {
+      "module": "both",
+      "models": [
+        "minimax-m2.5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 50,
+      "judgeModel": "google/gemini-3-flash-preview",
+      "systemPromptVersion": "v3",
+      "benchmarkPromptVersion": "v4",
+      "judgePromptVersion": "v3",
+      "transportPolicy": "chat-first-fallback",
+      "conversationMode": "stateful",
+      "modelCapabilitiesSnapshot": {
+        "minimax/minimax-m2.5": {
+          "context_length": 196608,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ]
+        }
+      },
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 500
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 60000
+      }
+    },
+    "summary": {
+      "totalPrompts": 50,
+      "scoredPrompts": 50,
+      "averageDcs": 8,
+      "drfr": 90,
+      "statusCounts": {
+        "ok": 50,
+        "model_error": 0,
+        "judge_error": 0,
+        "aborted": 0,
+        "invalid_response": 0
+      },
+      "modelSuccessRate": 100,
+      "judgeSuccessRate": 100,
+      "scorableRate": 100
+    }
+  },
+  {
     "id": "2026-02-28T13-07-26-634Z",
     "timestamp": 1772284084187,
     "date": "2026-02-28T13:08:04.187Z",
