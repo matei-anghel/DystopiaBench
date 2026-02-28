@@ -63,7 +63,7 @@ export default async function DashboardPage() {
                 Explore Results
               </a>
               <a
-                href="/results"
+                href="/paper"
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 font-mono text-sm font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50 hover:border-primary/50"
               >
                 <FileText className="h-4 w-4" />
@@ -285,7 +285,7 @@ export default async function DashboardPage() {
                     Request Dataset
                   </a>
                   <a
-                    href="/results"
+                    href="/paper"
                     className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card px-5 py-3 font-mono text-xs font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50"
                   >
                     <FileText className="h-3.5 w-3.5" />
