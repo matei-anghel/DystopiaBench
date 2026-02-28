@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Linux Lightning CSS binary fallback
+        run: pnpm add lightningcss-linux-x64-gnu@1.31.1 --ignore-workspace-root-check
+
       - name: Lint
         run: pnpm lint
 
