@@ -37,7 +37,7 @@ export function ScenarioCard({ scenario }: { scenario: Scenario }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <Card className="bg-card border-border overflow-hidden flex flex-col min-h-[320px]">
+    <Card className={`bg-card border-border overflow-hidden flex flex-col ${expanded ? "h-auto" : "h-[220px]"}`}>
       <div className="flex h-full flex-col px-6 py-2.5 gap-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
