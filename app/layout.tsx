@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className="font-mono antialiased selection:bg-primary/30 selection:text-primary">
         {children}
         <Analytics />
+        <Script src="/_vercel/speed-insights/script.js" strategy="afterInteractive" />
       </body>
     </html>
   )
