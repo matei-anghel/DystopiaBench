@@ -308,7 +308,7 @@ export default async function DashboardPage() {
             <div className="flex gap-8">
               {[
                 { label: "Methodology", href: "/#methodology" },
-                { label: "Results", href: "/results" },
+                { label: "Results", href: "/#results" },
                 ...(showLocalRunLink ? [{ label: "Run (Local)", href: "/run" }] : []),
               ].map((link) => (
                 <a
