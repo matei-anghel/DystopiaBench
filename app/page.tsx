@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-background scanline">
       <BenchHeader />
-      <main className="mx-auto max-w-7xl px-6 py-4">
+      <main className="mx-auto max-w-7xl px-6 py-4 pt-8">
 
         {/* ── Hero / Dashboard ─────────────────────────────── */}
         <section id="dashboard" className="mb-12 grid gap-12 lg:grid-cols-2 lg:items-end scroll-mt-20">
