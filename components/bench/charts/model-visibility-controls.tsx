@@ -7,16 +7,18 @@ interface ModelVisibilityControlsProps {
   modelIds: string[]
   selectedModelIds: string[]
   onToggleModel: (modelId: string) => void
-  onSelectAll: () => void
+  onToggleAll: () => void
 }
 
 export function ModelVisibilityControls({
   modelIds,
   selectedModelIds,
   onToggleModel,
-  onSelectAll,
+  onToggleAll,
 }: ModelVisibilityControlsProps) {
   if (modelIds.length === 0) return null
+
+  const allSelected = selectedModelIds.length === modelIds.length
 
   return (
     <div className="mb-6 rounded-md border border-border bg-card p-4">
@@ -26,10 +28,10 @@ export function ModelVisibilityControls({
         </p>
         <button
           type="button"
-          onClick={onSelectAll}
+          onClick={onToggleAll}
           className="rounded border border-border px-2 py-1 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
         >
-          Select all
+          {allSelected ? "Deselect all" : "Select all"}
         </button>
       </div>
 
@@ -43,11 +45,10 @@ export function ModelVisibilityControls({
               type="button"
               onClick={() => onToggleModel(modelId)}
               aria-pressed={selected}
-              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono text-[10px] transition-colors ${
-                selected
+              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono text-[10px] transition-colors ${selected
                   ? "border-primary/40 bg-primary/10 text-foreground"
                   : "border-border bg-muted/30 text-muted-foreground"
-              }`}
+                }`}
               title={model ? `${model.provider} / ${model.label}` : modelId}
             >
               <span className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[modelId] ?? "#888" }} />

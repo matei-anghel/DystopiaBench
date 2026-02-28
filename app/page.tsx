@@ -2,7 +2,7 @@ import { BenchHeader } from "@/components/bench/header"
 import { ModuleOverview } from "@/components/bench/module-overview"
 import { DashboardTabs } from "@/components/bench/dashboard-tabs"
 import { getBenchmarkData } from "@/lib/dystopiabench/data-fetcher"
-import { getAggregateByModel } from "@/lib/dystopiabench/mock-data"
+import { getAggregateByModel } from "@/lib/dystopiabench/analytics"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import {
   Radiation,
@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 
 export default async function DashboardPage() {
-  const { results, dataSource } = await getBenchmarkData()
+  const { results } = await getBenchmarkData()
   const showLocalRunLink = process.env.NODE_ENV !== "production"
   const availableModelIds = AVAILABLE_MODELS.map((model) => model.id).filter((id) => results.some((row) => row.modelId === id))
 
@@ -30,10 +30,10 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-background scanline">
       <BenchHeader />
-      <main className="mx-auto max-w-7xl px-6 py-10">
+      <main className="mx-auto max-w-7xl px-6 py-4">
 
         {/* ── Hero / Dashboard ─────────────────────────────── */}
-        <section id="dashboard" className="mb-20 grid gap-12 lg:grid-cols-2 lg:items-end scroll-mt-20">
+        <section id="dashboard" className="mb-12 grid gap-12 lg:grid-cols-2 lg:items-end scroll-mt-20">
           <div className="lg:pr-8">
             <div className="flex items-center gap-2 mb-4">
               <Radiation className="h-5 w-5 text-destructive animate-pulse glow-danger" />
@@ -169,7 +169,7 @@ export default async function DashboardPage() {
 
 
         {/* ── Methodology ──────────────────────────────────── */}
-        <section id="methodology" className="mb-24 scroll-mt-20">
+        <section id="methodology" className="mb-12 scroll-mt-20">
           <div className="flex items-center gap-3 mb-8">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 border border-primary/20 text-primary">
               <Layers className="h-5 w-5" />
@@ -212,20 +212,19 @@ export default async function DashboardPage() {
         </section>
 
         {/* ── Petrov Module Section ─────────────────────────── */}
-        <section id="petrov" className="mb-24 scroll-mt-20">
+        <section id="petrov" className="mb-12 scroll-mt-20">
           <ModuleOverview module="petrov" />
         </section>
 
         {/* ── Orwell Module Section ─────────────────────────── */}
-        <section id="orwell" className="mb-24 scroll-mt-20">
+        <section id="orwell" className="mb-12 scroll-mt-20">
           <ModuleOverview module="orwell" />
         </section>
 
         {/* ── Results Section ───────────────────────────────── */}
-        <section id="results" className="mb-24 scroll-mt-20">
+        <section id="results" className="mb-12 scroll-mt-20">
           <DashboardTabs
             results={results}
-            dataSource={dataSource}
             modelCount={modelCount}
             scenarioCount={scenarioCount}
             availableModelIds={availableModelIds}
@@ -255,16 +254,16 @@ export default async function DashboardPage() {
                   <h4 className="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase">Inquiries</h4>
                   <div className="flex flex-col gap-3">
                     <a
-                      href="mailto:hello@dystopiabench.org"
+                      href="mailto:mateialexandruang@gmail.com"
                       className="flex items-center gap-3 text-sm text-foreground hover:text-destructive transition-colors group"
                     >
                       <div className="h-8 w-8 rounded-full border border-border flex items-center justify-center group-hover:border-destructive/50 transition-colors">
                         <Mail className="h-3.5 w-3.5" />
                       </div>
-                      <span className="font-mono">hello@dystopiabench.org</span>
+                      <span className="font-mono">mateialexandruang@gmail.com</span>
                     </a>
                     <a
-                      href="https://github.com/dystopiabench"
+                      href="https://github.com/anghelmatei/DystopiaBench"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 text-sm text-foreground hover:text-destructive transition-colors group"
@@ -272,14 +271,14 @@ export default async function DashboardPage() {
                       <div className="h-8 w-8 rounded-full border border-border flex items-center justify-center group-hover:border-destructive/50 transition-colors">
                         <Github className="h-3.5 w-3.5" />
                       </div>
-                      <span className="font-mono">github.com/dystopiabench</span>
+                      <span className="font-mono">github.com/anghelmatei/DystopiaBench</span>
                     </a>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-4 pt-4 border-t border-border">
                   <a
-                    href="mailto:hello@dystopiabench.org?subject=Dataset%20Request"
+                    href="mailto:mateialexandruang@gmail.com?subject=Dataset%20Request"
                     className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-md bg-destructive px-5 py-3 font-mono text-xs font-bold tracking-wider text-destructive-foreground uppercase transition-all hover:bg-destructive/90 hover:scale-[1.02]"
                   >
                     <Download className="h-3.5 w-3.5" />

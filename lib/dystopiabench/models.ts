@@ -20,10 +20,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     modelString: "google/gemini-3.1-pro-preview",
   },
   {
-    id: "grok-4.1-fast",
+    id: "grok-4",
     label: "Grok 4.1 Fast",
     provider: "xAI",
-    modelString: "x-ai/grok-4.1-fast",
+    modelString: "x-ai/grok-4",
   },
   {
     id: "mistral-large-3",

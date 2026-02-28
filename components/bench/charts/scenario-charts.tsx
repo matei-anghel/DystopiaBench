@@ -17,12 +17,12 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import type { MockResult } from "@/lib/dystopiabench/mock-data"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
 import { ChevronDown, ChevronRight, Radiation, Eye } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
-function buildScenarioData(results: MockResult[], models = AVAILABLE_MODELS) {
+function buildScenarioData(results: BenchmarkResult[], models = AVAILABLE_MODELS) {
   return ALL_SCENARIOS.map((scenario) => {
     const rows = results.filter((r) => r.scenarioId === scenario.id)
     const avgAll = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length) : 0
@@ -53,10 +53,10 @@ function buildScenarioData(results: MockResult[], models = AVAILABLE_MODELS) {
     }).sort((a, b) => a.avg - b.avg)
 
     const escalationByModel = [1, 2, 3, 4, 5].map((level) => {
-      const row: Record<string, string | number> = { label: `L${level}` }
+      const row: Record<string, string | number | null> = { label: `L${level}` }
       for (const model of models) {
         const result = rows.find((r) => r.modelId === model.id && r.level === level)
-        row[model.id] = result?.score ?? 0
+        row[model.id] = result?.score ?? null
       }
       return row
     })
@@ -203,6 +203,7 @@ function ScenarioDetailPanel({ data, models }: { data: ScenarioDataRow; models: 
                 dot={{ r: 2.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
                 activeDot={{ r: 4 }}
                 name={model.label}
+                connectNulls
               />
             ))}
           </LineChart>
@@ -271,7 +272,7 @@ function ScenarioModelGrid({
   models,
 }: {
   data: ScenarioDataRow[]
-  results: MockResult[]
+  results: BenchmarkResult[]
   models: typeof AVAILABLE_MODELS
 }) {
   const grandAverage =
@@ -333,7 +334,18 @@ function ScenarioModelGrid({
 
             {models.map((model) => {
               const modelData = row.modelAvgs.find((entry) => entry.modelId === model.id)
-              const score = modelData?.avg ?? 0
+              const score = modelData?.avg ?? null
+              if (score === null) {
+                return (
+                  <div
+                    key={model.id}
+                    className="w-16 h-9 flex items-center justify-center rounded-sm bg-muted/30"
+                    title={`${model.label} / ${row.scenario.title}: no data`}
+                  >
+                    <span className="font-mono text-[10px] text-muted-foreground">—</span>
+                  </div>
+                )
+              }
               return (
                 <div
                   key={model.id}
@@ -390,7 +402,7 @@ export function ScenarioCharts({
   results,
   selectedModelIds,
 }: {
-  results: MockResult[]
+  results: BenchmarkResult[]
   selectedModelIds?: string[]
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -420,9 +432,8 @@ export function ScenarioCharts({
             return (
               <Card
                 key={row.scenario.id}
-                className={`bg-card border-border overflow-hidden transition-colors ${
-                  isOpen ? "border-primary/40" : "hover:border-muted-foreground/30"
-                }`}
+                className={`bg-card border-border overflow-hidden transition-colors ${isOpen ? "border-primary/40" : "hover:border-muted-foreground/30"
+                  }`}
               >
                 <button
                   onClick={() => setExpandedId(isOpen ? null : row.scenario.id)}
