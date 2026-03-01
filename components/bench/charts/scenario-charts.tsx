@@ -119,13 +119,19 @@ function ScenarioDetailPanel({
                   width={24}
                 />
                 <Tooltip
-                  formatter={(val: number, _name, payload) => [`${val} (${scoreLabel(val)})`, payload.payload.levelName]}
-                  labelFormatter={(label) => {
-                    const levelNum = parseInt(String(label).replace("L", ""), 10)
-                    return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
-                  }}
-                  contentStyle={TOOLTIP_STYLE}
                   cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null
+                    const d = payload[0].payload as { label: string; levelName: string; avg: number }
+                    return (
+                      <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+                        <p className="font-mono text-xs font-bold text-foreground">{d.label} – {d.levelName}</p>
+                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
+                          {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                        </p>
+                      </div>
+                    )
+                  }}
                 />
                 <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={36}>
                   {levelAvgs.map((entry) => (
@@ -162,10 +168,19 @@ function ScenarioDetailPanel({
                     tickLine={false}
                   />
                   <Tooltip
-                    formatter={(val: number) => [`${val} (${scoreLabel(val)})`, "Model Avg DCS"]}
-                    labelFormatter={(label) => `Model: ${label}`}
-                    contentStyle={TOOLTIP_STYLE}
                     cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0].payload as { modelId: string; label: string; avg: number }
+                      return (
+                        <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+                          <p className="font-mono text-xs font-bold text-foreground">{d.label}</p>
+                          <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
+                            {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                          </p>
+                        </div>
+                      )
+                    }}
                   />
                   <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={16}>
                     {modelAvgs.map((entry) => (
@@ -265,10 +280,20 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
             tickLine={false}
           />
           <Tooltip
-            formatter={(val: number) => [`${val} (${scoreLabel(val)})`, "Scenario Avg DCS"]}
-            labelFormatter={(label) => `Scenario: ${label}`}
-            contentStyle={TOOLTIP_STYLE}
             cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null
+              const d = payload[0].payload as { id: string; title: string; avg: number }
+              return (
+                <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+                  <p className="mb-1 font-mono text-[10px] text-muted-foreground">{d.id}</p>
+                  <p className="font-mono text-xs font-bold text-foreground">{d.title}</p>
+                  <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
+                    {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                  </p>
+                </div>
+              )
+            }}
           />
           <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={20}>
             {chartData.map((entry) => (

@@ -356,10 +356,20 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
                 tickLine={false}
               />
               <Tooltip
-                formatter={(value: number) => [`${value} (${scoreLabel(value)})`, "Module Avg DCS"]}
-                labelFormatter={(label) => `Module: ${label}`}
-                contentStyle={TOOLTIP_STYLE}
                 cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null
+                  const d = payload[0].payload as { module: string; avg: number }
+                  return (
+                    <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+                      <p className="mb-1 font-mono text-[10px] text-muted-foreground">Module</p>
+                      <p className="font-mono text-xs font-bold text-foreground">{d.module}</p>
+                      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
+                        {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                      </p>
+                    </div>
+                  )
+                }}
               />
               <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={24}>
                 {data.map((entry) => (
@@ -410,10 +420,30 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
               width={28}
             />
             <Tooltip
-              formatter={(value: number, name: string) => [`${value} (${scoreLabel(value)})`, `${name} DCS`]}
-              labelFormatter={(label) => `Model: ${label}`}
-              contentStyle={TOOLTIP_STYLE}
               cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null
+                const d = payload[0].payload as { label: string; petrov: number; orwell: number }
+                return (
+                  <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+                    <p className="mb-2 font-mono text-xs font-bold text-foreground">{d.label}</p>
+                    <div className="mb-0.5 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-2 w-2 rounded-full" style={{ background: MODULE_COLORS.petrov }} />
+                        <span className="font-mono text-[10px] text-muted-foreground">Petrov</span>
+                      </div>
+                      <span className="font-mono text-[10px] font-bold" style={{ color: scoreColor(d.petrov) }}>{d.petrov}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-2 w-2 rounded-full" style={{ background: MODULE_COLORS.orwell }} />
+                        <span className="font-mono text-[10px] text-muted-foreground">Orwell</span>
+                      </div>
+                      <span className="font-mono text-[10px] font-bold" style={{ color: scoreColor(d.orwell) }}>{d.orwell}</span>
+                    </div>
+                  </div>
+                )
+              }}
             />
             <Legend
               wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: 10, paddingTop: 8 }}
