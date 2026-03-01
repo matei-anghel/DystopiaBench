@@ -148,24 +148,37 @@ function ScenarioDetailPanel({
             <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
               Avg Score by Model (all levels)
             </p>
-            <div className="h-[170px] md:h-[190px]">
+            <div className="h-[240px] md:h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={modelAvgs} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <BarChart data={modelAvgs} margin={{ left: 4, right: 4, top: 4, bottom: 52 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis
+                    type="category"
+                    dataKey="label"
+                    tick={(props) => {
+                      const { x, y, payload } = props as { x: number; y: number; payload: { value: string } }
+                      const words = payload.value.split(' ')
+                      const mid = Math.ceil(words.length / 2)
+                      const line1 = words.slice(0, mid).join(' ')
+                      const line2 = words.slice(mid).join(' ')
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text x={0} y={0} dy={12} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">{line1}</text>
+                          {line2 && <text x={0} y={0} dy={22} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">{line2}</text>}
+                        </g>
+                      )
+                    }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                    interval={0}
+                  />
+                  <YAxis
                     type="number"
                     domain={[0, 100]}
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                    axisLine={{ stroke: "hsl(var(--border))" }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="label"
-                    width={88}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
                     axisLine={false}
                     tickLine={false}
+                    width={28}
                   />
                   <Tooltip
                     cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
@@ -182,7 +195,7 @@ function ScenarioDetailPanel({
                       )
                     }}
                   />
-                  <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={16}>
+                  <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={32}>
                     {modelAvgs.map((entry) => (
                       <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? scoreColor(entry.avg)} />
                     ))}
@@ -251,7 +264,7 @@ function ScenarioDetailPanel({
 function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
   const chartData = data.map((row) => ({
     id: row.scenario.id,
-    title: row.scenario.title.length > 26 ? `${row.scenario.title.slice(0, 24)}...` : row.scenario.title,
+    title: row.scenario.title,
     avg: row.avgAll,
   }))
 
@@ -261,23 +274,42 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
         label="All Scenarios - Average Score"
         sub="Average compliance score across all models and all escalation levels per scenario."
       />
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 48, top: 4, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={chartData} margin={{ left: 4, right: 4, top: 4, bottom: 56 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis
+            type="category"
+            dataKey="title"
+            tick={(props) => {
+              const { x, y, payload } = props as { x: number; y: number; payload: { value: string } }
+              const words = payload.value.split(' ')
+              const mid = Math.ceil(words.length / 2)
+              const line1 = words.slice(0, mid).join(' ')
+              const line2 = words.slice(mid).join(' ')
+              return (
+                <g transform={`translate(${x},${y})`}>
+                  <text x={0} y={0} dy={12} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">
+                    {line1}
+                  </text>
+                  {line2 && (
+                    <text x={0} y={0} dy={22} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">
+                      {line2}
+                    </text>
+                  )}
+                </g>
+              )
+            }}
+            axisLine={{ stroke: "hsl(var(--border))" }}
+            tickLine={false}
+            interval={0}
+          />
+          <YAxis
             type="number"
             domain={[0, 100]}
             tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            tickLine={false}
-          />
-          <YAxis
-            type="category"
-            dataKey="title"
-            width={160}
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
             axisLine={false}
             tickLine={false}
+            width={28}
           />
           <Tooltip
             cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
@@ -295,7 +327,7 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
               )
             }}
           />
-          <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={20}>
+          <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={22}>
             {chartData.map((entry) => (
               <Cell key={entry.id} fill={scoreColor(entry.avg)} />
             ))}
@@ -329,31 +361,31 @@ function ScenarioModelGrid({
           : "Each cell = avg score for that model on that scenario. Color = compliance tier."}
       />
       <div className="min-w-max">
-        <div className="flex items-center gap-px mb-px">
-          <div className="w-44 shrink-0" />
+        <div className="flex items-end gap-px mb-px">
+          <div className="w-60 shrink-0" />
           {models.map((model) => (
-            <div key={model.id} className="w-16 text-center">
+            <div key={model.id} className="w-16 relative" style={{ height: 90 }}>
               <span
-                className="font-mono text-[8px] text-muted-foreground uppercase tracking-wide"
+                className="font-mono text-[8px] text-muted-foreground uppercase tracking-wide whitespace-nowrap absolute"
                 style={{
-                  writingMode: "vertical-rl",
-                  transform: "rotate(180deg)",
-                  display: "inline-block",
-                  paddingBottom: 6,
+                  bottom: 4,
+                  left: "50%",
+                  transformOrigin: "left bottom",
+                  transform: "rotate(-45deg)",
                 }}
               >
                 {model.label}
               </span>
             </div>
           ))}
-          <div className="w-14 text-center">
+          <div className="w-14 relative" style={{ height: 90 }}>
             <span
-              className="font-mono text-[8px] text-muted-foreground uppercase tracking-wide font-bold"
+              className="font-mono text-[8px] text-muted-foreground uppercase tracking-wide font-bold whitespace-nowrap absolute"
               style={{
-                writingMode: "vertical-rl",
-                transform: "rotate(180deg)",
-                display: "inline-block",
-                paddingBottom: 6,
+                bottom: 4,
+                left: "50%",
+                transformOrigin: "left bottom",
+                transform: "rotate(-45deg)",
               }}
             >
               AVG
@@ -363,16 +395,14 @@ function ScenarioModelGrid({
 
         {data.map((row) => (
           <div key={row.scenario.id} className="flex items-center gap-px mb-px">
-            <div className="w-44 shrink-0 pr-2 flex items-center gap-1.5">
+            <div className="w-60 shrink-0 pr-3 flex items-start gap-1.5 py-1">
               {row.scenario.module === "petrov" ? (
-                <Radiation className="h-2.5 w-2.5 shrink-0 text-[#f97316]" />
+                <Radiation className="h-2.5 w-2.5 shrink-0 mt-0.5 text-[#f97316]" />
               ) : (
-                <Eye className="h-2.5 w-2.5 shrink-0 text-[#8b5cf6]" />
+                <Eye className="h-2.5 w-2.5 shrink-0 mt-0.5 text-[#8b5cf6]" />
               )}
-              <span className="font-mono text-[9px] text-muted-foreground leading-tight truncate">
-                {row.scenario.title.length > 26
-                  ? `${row.scenario.title.slice(0, 24)}...`
-                  : row.scenario.title}
+              <span className="font-mono text-[9px] text-muted-foreground leading-tight">
+                {row.scenario.title}
               </span>
             </div>
 
@@ -416,7 +446,7 @@ function ScenarioModelGrid({
         ))}
 
         <div className="flex items-center gap-px mt-1 border-t border-border pt-1">
-          <div className="w-44 shrink-0">
+          <div className="w-60 shrink-0">
             <span className="font-mono text-[9px] text-muted-foreground uppercase">Avg</span>
           </div>
           {models.map((model) => {

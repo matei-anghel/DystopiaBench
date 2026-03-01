@@ -29,6 +29,22 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background scanline">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Dataset",
+            name: "DystopiaBench - AI Ethics Stress Test",
+            description: "A research benchmark testing AI compliance with dystopian directives across nuclear safety, autonomous weapons, mass surveillance, and population control scenarios.",
+            url: "https://dystopiabench.org",
+            creator: {
+              "@type": "Organization",
+              name: "DystopiaBench Research Team"
+            }
+          })
+        }}
+      />
       <BenchHeader />
       <main className="mx-auto max-w-7xl px-6 py-4 pt-8">
 
