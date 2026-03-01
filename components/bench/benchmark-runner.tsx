@@ -1,12 +1,29 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { AVAILABLE_MODELS, DEFAULT_JUDGE_MODEL, JUDGE_MODEL_OPTIONS } from "@/lib/dystopiabench/models"
+import {
+  AVAILABLE_MODELS,
+  DEFAULT_JUDGE_MODEL,
+  getEstimatedPricingByModelKey,
+  JUDGE_MODEL_OPTIONS,
+} from "@/lib/dystopiabench/models"
 import { ALL_SCENARIOS, ORWELL_SCENARIOS, PETROV_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import type { EscalationLevel, Module } from "@/lib/dystopiabench/types"
 import type { TransportPolicy } from "@/lib/dystopiabench/runner"
 import { Card } from "@/components/ui/card"
 import { AlertTriangle, Terminal, Info } from "lucide-react"
+
+const ESTIMATED_MODEL_INPUT_TOKENS_BY_LEVEL: Record<EscalationLevel, number> = {
+  1: 1600,
+  2: 2900,
+  3: 4200,
+  4: 5600,
+  5: 7100,
+}
+
+const ESTIMATED_MODEL_OUTPUT_TOKENS_PER_PROMPT = 900
+const ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT = 2400
+const ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT = 120
 
 export function BenchmarkRunner() {
   const [selectedModels, setSelectedModels] = useState<string[]>([])
@@ -32,6 +49,58 @@ export function BenchmarkRunner() {
   }, [selectedModule])
 
   const totalPrompts = selectedModels.length * selectedLevels.length * scenarioCount
+
+  const costEstimate = useMemo(() => {
+    if (selectedModels.length === 0 || selectedLevels.length === 0) {
+      return {
+        totalUsd: 0,
+        modelUsd: 0,
+        judgeUsd: 0,
+        modelInputTokens: 0,
+        modelOutputTokens: 0,
+        judgeInputTokens: 0,
+        judgeOutputTokens: 0,
+      }
+    }
+
+    const promptsPerModel = scenarioCount * selectedLevels.length
+    const inputTokensPerModel = scenarioCount * selectedLevels.reduce((sum, level) => {
+      return sum + ESTIMATED_MODEL_INPUT_TOKENS_BY_LEVEL[level]
+    }, 0)
+    const outputTokensPerModel = promptsPerModel * ESTIMATED_MODEL_OUTPUT_TOKENS_PER_PROMPT
+
+    const aggregateModelInputTokens = inputTokensPerModel * selectedModels.length
+    const aggregateModelOutputTokens = outputTokensPerModel * selectedModels.length
+
+    const modelUsd = selectedModels.reduce((sum, modelId) => {
+      const pricing = getEstimatedPricingByModelKey(modelId)
+      const thisModelCost =
+        (inputTokensPerModel / 1_000_000) * pricing.input +
+        (outputTokensPerModel / 1_000_000) * pricing.output
+      return sum + thisModelCost
+    }, 0)
+
+    const judgePromptCount = promptsPerModel * selectedModels.length
+    const judgeInputTokens = judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT
+    const judgeOutputTokens = judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT
+    const judgePricing = getEstimatedPricingByModelKey(selectedJudgeModel)
+    const judgeUsd =
+      (judgeInputTokens / 1_000_000) * judgePricing.input +
+      (judgeOutputTokens / 1_000_000) * judgePricing.output
+
+    return {
+      totalUsd: modelUsd + judgeUsd,
+      modelUsd,
+      judgeUsd,
+      modelInputTokens: aggregateModelInputTokens,
+      modelOutputTokens: aggregateModelOutputTokens,
+      judgeInputTokens,
+      judgeOutputTokens,
+    }
+  }, [scenarioCount, selectedJudgeModel, selectedLevels, selectedModels])
+
+  const formatUsd = (value: number) => `$${value.toFixed(2)}`
+  const formatTokens = (value: number) => value.toLocaleString("en-US")
 
   const runCommand = useMemo(() => {
     if (selectedModels.length === 0) return "Select at least one model."
@@ -161,6 +230,36 @@ export function BenchmarkRunner() {
             <p className="font-mono text-xs font-bold uppercase">Generated Command</p>
           </div>
           <code className="block whitespace-pre-wrap font-mono text-xs text-foreground">{runCommand}</code>
+        </div>
+
+        <div className="mt-4 rounded-md border border-border bg-muted/30 p-4">
+          <p className="font-mono text-xs font-bold uppercase mb-2">Estimated Cost (USD)</p>
+          <div className="grid gap-1 font-mono text-[11px] text-muted-foreground">
+            <p>
+              Total estimate: <span className="text-foreground">{formatUsd(costEstimate.totalUsd)}</span>
+            </p>
+            <p>
+              Model calls: <span className="text-foreground">{formatUsd(costEstimate.modelUsd)}</span>
+            </p>
+            <p>
+              Judge calls: <span className="text-foreground">{formatUsd(costEstimate.judgeUsd)}</span>
+            </p>
+            <p>
+              Model tokens (in/out):{" "}
+              <span className="text-foreground">
+                {formatTokens(costEstimate.modelInputTokens)} / {formatTokens(costEstimate.modelOutputTokens)}
+              </span>
+            </p>
+            <p>
+              Judge tokens (in/out):{" "}
+              <span className="text-foreground">
+                {formatTokens(costEstimate.judgeInputTokens)} / {formatTokens(costEstimate.judgeOutputTokens)}
+              </span>
+            </p>
+          </div>
+          <p className="font-mono text-[10px] mt-3 text-muted-foreground">
+            Estimate uses static per-1M token pricing plus level-based token assumptions. Actual billed cost may vary.
+          </p>
         </div>
       </Card>
 
