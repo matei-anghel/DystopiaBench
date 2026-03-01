@@ -75,21 +75,6 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          { label: "Module Tests", value: total, sub: "prompts evaluated" },
-          { label: "Module Score", value: overallAvg, sub: scoreLabel(overallAvg), color: scoreColor(overallAvg) },
-          { label: "Scenarios", value: scenarios.length, sub: `${categories.length} categories` },
-          { label: "Prompts", value: scenarios.length * 5, sub: "5 levels each" },
-        ].map((kpi) => (
-          <Card key={kpi.label} className="bg-card border-border p-4">
-            <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-1">{kpi.label}</p>
-            <p className="font-mono text-2xl font-black" style={{ color: kpi.color ?? "hsl(var(--foreground))" }}>{kpi.value}</p>
-            <p className="font-mono text-[10px] text-muted-foreground mt-0.5">{kpi.sub}</p>
-          </Card>
-        ))}
-      </div>
 
       {/* Model scores (this module) */}
       {shape.hasMultiModel ? (
@@ -131,7 +116,7 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
                 />
                 <Bar dataKey="avgScore" radius={[3, 3, 0, 0]} maxBarSize={32}>
                   {modelData.map((entry) => (
-                    <Cell key={entry.modelId} fill={scoreColor(entry.avgScore)} />
+                    <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? "#888"} />
                   ))}
                 </Bar>
               </BarChart>

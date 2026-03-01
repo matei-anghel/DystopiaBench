@@ -1,5 +1,5 @@
 import { AVAILABLE_MODELS } from "../lib/dystopiabench/models"
-import { runBenchmark, type TransportPolicy } from "../lib/dystopiabench/runner"
+import { runBenchmark, type RunBenchmarkOptions, type TransportPolicy } from "../lib/dystopiabench/runner"
 import {
   makeRunId,
   publishLatest,
@@ -106,6 +106,43 @@ function parseConversationMode(input: string | undefined): "stateful" {
   throw new Error("Invalid --conversation-mode value. Only 'stateful' is supported.")
 }
 
+function parsePositiveIntFlag(flag: string, input: string | undefined): number | undefined {
+  if (!input) return undefined
+  const value = Number(input)
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`Invalid ${flag} value. Use a positive integer.`)
+  }
+  return value
+}
+
+function parseNonNegativeIntFlag(flag: string, input: string | undefined): number | undefined {
+  if (!input) return undefined
+  const value = Number(input)
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`Invalid ${flag} value. Use a non-negative integer.`)
+  }
+  return value
+}
+
+function parseRuntimeOverrides(): Pick<
+  RunBenchmarkOptions,
+  | "timeoutMs"
+  | "concurrency"
+  | "perModelConcurrency"
+  | "maxRetries"
+  | "retryBackoffBaseMs"
+  | "retryBackoffJitterMs"
+> {
+  return {
+    timeoutMs: parsePositiveIntFlag("--timeout-ms", parseArg("--timeout-ms")),
+    concurrency: parsePositiveIntFlag("--concurrency", parseArg("--concurrency")),
+    perModelConcurrency: parsePositiveIntFlag("--per-model-concurrency", parseArg("--per-model-concurrency")),
+    maxRetries: parseNonNegativeIntFlag("--max-retries", parseArg("--max-retries")),
+    retryBackoffBaseMs: parsePositiveIntFlag("--retry-backoff-base-ms", parseArg("--retry-backoff-base-ms")),
+    retryBackoffJitterMs: parseNonNegativeIntFlag("--retry-backoff-jitter-ms", parseArg("--retry-backoff-jitter-ms")),
+  }
+}
+
 async function main() {
   const moduleArg = parseModule(parseArg("--module"))
   const levels = parseLevels(parseArg("--levels"))
@@ -116,6 +153,7 @@ async function main() {
   const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
   const transport = parseTransport(parseArg("--transport"))
   const conversationMode = parseConversationMode(parseArg("--conversation-mode"))
+  const runtimeOverrides = parseRuntimeOverrides()
 
   console.log(`Running benchmark ${runId}`)
   console.log(`Module: ${moduleArg}`)
@@ -124,6 +162,12 @@ async function main() {
   console.log(`Judge: ${judgeModel ?? "default"}`)
   console.log(`Transport: ${transport}`)
   console.log(`Conversation mode: ${conversationMode}`)
+  if (runtimeOverrides.timeoutMs !== undefined) console.log(`Timeout override: ${runtimeOverrides.timeoutMs}ms`)
+  if (runtimeOverrides.concurrency !== undefined) console.log(`Concurrency override: ${runtimeOverrides.concurrency}`)
+  if (runtimeOverrides.perModelConcurrency !== undefined) console.log(`Per-model concurrency override: ${runtimeOverrides.perModelConcurrency}`)
+  if (runtimeOverrides.maxRetries !== undefined) console.log(`Retry override: maxRetries=${runtimeOverrides.maxRetries}`)
+  if (runtimeOverrides.retryBackoffBaseMs !== undefined) console.log(`Retry backoff base override: ${runtimeOverrides.retryBackoffBaseMs}ms`)
+  if (runtimeOverrides.retryBackoffJitterMs !== undefined) console.log(`Retry backoff jitter override: ${runtimeOverrides.retryBackoffJitterMs}ms`)
 
   const manifest = await runBenchmark({
     runId,
@@ -133,6 +177,7 @@ async function main() {
     judgeModel,
     transportPolicy: transport,
     conversationMode,
+    ...runtimeOverrides,
   })
 
   writeRunManifest(manifest)

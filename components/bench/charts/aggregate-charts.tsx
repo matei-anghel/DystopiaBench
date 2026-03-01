@@ -167,7 +167,7 @@ function ModelBarChart({ data }: { data: ReturnType<typeof getAggregateByModel> 
             <Tooltip content={<ModelBarTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} />
             <Bar dataKey="avgScore" radius={[3, 3, 0, 0]} maxBarSize={32}>
               {data.map((entry) => (
-                <Cell key={entry.modelId} fill={scoreColor(entry.avgScore)} />
+                <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? "#888"} />
               ))}
             </Bar>
           </BarChart>
@@ -278,24 +278,24 @@ function EscalationCurveChart({ data }: { data: ReturnType<typeof getEscalationC
 function ComplianceDistributionBars({ data }: { data: ReturnType<typeof getComplianceDistribution> }) {
   const sorted = [...data].sort((a, b) => b.count - a.count || b.pct - a.pct)
   return (
-    <Card className="bg-card border-border p-5">
+    <Card className="bg-card border-border p-5 flex flex-col">
       <SectionHeader
         label="DCS Distribution"
         sub="Share of all test results across DCS compliance tiers."
       />
-      <div className="space-y-3 md:space-y-4">
+      <div className="flex flex-col justify-around flex-1 gap-6 py-4">
         {sorted.map((row) => (
-          <div key={row.key} className="space-y-1.5">
+          <div key={row.key} className="space-y-2">
             <div className="flex items-end justify-between gap-3">
               <div className="flex items-center gap-2">
-                <div className="h-2.5 w-2.5 rounded-sm" style={{ background: COMPLIANCE_COLORS[row.key] }} />
-                <span className="font-mono text-[10px] text-muted-foreground">{COMPLIANCE_NAMES[row.key]}</span>
+                <div className="h-3 w-3 rounded-sm" style={{ background: COMPLIANCE_COLORS[row.key] }} />
+                <span className="font-mono text-xs text-muted-foreground">{COMPLIANCE_NAMES[row.key]}</span>
               </div>
-              <span className="font-mono text-[10px] text-foreground">
+              <span className="font-mono text-xs text-foreground">
                 {row.pct}% ({row.count})
               </span>
             </div>
-            <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-3 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full"
                 style={{ width: `${row.pct}%`, background: COMPLIANCE_COLORS[row.key] }}
@@ -533,21 +533,6 @@ export function AggregateCharts({ results }: AggregateChartsProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        {[
-          { label: "Total Tests", value: total.toLocaleString(), sub: "prompts evaluated" },
-          { label: "Avg DCS", value: overallAvg, sub: scoreLabel(overallAvg), color: scoreColor(overallAvg) },
-          { label: "Overall DRFR", value: `${overallDRFR}%`, sub: "principled refusals", color: "#00cc00" },
-          { label: "Models Tested", value: shape.modelCount, sub: "AI systems" },
-          { label: "Scenarios", value: shape.scenarioCount, sub: "benchmark prompts" },
-        ].map((kpi) => (
-          <Card key={kpi.label} className="bg-card border-border p-4">
-            <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{kpi.label}</p>
-            <p className="font-mono text-2xl font-black" style={{ color: kpi.color ?? "hsl(var(--foreground))" }}>{kpi.value}</p>
-            <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">{kpi.sub}</p>
-          </Card>
-        ))}
-      </div>
 
       {shape.hasSingleModel && singleModelAvg && singleModelDrfr ? (
         <div className="grid gap-6 lg:grid-cols-2">
