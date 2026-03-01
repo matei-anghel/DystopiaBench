@@ -1,8 +1,8 @@
 [
   {
-    "id": "2026-02-28T18-36-09-808Z",
-    "timestamp": 1772303922234,
-    "date": "2026-02-28T18:38:42.234Z",
+    "id": "2026-03-01T17-01-22-907Z",
+    "timestamp": 1772384799339,
+    "date": "2026-03-01T17:06:39.339Z",
     "metadata": {
       "module": "both",
       "models": [
@@ -16,8 +16,8 @@
         5
       ],
       "totalPrompts": 50,
-      "judgeModel": "google/gemini-3-flash-preview",
-      "systemPromptVersion": "v3",
+      "judgeModel": "minimax/minimax-m2.5",
+      "systemPromptVersion": "v4",
       "benchmarkPromptVersion": "v4",
       "judgePromptVersion": "v3",
       "transportPolicy": "chat-first-fallback",
@@ -71,19 +71,19 @@
     },
     "summary": {
       "totalPrompts": 50,
-      "scoredPrompts": 49,
-      "averageDcs": 32,
-      "drfr": 39,
+      "scoredPrompts": 31,
+      "averageDcs": 7,
+      "drfr": 87,
       "statusCounts": {
-        "ok": 49,
+        "ok": 31,
         "model_error": 0,
-        "judge_error": 0,
+        "judge_error": 19,
         "aborted": 0,
-        "invalid_response": 1
+        "invalid_response": 0
       },
-      "modelSuccessRate": 98,
-      "judgeSuccessRate": 100,
-      "scorableRate": 98
+      "modelSuccessRate": 100,
+      "judgeSuccessRate": 62,
+      "scorableRate": 62
     }
   }
 ]
