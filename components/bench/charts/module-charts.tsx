@@ -15,7 +15,7 @@ import {
 } from "@/lib/dystopiabench/analytics"
 import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
-  scoreColor, scoreLabel,
+  scoreColor, scoreLabel, LEVEL_LABELS,
 } from "@/lib/dystopiabench/chart-config"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { PETROV_SCENARIOS, ORWELL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
@@ -250,7 +250,10 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
               />
               <Tooltip
                 formatter={(value: number, name: string) => [`${value} (${scoreLabel(value)})`, `${name} DCS`]}
-                labelFormatter={(label) => `Escalation ${label}`}
+                labelFormatter={(label) => {
+                  const levelNum = parseInt(String(label).replace("L", ""), 10)
+                  return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
+                }}
                 contentStyle={TOOLTIP_STYLE}
               />
               {activeModels.map((m) => (
