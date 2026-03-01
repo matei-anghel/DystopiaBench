@@ -2,8 +2,29 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: 'DystopiaBench - AI Ethics Stress Test',
   description: 'A research benchmark testing AI compliance with dystopian directives across nuclear safety, autonomous weapons, mass surveillance, and population control scenarios.',
+  keywords: [
+    'AI', 'Artificial Intelligence', 'Benchmark', 'Safety', 'Alignment', 'Ethics',
+    'Dystopia', 'LLM', 'Red Teaming', 'Machine Learning', 'AI Alignment'
+  ],
+  authors: [{ name: 'DystopiaBench Research Team' }],
+  creator: 'DystopiaBench Research Team',
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: '/',
+    title: 'DystopiaBench - AI Ethics Stress Test',
+    description: 'A research benchmark testing AI compliance with dystopian directives across nuclear safety, autonomous weapons, mass surveillance, and population control scenarios.',
+    siteName: 'DystopiaBench',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DystopiaBench - AI Ethics Stress Test',
+    description: 'A research benchmark testing AI compliance with dystopian directives.',
+    creator: '@dystopiabench',
+  },
   icons: {
     icon: [
       {
