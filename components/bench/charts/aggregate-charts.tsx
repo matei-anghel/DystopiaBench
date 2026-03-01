@@ -141,28 +141,31 @@ function ModelBarChart({ data }: { data: ReturnType<typeof getAggregateByModel> 
         label="Average DCS by Model"
         sub="Dystopian Compliance Score. Lower = stronger refusal = better safety."
       />
-      <div className="h-[220px] md:h-[360px]">
+      <div className="h-[300px] md:h-[420px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 16, right: 32, top: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+          <BarChart data={data} margin={{ left: 4, right: 4, top: 4, bottom: 72 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis
+              type="category"
+              dataKey="label"
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
+              tickLine={false}
+              angle={-40}
+              textAnchor="end"
+              interval={0}
+            />
+            <YAxis
               type="number"
               domain={[0, 100]}
               tickFormatter={(v) => `${v}`}
               tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={{ stroke: "hsl(var(--border))" }}
-              tickLine={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="label"
-              width={120}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
               axisLine={false}
               tickLine={false}
+              width={28}
             />
             <Tooltip content={<ModelBarTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} />
-            <Bar dataKey="avgScore" radius={[0, 3, 3, 0]} maxBarSize={22}>
+            <Bar dataKey="avgScore" radius={[3, 3, 0, 0]} maxBarSize={32}>
               {data.map((entry) => (
                 <Cell key={entry.modelId} fill={scoreColor(entry.avgScore)} />
               ))}
@@ -181,28 +184,31 @@ function DRFRChart({ data }: { data: ReturnType<typeof getDRFRByModel> }) {
         label="DRFR by Model"
         sub="Directed Refusal to Failure Ratio. Higher = more principled refusals = safer."
       />
-      <div className="h-[220px] md:h-[360px]">
+      <div className="h-[300px] md:h-[420px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 16, right: 32, top: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+          <BarChart data={data} margin={{ left: 4, right: 4, top: 4, bottom: 72 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis
+              type="category"
+              dataKey="label"
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
+              tickLine={false}
+              angle={-40}
+              textAnchor="end"
+              interval={0}
+            />
+            <YAxis
               type="number"
               domain={[0, 100]}
               tickFormatter={(v) => `${v}%`}
               tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={{ stroke: "hsl(var(--border))" }}
-              tickLine={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="label"
-              width={120}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
               axisLine={false}
               tickLine={false}
+              width={36}
             />
             <Tooltip content={<DRFRTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} />
-            <Bar dataKey="drfr" radius={[0, 3, 3, 0]} maxBarSize={22}>
+            <Bar dataKey="drfr" radius={[3, 3, 0, 0]} maxBarSize={32}>
               {data.map((entry) => (
                 <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? "#888"} />
               ))}
@@ -277,7 +283,7 @@ function ComplianceDistributionBars({ data }: { data: ReturnType<typeof getCompl
         label="DCS Distribution"
         sub="Share of all test results across DCS compliance tiers."
       />
-      <div className="space-y-3 md:min-h-[280px] md:space-y-4">
+      <div className="space-y-3 md:space-y-4">
         {sorted.map((row) => (
           <div key={row.key} className="space-y-1.5">
             <div className="flex items-end justify-between gap-3">
@@ -461,20 +467,20 @@ function ModelRadarChart({ results }: { results: BenchmarkResult[] }) {
   })
 
   return (
-    <Card className="bg-card border-border p-5">
-      <SectionHeader
-        label="Escalation Radar - All Models"
-        sub="DCS by escalation pressure level."
-      />
-      <div className="h-[220px] md:h-[320px]">
+    <Card className="bg-card border-border px-5 pt-4 pb-5">
+      <div className="mb-1">
+        <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase">Escalation Radar - All Models</p>
+        <p className="font-mono text-[10px] text-muted-foreground mt-0.5">DCS by escalation pressure level.</p>
+      </div>
+      <div className="h-[360px] md:h-[560px]">
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={data} margin={{ top: 8, right: 32, bottom: 8, left: 32 }}>
+          <RadarChart data={data} margin={{ top: 4, right: 16, bottom: 4, left: 16 }}>
             <PolarGrid stroke="hsl(var(--border))" />
             <PolarAngleAxis
               dataKey="level"
               tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
             />
-            <PolarRadiusAxis domain={[0, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8, fontFamily: "var(--font-mono)" }} />
+            <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} tickLine={false} />
             <Tooltip content={<RadarTooltip />} />
             {modelIds.map((id) => {
               const m = AVAILABLE_MODELS.find((model) => model.id === id)

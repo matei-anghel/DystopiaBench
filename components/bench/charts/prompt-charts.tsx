@@ -118,31 +118,31 @@ function LevelModelGrid({
           : "Avg compliance score at each escalation level per model. Color = compliance tier."}
       />
       <div className="min-w-max">
-        <div className="flex items-center gap-px mb-1">
-          <div className="w-28 shrink-0" />
+        <div className="flex items-end gap-px mb-1">
+          <div className="w-60 shrink-0" />
           {models.map((model) => (
-            <div key={model.id} className="w-16 text-center">
+            <div key={model.id} className="w-16 relative" style={{ height: 90 }}>
               <span
-                className="font-mono text-[8px] text-muted-foreground uppercase"
+                className="font-mono text-[8px] text-muted-foreground uppercase whitespace-nowrap absolute"
                 style={{
-                  writingMode: "vertical-rl",
-                  transform: "rotate(180deg)",
-                  display: "inline-block",
-                  paddingBottom: 6,
+                  bottom: 4,
+                  left: "50%",
+                  transformOrigin: "left bottom",
+                  transform: "rotate(-45deg)",
                 }}
               >
                 {model.label}
               </span>
             </div>
           ))}
-          <div className="w-14 text-center">
+          <div className="w-14 relative" style={{ height: 90 }}>
             <span
-              className="font-mono text-[8px] text-muted-foreground uppercase font-bold"
+              className="font-mono text-[8px] text-muted-foreground uppercase font-bold whitespace-nowrap absolute"
               style={{
-                writingMode: "vertical-rl",
-                transform: "rotate(180deg)",
-                display: "inline-block",
-                paddingBottom: 6,
+                bottom: 4,
+                left: "50%",
+                transformOrigin: "left bottom",
+                transform: "rotate(-45deg)",
               }}
             >
               AVG
@@ -152,7 +152,7 @@ function LevelModelGrid({
 
         {data.map((row) => (
           <div key={row.label as string} className="flex items-center gap-px mb-px">
-            <div className="w-28 shrink-0 pr-2">
+            <div className="w-60 shrink-0 pr-3">
               <p className="font-mono text-[9px] text-foreground font-bold">{row.label as string}</p>
               <p className="font-mono text-[8px] text-muted-foreground">{row.levelName as string}</p>
             </div>
@@ -414,34 +414,36 @@ function ScenarioPromptDrillDown({
             </div>
 
             {hasMultiModel ? (
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 {[...levelEntry.modelScores].sort((a, b) => (a.score ?? -1) - (b.score ?? -1)).map((modelScore) => (
-                  <div key={modelScore.modelId} className="flex items-center gap-1.5">
-                    <div
-                      className="h-1.5 w-1.5 rounded-full shrink-0"
-                      style={{ background: MODEL_COLORS[modelScore.modelId] }}
-                    />
-                    {modelScore.score !== null ? (
-                      <>
-                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${modelScore.score}%`,
-                              background: scoreColor(modelScore.score),
-                            }}
-                          />
-                        </div>
-                        <span className="font-mono text-[9px] w-5 text-right" style={{ color: scoreColor(modelScore.score) }}>
-                          {modelScore.score}
+                  <div key={modelScore.modelId} className="flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <div
+                          className="h-1.5 w-1.5 rounded-full shrink-0"
+                          style={{ background: MODEL_COLORS[modelScore.modelId] }}
+                        />
+                        <span
+                          className="font-mono text-[8px] truncate"
+                          style={{ color: MODEL_COLORS[modelScore.modelId] ?? "hsl(var(--muted-foreground))" }}
+                        >
+                          {modelScore.label}
                         </span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex-1 h-1.5 rounded-full bg-muted/30" />
-                        <span className="font-mono text-[9px] w-5 text-right text-muted-foreground">-</span>
-                      </>
-                    )}
+                      </div>
+                      <span className="font-mono text-[9px] shrink-0" style={{ color: modelScore.score !== null ? scoreColor(modelScore.score) : "hsl(var(--muted-foreground))" }}>
+                        {modelScore.score ?? "–"}
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      {modelScore.score !== null ? (
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${modelScore.score}%`, background: scoreColor(modelScore.score) }}
+                        />
+                      ) : (
+                        <div className="h-full rounded-full bg-muted/30" />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -453,7 +455,7 @@ function ScenarioPromptDrillDown({
 
             {levelEntry.prompt ? (
               <div className="mt-3 pt-2 border-t border-border">
-                <p className="font-mono text-[8px] text-muted-foreground leading-relaxed line-clamp-4">
+                <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
                   {levelEntry.prompt.prompt}
                 </p>
               </div>
