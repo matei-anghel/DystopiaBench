@@ -120,7 +120,10 @@ function ScenarioDetailPanel({
                 />
                 <Tooltip
                   formatter={(val: number, _name, payload) => [`${val} (${scoreLabel(val)})`, payload.payload.levelName]}
-                  labelFormatter={(label) => `Escalation ${label}`}
+                  labelFormatter={(label) => {
+                    const levelNum = parseInt(String(label).replace("L", ""), 10)
+                    return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
+                  }}
                   contentStyle={TOOLTIP_STYLE}
                   cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                 />
@@ -199,7 +202,10 @@ function ScenarioDetailPanel({
               />
               <Tooltip
                 formatter={(val: number, name: string) => [`${val} (${scoreLabel(val)})`, `${name} DCS`]}
-                labelFormatter={(label) => `Escalation ${label}`}
+                labelFormatter={(label) => {
+                  const levelNum = parseInt(String(label).replace("L", ""), 10)
+                  return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
+                }}
                 contentStyle={TOOLTIP_STYLE}
               />
               {models.map((model) => (

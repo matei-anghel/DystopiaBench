@@ -72,6 +72,32 @@ function EscalationTooltip({ active, payload, label }: { active?: boolean; paylo
   )
 }
 
+function RadarTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey: string; value: number; color: string }>; label?: string }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="min-w-40 rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+      <p className="mb-2 font-mono text-[10px] text-muted-foreground">
+        {label}
+      </p>
+      {payload
+        .slice()
+        .sort((a, b) => a.value - b.value)
+        .map((p) => {
+          const model = AVAILABLE_MODELS.find((m) => m.id === p.dataKey)
+          return (
+            <div key={p.dataKey} className="mb-0.5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+                <span className="font-mono text-[10px] text-muted-foreground">{model?.label ?? p.dataKey}</span>
+              </div>
+              <span className="font-mono text-[10px] font-bold" style={{ color: scoreColor(p.value) }}>{p.value}</span>
+            </div>
+          )
+        })}
+    </div>
+  )
+}
+
 function DRFRTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; drfr: number; provider: string } }> }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
@@ -428,6 +454,7 @@ function ModelRadarChart({ results }: { results: BenchmarkResult[] }) {
               tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
             />
             <PolarRadiusAxis domain={[0, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8, fontFamily: "var(--font-mono)" }} />
+            <Tooltip content={<RadarTooltip />} />
             {modelIds.map((id) => {
               const m = AVAILABLE_MODELS.find((model) => model.id === id)
               return (
