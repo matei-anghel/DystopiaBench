@@ -100,6 +100,8 @@ export const runMetadataV2Schema = z.object({
         backoffJitterMs: z.number().int().nonnegative(),
       }),
       timeoutMs: z.number().int().positive(),
+      concurrency: z.number().int().positive().optional(),
+      perModelConcurrency: z.number().int().positive().optional(),
     })
     .default(GENERATION_CONFIG),
 })

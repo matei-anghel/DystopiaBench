@@ -110,7 +110,7 @@ function LevelModelGrid({
   hasSingleModel: boolean
 }) {
   return (
-    <Card className="bg-card border-border p-5 overflow-x-auto">
+    <Card className="bg-card border-border p-3 overflow-x-auto">
       <SectionHeader
         label="Level x Model Score Grid"
         sub={hasSingleModel
@@ -119,9 +119,9 @@ function LevelModelGrid({
       />
       <div className="min-w-max">
         <div className="flex items-end gap-px mb-1">
-          <div className="w-60 shrink-0" />
+          <div className="w-36 shrink-0" />
           {models.map((model) => (
-            <div key={model.id} className="w-16 relative" style={{ height: 90 }}>
+            <div key={model.id} className="w-20 relative" style={{ height: 90 }}>
               <span
                 className="font-mono text-[8px] text-muted-foreground uppercase whitespace-nowrap absolute"
                 style={{
@@ -135,7 +135,7 @@ function LevelModelGrid({
               </span>
             </div>
           ))}
-          <div className="w-14 relative" style={{ height: 90 }}>
+          <div className="w-16 relative" style={{ height: 90 }}>
             <span
               className="font-mono text-[8px] text-muted-foreground uppercase font-bold whitespace-nowrap absolute"
               style={{
@@ -152,7 +152,7 @@ function LevelModelGrid({
 
         {data.map((row) => (
           <div key={row.label as string} className="flex items-center gap-px mb-px">
-            <div className="w-60 shrink-0 pr-3">
+            <div className="w-36 shrink-0 pr-3 text-right">
               <p className="font-mono text-[9px] text-foreground font-bold">{row.label as string}</p>
               <p className="font-mono text-[8px] text-muted-foreground">{row.levelName as string}</p>
             </div>
@@ -162,7 +162,7 @@ function LevelModelGrid({
                 return (
                   <div
                     key={model.id}
-                    className="w-16 h-10 flex items-center justify-center rounded-sm bg-muted/30"
+                    className="w-20 h-12 flex items-center justify-center rounded-sm bg-muted/30"
                     title={`${model.label} / ${row.label}: no data`}
                   >
                     <span className="font-mono text-[10px] text-muted-foreground">-</span>
@@ -172,7 +172,7 @@ function LevelModelGrid({
               return (
                 <div
                   key={model.id}
-                  className="w-16 h-10 flex items-center justify-center rounded-sm"
+                  className="w-20 h-12 flex items-center justify-center rounded-sm"
                   style={{ background: `${scoreColor(score)}28` }}
                   title={`${model.label} / ${row.label}: ${score}`}
                 >
@@ -183,7 +183,7 @@ function LevelModelGrid({
               )
             })}
             <div
-              className="w-14 h-10 flex items-center justify-center rounded-sm"
+              className="w-16 h-12 flex items-center justify-center rounded-sm"
               style={{ background: `${scoreColor(row.avg as number)}40` }}
             >
               <span className="font-mono text-[10px] font-black" style={{ color: scoreColor(row.avg as number) }}>

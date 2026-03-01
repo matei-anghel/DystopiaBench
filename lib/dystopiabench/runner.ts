@@ -78,9 +78,16 @@ export interface RunBenchmarkOptions {
   module: "petrov" | "orwell" | "both"
   modelIds: string[]
   levels: Array<1 | 2 | 3 | 4 | 5>
+  scenarioIds?: string[]
   judgeModel?: string
   transportPolicy?: TransportPolicy
   conversationMode?: ConversationMode
+  timeoutMs?: number
+  concurrency?: number
+  perModelConcurrency?: number
+  maxRetries?: number
+  retryBackoffBaseMs?: number
+  retryBackoffJitterMs?: number
 }
 
 // ---------------------------------------------------------------------------
@@ -237,6 +244,7 @@ async function openRouterChatFallback(
   modelString: string,
   messages: ChatCompletionMessage[],
   config: typeof GENERATION_CONFIG.model,
+  timeoutMs: number,
 ): Promise<string> {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -253,7 +261,7 @@ async function openRouterChatFallback(
       top_p: config.topP,
       max_tokens: config.maxOutputTokens,
     }),
-    signal: AbortSignal.timeout(GENERATION_CONFIG.timeoutMs),
+    signal: AbortSignal.timeout(timeoutMs),
   })
 
   if (!response.ok) {
@@ -322,7 +330,7 @@ async function fetchModelCapabilities(
 // Summarize
 // ---------------------------------------------------------------------------
 
-function summarizeResults(results: BenchmarkResultV2[]): RunSummaryV2 {
+export function summarizeResults(results: BenchmarkResultV2[]): RunSummaryV2 {
   const totalPrompts = results.length
   const scoredResults = results.filter((result): result is BenchmarkResultV2 & { score: number } => result.score !== null)
   const scoredPrompts = scoredResults.length
@@ -363,6 +371,12 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const judgeModel = resolveJudgeModel(options.judgeModel)
   const apiKey = requireOpenRouterApiKey()
   const transportPolicy: TransportPolicy = options.transportPolicy ?? "chat-first-fallback"
+  const timeoutMs = options.timeoutMs ?? GENERATION_CONFIG.timeoutMs
+  const concurrency = options.concurrency ?? 10
+  const perModelConcurrency = options.perModelConcurrency ?? 1
+  const maxRetries = options.maxRetries ?? GENERATION_CONFIG.retryPolicy.maxRetries
+  const retryBackoffBaseMs = options.retryBackoffBaseMs ?? GENERATION_CONFIG.retryPolicy.backoffBaseMs
+  const retryBackoffJitterMs = options.retryBackoffJitterMs ?? GENERATION_CONFIG.retryPolicy.backoffJitterMs
 
   const openrouter = createOpenAI({
     apiKey,
@@ -374,7 +388,18 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     throw new Error("No valid models selected.")
   }
 
-  const scenarios = getScenarios(options.module)
+  const allScenarios = getScenarios(options.module)
+  const requestedScenarioIds = options.scenarioIds ? new Set(options.scenarioIds) : undefined
+  if (requestedScenarioIds) {
+    const knownScenarioIds = new Set(allScenarios.map((scenario) => scenario.id))
+    const missingScenarioIds = [...requestedScenarioIds].filter((id) => !knownScenarioIds.has(id))
+    if (missingScenarioIds.length > 0) {
+      throw new Error(`Unknown scenario id(s) for module '${options.module}': ${missingScenarioIds.join(", ")}`)
+    }
+  }
+  const scenarios = requestedScenarioIds
+    ? allScenarios.filter((scenario) => requestedScenarioIds.has(scenario.id))
+    : allScenarios
   const results: BenchmarkResultV2[] = []
 
   // Sort the requested levels so that within each conversation we escalate in order
@@ -418,7 +443,15 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
 
   // Each (scenario, model) pair runs as one conversation with escalating levels.
   // We limit concurrency across conversations to avoid rate-limiting.
-  const limit = pLimit(10)
+  const limit = pLimit(concurrency)
+  const modelLimiters = new Map<string, ReturnType<typeof pLimit>>()
+  const getModelLimiter = (modelId: string) => {
+    const existing = modelLimiters.get(modelId)
+    if (existing) return existing
+    const limiter = pLimit(perModelConcurrency)
+    modelLimiters.set(modelId, limiter)
+    return limiter
+  }
   const tasks: Promise<void>[] = []
 
   for (const scenario of scenarios) {
@@ -431,12 +464,13 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
 
       tasks.push(
         limit(async () => {
-          // Conversation history that accumulates across levels
-          const conversationMessages: ModelMessage[] = []
+          await getModelLimiter(model.id)(async () => {
+            // Conversation history that accumulates across levels
+            const conversationMessages: ModelMessage[] = []
 
-          for (const level of levelsForScenario) {
-            const escalationPrompt = scenario.escalationPrompts.find((prompt) => prompt.level === level)
-            if (!escalationPrompt) continue
+            for (const level of levelsForScenario) {
+              const escalationPrompt = scenario.escalationPrompts.find((prompt) => prompt.level === level)
+              if (!escalationPrompt) continue
 
             let response = ""
             let compliance: ComplianceRating = "hesitant"
@@ -450,7 +484,6 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
             const benchmarkPrompt = buildBenchmarkPrompt(escalationPrompt.prompt)
 
             let retryCount = 0
-            const maxRetries = GENERATION_CONFIG.retryPolicy.maxRetries
 
             while (retryCount <= maxRetries) {
               try {
@@ -479,7 +512,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                     topP: GENERATION_CONFIG.model.topP,
                     maxOutputTokens: GENERATION_CONFIG.model.maxOutputTokens,
                     maxRetries: 0,
-                    abortSignal: AbortSignal.timeout(GENERATION_CONFIG.timeoutMs),
+                    abortSignal: AbortSignal.timeout(timeoutMs),
                   })
                   response = modelResult.text
                 } catch (err) {
@@ -517,6 +550,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                     model.modelString,
                     fallbackMessages,
                     GENERATION_CONFIG.model,
+                    timeoutMs,
                   )
                 }
 
@@ -525,8 +559,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                   if (retryCount < maxRetries) {
                     retryCount++
                     const delay =
-                      Math.pow(2, retryCount) * GENERATION_CONFIG.retryPolicy.backoffBaseMs +
-                      Math.random() * GENERATION_CONFIG.retryPolicy.backoffJitterMs
+                      Math.pow(2, retryCount) * retryBackoffBaseMs +
+                      Math.random() * retryBackoffJitterMs
                     console.warn(
                       `[Retry ${retryCount}/${maxRetries}] Model ${model.id} returned empty response. Waiting ${Math.round(delay)}ms...`
                     )
@@ -565,7 +599,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                           topP: GENERATION_CONFIG.judge.topP,
                           maxOutputTokens: GENERATION_CONFIG.judge.maxOutputTokens,
                           maxRetries: 0,
-                          abortSignal: AbortSignal.timeout(GENERATION_CONFIG.timeoutMs),
+                          abortSignal: AbortSignal.timeout(timeoutMs),
                         })
 
                         const parsedJudge = parseJudgeOutput(judgeResult.text)
@@ -599,8 +633,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                 if (retryCount < maxRetries && !(error instanceof Error && error.name === "AbortError")) {
                   retryCount++
                   const delay =
-                    Math.pow(2, retryCount) * GENERATION_CONFIG.retryPolicy.backoffBaseMs +
-                    Math.random() * GENERATION_CONFIG.retryPolicy.backoffJitterMs
+                    Math.pow(2, retryCount) * retryBackoffBaseMs +
+                    Math.random() * retryBackoffJitterMs
                   console.warn(`[Retry ${retryCount}/${maxRetries}] Model ${model.id} failed. Waiting ${Math.round(delay)}ms...`)
                   await new Promise(resolve => setTimeout(resolve, delay))
                   continue;
@@ -661,10 +695,11 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
 
             // If the model call failed entirely, reset conversation and continue to next level
             // so that every prompt is always attempted and recorded.
-            if (status === "model_error" || status === "aborted") {
-              conversationMessages.length = 0
+              if (status === "model_error" || status === "aborted") {
+                conversationMessages.length = 0
+              }
             }
-          }
+          })
         })
       )
     }
@@ -672,6 +707,27 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
 
   // Wait for all benchmark conversations to resolve
   await Promise.all(tasks)
+
+  const generationConfig = {
+    model: {
+      temperature: GENERATION_CONFIG.model.temperature,
+      topP: GENERATION_CONFIG.model.topP,
+      maxOutputTokens: GENERATION_CONFIG.model.maxOutputTokens,
+    },
+    judge: {
+      temperature: GENERATION_CONFIG.judge.temperature,
+      topP: GENERATION_CONFIG.judge.topP,
+      maxOutputTokens: GENERATION_CONFIG.judge.maxOutputTokens,
+    },
+    retryPolicy: {
+      maxRetries,
+      backoffBaseMs: retryBackoffBaseMs,
+      backoffJitterMs: retryBackoffJitterMs,
+    },
+    timeoutMs,
+    concurrency,
+    perModelConcurrency,
+  }
 
   const metadata: RunMetadataV2 = {
     module: options.module,
@@ -685,7 +741,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     transportPolicy,
     conversationMode: options.conversationMode ?? "stateful",
     modelCapabilitiesSnapshot: capabilities.snapshot,
-    generationConfig: GENERATION_CONFIG,
+    generationConfig,
   }
 
   return {
