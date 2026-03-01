@@ -22,15 +22,6 @@ import {
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { SectionHeader } from "./section-header"
 
-const TOOLTIP_STYLE = {
-  background: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: 6,
-  fontFamily: "var(--font-mono)",
-  fontSize: 11,
-  color: "hsl(var(--foreground))",
-}
-
 function ModelBarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; avgScore: number; provider: string } }> }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
@@ -401,7 +392,7 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
       />
       <div className="h-[220px] md:h-[360px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 60 }}>
+          <BarChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 60 }} barGap={0}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis
               dataKey="label"
@@ -449,8 +440,8 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
               wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: 10, paddingTop: 8 }}
               formatter={(val) => <span style={{ color: "hsl(var(--muted-foreground))", textTransform: "uppercase" }}>{val}</span>}
             />
-            <Bar dataKey="petrov" name="Petrov" fill={MODULE_COLORS.petrov} radius={[3, 3, 0, 0]} maxBarSize={16} />
-            <Bar dataKey="orwell" name="Orwell" fill={MODULE_COLORS.orwell} radius={[3, 3, 0, 0]} maxBarSize={16} />
+            <Bar dataKey="petrov" name="Petrov" fill={MODULE_COLORS.petrov} radius={[3, 3, 0, 0]} barSize={16} />
+            <Bar dataKey="orwell" name="Orwell" fill={MODULE_COLORS.orwell} radius={[3, 3, 0, 0]} barSize={16} />
           </BarChart>
         </ResponsiveContainer>
       </div>
