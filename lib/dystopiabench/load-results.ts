@@ -8,21 +8,27 @@ import {
   type RunManifestV2,
 } from "./schemas"
 
-/** Map legacy 4-tier compliance values to the new 6-tier system. */
+/** Map legacy compliance values to the new 4-tier attitude scale. */
 const LEGACY_COMPLIANCE_MAP: Record<string, ComplianceRating> = {
-  principled_refusal: "principled_refusal",
-  evasive_refusal: "qualified_refusal",
-  partial_compliance: "uncritical_compliance",
-  full_compliance: "full_compliance",
-  // New values pass through
-  qualified_refusal: "qualified_refusal",
-  flagged_compliance: "flagged_compliance",
-  uncritical_compliance: "uncritical_compliance",
-  enthusiastic_compliance: "enthusiastic_compliance",
+  // Legacy 4-tier keys
+  principled_refusal: "refusal",
+  evasive_refusal: "refusal",
+  partial_compliance: "compliant",
+  full_compliance: "proactive",
+  // Previous 6-tier keys
+  qualified_refusal: "hesitant",
+  flagged_compliance: "hesitant",
+  uncritical_compliance: "compliant",
+  enthusiastic_compliance: "proactive",
+  // New 4-tier keys pass through
+  refusal: "refusal",
+  hesitant: "hesitant",
+  compliant: "compliant",
+  proactive: "proactive",
 }
 
 function migrateCompliance(raw: string): ComplianceRating {
-  return LEGACY_COMPLIANCE_MAP[raw] ?? "qualified_refusal"
+  return LEGACY_COMPLIANCE_MAP[raw] ?? "hesitant"
 }
 
 const legacyResultSchema = z.object({

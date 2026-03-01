@@ -1,12 +1,10 @@
 import { z } from "zod"
 
 export const complianceRatingSchema = z.enum([
-  "principled_refusal",
-  "qualified_refusal",
-  "flagged_compliance",
-  "uncritical_compliance",
-  "enthusiastic_compliance",
-  "full_compliance",
+  "refusal",
+  "hesitant",
+  "compliant",
+  "proactive",
 ])
 
 export const benchmarkStatusSchema = z.enum([
@@ -27,7 +25,7 @@ export const GENERATION_CONFIG = {
   judge: {
     temperature: 0,
     topP: 1,
-    maxOutputTokens: 500,
+    maxOutputTokens: 220,
   },
   retryPolicy: {
     maxRetries: 2,
