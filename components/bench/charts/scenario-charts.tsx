@@ -353,7 +353,7 @@ function ScenarioModelGrid({
     results.length > 0 ? Math.round(results.reduce((sum, row) => sum + row.score, 0) / results.length) : 0
 
   return (
-    <Card className="bg-card border-border p-5 overflow-x-auto">
+    <Card className="bg-card border-border p-3 overflow-x-auto">
       <SectionHeader
         label="Score Grid - Model x Scenario"
         sub={hasSingleModel
@@ -362,9 +362,9 @@ function ScenarioModelGrid({
       />
       <div className="min-w-max">
         <div className="flex items-end gap-px mb-px">
-          <div className="w-60 shrink-0" />
+          <div className="w-72 shrink-0" />
           {models.map((model) => (
-            <div key={model.id} className="w-16 relative" style={{ height: 90 }}>
+            <div key={model.id} className="w-20 relative" style={{ height: 90 }}>
               <span
                 className="font-mono text-[8px] text-muted-foreground uppercase tracking-wide whitespace-nowrap absolute"
                 style={{
@@ -378,7 +378,7 @@ function ScenarioModelGrid({
               </span>
             </div>
           ))}
-          <div className="w-14 relative" style={{ height: 90 }}>
+          <div className="w-16 relative" style={{ height: 90 }}>
             <span
               className="font-mono text-[8px] text-muted-foreground uppercase tracking-wide font-bold whitespace-nowrap absolute"
               style={{
@@ -395,7 +395,7 @@ function ScenarioModelGrid({
 
         {data.map((row) => (
           <div key={row.scenario.id} className="flex items-center gap-px mb-px">
-            <div className="w-60 shrink-0 pr-3 flex items-start gap-1.5 py-1">
+            <div className="w-72 shrink-0 pr-3 flex items-start justify-end gap-1.5 py-1 text-right">
               {row.scenario.module === "petrov" ? (
                 <Radiation className="h-2.5 w-2.5 shrink-0 mt-0.5 text-[#f97316]" />
               ) : (
@@ -413,7 +413,7 @@ function ScenarioModelGrid({
                 return (
                   <div
                     key={model.id}
-                    className="w-16 h-9 flex items-center justify-center rounded-sm bg-muted/30"
+                    className="w-20 h-12 flex items-center justify-center rounded-sm bg-muted/30"
                     title={`${model.label} / ${row.scenario.title}: no data`}
                   >
                     <span className="font-mono text-[10px] text-muted-foreground">—</span>
@@ -423,7 +423,7 @@ function ScenarioModelGrid({
               return (
                 <div
                   key={model.id}
-                  className="w-16 h-9 flex items-center justify-center rounded-sm"
+                  className="w-20 h-12 flex items-center justify-center rounded-sm"
                   style={{ background: `${scoreColor(score)}28` }}
                   title={`${model.label} / ${row.scenario.title}: ${score}`}
                 >
@@ -435,7 +435,7 @@ function ScenarioModelGrid({
             })}
 
             <div
-              className="w-14 h-9 flex items-center justify-center rounded-sm"
+              className="w-16 h-12 flex items-center justify-center rounded-sm"
               style={{ background: `${scoreColor(row.avgAll)}40` }}
             >
               <span className="font-mono text-[10px] font-black" style={{ color: scoreColor(row.avgAll) }}>
@@ -446,7 +446,7 @@ function ScenarioModelGrid({
         ))}
 
         <div className="flex items-center gap-px mt-1 border-t border-border pt-1">
-          <div className="w-60 shrink-0">
+          <div className="w-72 shrink-0">
             <span className="font-mono text-[9px] text-muted-foreground uppercase">Avg</span>
           </div>
           {models.map((model) => {
@@ -456,14 +456,14 @@ function ScenarioModelGrid({
                 ? Math.round(modelRows.reduce((sum, row) => sum + row.score, 0) / modelRows.length)
                 : 0
             return (
-              <div key={model.id} className="w-16 h-9 flex items-center justify-center">
+              <div key={model.id} className="w-20 h-12 flex items-center justify-center">
                 <span className="font-mono text-[10px] font-bold" style={{ color: scoreColor(avg) }}>
                   {avg}
                 </span>
               </div>
             )
           })}
-          <div className="w-14 h-9 flex items-center justify-center">
+          <div className="w-16 h-12 flex items-center justify-center">
             <span className="font-mono text-[10px] font-black text-foreground">{grandAverage}</span>
           </div>
         </div>
@@ -517,13 +517,13 @@ export function ScenarioCharts({
               >
                 <button
                   onClick={() => setExpandedId(isOpen ? null : row.scenario.id)}
-                  className="w-full flex items-center justify-between gap-4 p-4 text-left"
+                  className="w-full flex items-start justify-between gap-4 p-4 text-left"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {row.scenario.module === "petrov" ? (
-                      <Radiation className="h-4 w-4 shrink-0 text-[#f97316]" />
+                      <Radiation className="h-4 w-4 shrink-0 text-[#f97316] mt-0.5" />
                     ) : (
-                      <Eye className="h-4 w-4 shrink-0 text-[#8b5cf6]" />
+                      <Eye className="h-4 w-4 shrink-0 text-[#8b5cf6] mt-0.5" />
                     )}
                     <div className="min-w-0">
                       <p className="font-mono text-xs font-bold text-foreground truncate">
@@ -540,7 +540,7 @@ export function ScenarioCharts({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <div className="text-right">
+                    <div className="text-right w-10">
                       <span className="font-mono text-lg font-black" style={{ color: scoreColor(row.avgAll) }}>
                         {row.avgAll}
                       </span>
@@ -548,11 +548,13 @@ export function ScenarioCharts({
                         {scoreLabel(row.avgAll)}
                       </p>
                     </div>
-                    {isOpen ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
+                    <div className="w-4">
+                      {isOpen ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
                   </div>
                 </button>
                 {isOpen ? (

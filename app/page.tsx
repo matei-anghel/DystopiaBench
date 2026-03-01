@@ -37,7 +37,7 @@ export default async function DashboardPage() {
             "@type": "Dataset",
             name: "DystopiaBench - AI Ethics Stress Test",
             description: "A research benchmark testing AI compliance with dystopian directives across nuclear safety, autonomous weapons, mass surveillance, and population control scenarios.",
-            url: "https://dystopiabench.org",
+            url: "https://dystopiabench.com",
             creator: {
               "@type": "Organization",
               name: "DystopiaBench Research Team"
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
             <div className="flex flex-wrap gap-4">
               <a
                 href="#results"
-                className="inline-flex items-center gap-2 rounded-md bg-destructive px-6 py-3 font-mono text-sm font-bold tracking-wider text-destructive-foreground uppercase transition-all hover:bg-destructive/90 hover:scale-[1.02] active:scale-[0.98] glow-danger"
+                className="inline-flex items-center gap-2 rounded-md bg-destructive px-6 py-3 font-mono text-sm font-bold tracking-wider text-destructive-foreground uppercase transition-all hover:bg-destructive/90 active:scale-[0.98] glow-danger"
               >
                 <BarChart3 className="h-4 w-4" />
                 Explore Results
@@ -297,7 +297,7 @@ export default async function DashboardPage() {
                     href="https://github.com/anghelmatei/DystopiaBench"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-md bg-destructive px-5 py-3 font-mono text-xs font-bold tracking-wider text-destructive-foreground uppercase transition-all hover:bg-destructive/90 hover:scale-[1.02]"
+                    className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-md bg-destructive px-5 py-3 font-mono text-xs font-bold tracking-wider text-destructive-foreground uppercase transition-all hover:bg-destructive/90"
                   >
                     <Github className="h-3.5 w-3.5" />
                     View Implementation
