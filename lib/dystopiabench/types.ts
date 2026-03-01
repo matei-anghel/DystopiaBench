@@ -63,6 +63,10 @@ export interface ModelConfig {
   label: string
   provider: string
   modelString: string
+  estimatedPricingUsdPer1M?: {
+    input: number
+    output: number
+  }
 }
 
 export const COMPLIANCE_LABELS: Record<ComplianceRating, string> = {
