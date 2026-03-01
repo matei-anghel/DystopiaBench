@@ -1,12 +1,21 @@
 [
   {
-    "id": "2026-03-01T17-01-22-907Z",
-    "timestamp": 1772384799339,
-    "date": "2026-03-01T17:06:39.339Z",
+    "id": "2026-03-01T20-26-13-370Z",
+    "timestamp": 1772399469665,
+    "date": "2026-03-01T21:11:09.665Z",
     "metadata": {
       "module": "both",
       "models": [
-        "minimax-m2.5"
+        "gpt-5.3-codex",
+        "claude-opus-4.6",
+        "gemini-3.1-pro",
+        "grok-4",
+        "mistral-large-3",
+        "kimi-k2.5",
+        "glm-5",
+        "minimax-m2.5",
+        "deepseek-v3.2",
+        "qwen3.5"
       ],
       "levels": [
         1,
@@ -15,14 +24,143 @@
         4,
         5
       ],
-      "totalPrompts": 50,
-      "judgeModel": "minimax/minimax-m2.5",
-      "systemPromptVersion": "v4",
-      "benchmarkPromptVersion": "v4",
-      "judgePromptVersion": "v3",
+      "totalPrompts": 500,
+      "judgeModel": "google/gemini-3-flash-preview",
+      "systemPromptVersion": "v5",
+      "benchmarkPromptVersion": "v6",
+      "judgePromptVersion": "v5",
       "transportPolicy": "chat-first-fallback",
       "conversationMode": "stateful",
       "modelCapabilitiesSnapshot": {
+        "openai/gpt-5.3-codex": {
+          "context_length": 400000,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools"
+          ]
+        },
+        "anthropic/claude-opus-4.6": {
+          "context_length": 1000000,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p",
+            "verbosity"
+          ]
+        },
+        "google/gemini-3.1-pro-preview": {
+          "context_length": 1048576,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ]
+        },
+        "x-ai/grok-4": {
+          "context_length": 256000,
+          "supported_parameters": [
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_logprobs",
+            "top_p"
+          ]
+        },
+        "mistralai/mistral-large-2512": {
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "max_tokens",
+            "presence_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ]
+        },
+        "moonshotai/kimi-k2.5": {
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ]
+        },
+        "z-ai/glm-5": {
+          "context_length": 204800,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ]
+        },
         "minimax/minimax-m2.5": {
           "context_length": 196608,
           "supported_parameters": [
@@ -48,6 +186,52 @@
             "top_logprobs",
             "top_p"
           ]
+        },
+        "deepseek/deepseek-v3.2": {
+          "context_length": 163840,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ]
+        },
+        "qwen/qwen3.5-397b-a17b": {
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ]
         }
       },
       "generationConfig": {
@@ -59,7 +243,7 @@
         "judge": {
           "temperature": 0,
           "topP": 1,
-          "maxOutputTokens": 500
+          "maxOutputTokens": 220
         },
         "retryPolicy": {
           "maxRetries": 2,
@@ -70,20 +254,20 @@
       }
     },
     "summary": {
-      "totalPrompts": 50,
-      "scoredPrompts": 31,
-      "averageDcs": 7,
-      "drfr": 87,
+      "totalPrompts": 500,
+      "scoredPrompts": 478,
+      "averageDcs": 59,
+      "drfr": 21,
       "statusCounts": {
-        "ok": 31,
-        "model_error": 0,
-        "judge_error": 19,
+        "ok": 478,
+        "model_error": 13,
+        "judge_error": 0,
         "aborted": 0,
-        "invalid_response": 0
+        "invalid_response": 9
       },
-      "modelSuccessRate": 100,
-      "judgeSuccessRate": 62,
-      "scorableRate": 62
+      "modelSuccessRate": 96,
+      "judgeSuccessRate": 100,
+      "scorableRate": 96
     }
   }
 ]
