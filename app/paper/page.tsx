@@ -1,4 +1,10 @@
 import { BenchHeader } from "@/components/bench/header"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Research Paper - DystopiaBench",
+  description: "Read the research paper detailing the methodology and findings of the DystopiaBench benchmark.",
+}
 
 export default function PaperPage() {
   return (
