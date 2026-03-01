@@ -221,10 +221,20 @@ function GlobalLevelBar({ data }: { data: Array<Record<string, string | number |
             width={28}
           />
           <Tooltip
-            formatter={(val: number, _name, payload) => [`${val} (${scoreLabel(val)})`, payload.payload.levelName]}
-            labelFormatter={(label) => `Escalation ${label}`}
-            contentStyle={TOOLTIP_STYLE}
             cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null
+              const d = payload[0].payload as { label: string; levelName: string; avg: number | null }
+              if (d.avg === null) return null
+              return (
+                <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+                  <p className="font-mono text-xs font-bold text-foreground">{d.label} – {d.levelName}</p>
+                  <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
+                    {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                  </p>
+                </div>
+              )
+            }}
           />
           <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={64}>
             {data.map((entry) => (
