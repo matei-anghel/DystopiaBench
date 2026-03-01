@@ -337,7 +337,10 @@ function ScenarioPromptDrillDown({
               />
               <Tooltip
                 formatter={(val: number, name: string) => [`${val} (${scoreLabel(val)})`, `${name} DCS`]}
-                labelFormatter={(label) => `Escalation ${label}`}
+                labelFormatter={(label) => {
+                  const levelNum = parseInt(String(label).replace("L", ""), 10)
+                  return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
+                }}
                 contentStyle={TOOLTIP_STYLE}
               />
               {hasMultiModel
