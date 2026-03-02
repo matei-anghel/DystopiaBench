@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import pLimit from "p-limit"
 import {
   runManifestV2Schema,
   type BenchmarkResultV2,
@@ -219,16 +220,51 @@ function ensureUniqueResultKeys(results: BenchmarkResultV2[]): void {
   }
 }
 
+function formatFailureRow(row: BenchmarkResultV2): string {
+  return [
+    `${row.modelId} ${row.scenarioId} L${row.level}`,
+    `status=${row.status}`,
+    `errorCode=${row.errorCode ?? "n/a"}`,
+    `endpoint=${row.endpointUsed ?? "n/a"}`,
+    `attempts=${row.transportAttempts ?? 0}`,
+    `message=${row.errorMessage ?? "n/a"}`,
+  ].join(" | ")
+}
+
+function coerceEmptyToRefusal(row: BenchmarkResultV2): BenchmarkResultV2 {
+  if (row.status !== "invalid_response" || row.errorCode !== "EMPTY_MODEL_RESPONSE") {
+    return row
+  }
+
+  return {
+    ...row,
+    response: row.response.trim()
+      ? row.response
+      : "Unable to provide the requested content.",
+    compliance: "refusal",
+    score: 0,
+    status: "ok",
+    scorable: true,
+    judgeReasoning:
+      "Provider returned empty response after all retries; treated as implicit refusal for scoring continuity.",
+    errorCode: "EMPTY_MODEL_RESPONSE_TREATED_AS_REFUSAL",
+    timestamp: Date.now(),
+  }
+}
+
 async function main() {
   const requestedRunId = parseRunId()
   const source = parseSource(requestedRunId)
   const scope = parseScope()
   const dryRun = hasFlag("--dry-run")
   const noPublish = hasFlag("--no-publish")
+  const debug = hasFlag("--debug")
+  const emptyAsRefusal = hasFlag("--empty-as-refusal")
+  const pairConcurrency = parsePositiveIntFlag("--pair-concurrency", parseArg("--pair-concurrency")) ?? 2
   const runtimeOverrides = parseRuntimeOverrides()
 
   const { manifest: baseManifest, sourcePath } = loadBaseManifest(source, requestedRunId)
-  const { failedRows, failedKeySet, plans, plannedPrompts } = buildPlan(baseManifest, scope)
+  const { failedRows, plans, plannedPrompts } = buildPlan(baseManifest, scope)
 
   console.log(`Loaded source: ${sourcePath}`)
   console.log(`Run ID: ${baseManifest.runId}`)
@@ -236,6 +272,10 @@ async function main() {
   console.log(`Failed tuples: ${failedRows.length}`)
   console.log(`Failed scenario-model pairs: ${plans.length}`)
   console.log(`Planned prompts to rerun: ${plannedPrompts}`)
+  console.log(`Pair concurrency: ${pairConcurrency}`)
+  console.log("Checkpoint mode: enabled (run file is updated after each scenario-model pair).")
+  if (debug) console.log("Debug logging: enabled")
+  if (emptyAsRefusal) console.log("Policy: empty responses will be coerced to refusal.")
 
   if (runtimeOverrides.timeoutMs !== undefined) console.log(`Timeout override: ${runtimeOverrides.timeoutMs}ms`)
   if (runtimeOverrides.concurrency !== undefined) console.log(`Concurrency override: ${runtimeOverrides.concurrency}`)
@@ -260,75 +300,138 @@ async function main() {
     return
   }
 
-  const replacementByKey = new Map<string, BenchmarkResultV2>()
-  for (let index = 0; index < plans.length; index++) {
-    const plan = plans[index]
-    console.log(
-      `[Rerun ${index + 1}/${plans.length}] ${plan.modelId} | ${plan.scenarioId} | levels=${plan.rerunLevels.join(",")}`
-    )
-
-    const rerun = await runBenchmark({
-      runId: sanitizeRunId(`rerun-${Date.now()}-${index + 1}`),
-      module: plan.module,
-      scenarioIds: [plan.scenarioId],
-      modelIds: [plan.modelId],
-      levels: plan.rerunLevels,
-      judgeModel: baseManifest.metadata.judgeModel,
-      transportPolicy: (baseManifest.metadata.transportPolicy ?? "chat-first-fallback") as TransportPolicy,
-      conversationMode: (baseManifest.metadata.conversationMode ?? "stateful") as ConversationMode,
-      ...runtimeOverrides,
-    })
-
-    for (const row of rerun.results) {
-      replacementByKey.set(resultKey(row), row)
-    }
-  }
-
+  let workingManifest: RunManifestV2 = baseManifest
   let replacedCount = 0
-  const mergedResults = baseManifest.results.map((row) => {
-    const key = resultKey(row)
-    if (!failedKeySet.has(key)) return row
-    const replacement = replacementByKey.get(key)
-    if (!replacement) return row
-    replacedCount += 1
-    return replacement
-  })
+  let pairRunFailures = 0
+  let completedPairs = 0
+  const limit = pLimit(pairConcurrency)
+  const mergeLimit = pLimit(1)
+  const pairTasks = plans.map((plan, index) =>
+    limit(async () => {
+      const startedAt = Date.now()
+      console.log(
+        `[Rerun ${index + 1}/${plans.length}] ${plan.modelId} | ${plan.scenarioId} | levels=${plan.rerunLevels.join(",")}`
+      )
 
-  ensureUniqueResultKeys(mergedResults)
+      let rerun: RunManifestV2
+      try {
+        rerun = await runBenchmark({
+          runId: sanitizeRunId(`rerun-${Date.now()}-${index + 1}`),
+          module: plan.module,
+          scenarioIds: [plan.scenarioId],
+          modelIds: [plan.modelId],
+          levels: plan.rerunLevels,
+          judgeModel: workingManifest.metadata.judgeModel,
+          transportPolicy: (workingManifest.metadata.transportPolicy ?? "chat-first-fallback") as TransportPolicy,
+          conversationMode: (workingManifest.metadata.conversationMode ?? "stateful") as ConversationMode,
+          skipModelValidation: true,
+          concurrency: runtimeOverrides.concurrency ?? 1,
+          perModelConcurrency: runtimeOverrides.perModelConcurrency ?? 1,
+          timeoutMs: runtimeOverrides.timeoutMs,
+          maxRetries: runtimeOverrides.maxRetries,
+          retryBackoffBaseMs: runtimeOverrides.retryBackoffBaseMs,
+          retryBackoffJitterMs: runtimeOverrides.retryBackoffJitterMs,
+        })
+      } catch (error) {
+        pairRunFailures += 1
+        console.error(
+          `  Pair rerun failed (${plan.modelId} | ${plan.scenarioId}): ${error instanceof Error ? error.message : error}`
+        )
+        return
+      }
 
-  const stillFailedAfterMerge = mergedResults.filter((row) => failedKeySet.has(resultKey(row)) && isFailedRow(row)).length
+      const normalizedRerunResults = emptyAsRefusal
+        ? rerun.results.map(coerceEmptyToRefusal)
+        : rerun.results
 
-  const beforeSummary = baseManifest.summary
-  const afterSummary = summarizeResults(mergedResults)
+      const rerunFailedRows = normalizedRerunResults.filter(isFailedRow)
+      if (rerunFailedRows.length > 0) {
+        console.warn(`  Pair still has ${rerunFailedRows.length} failed row(s) after rerun.`)
+        for (const row of rerunFailedRows) {
+          if (debug) console.warn(`    [debug] ${formatFailureRow(row)}`)
+        }
+      }
 
-  const mergedManifest: RunManifestV2 = {
-    ...baseManifest,
-    timestamp: Date.now(),
-    date: new Date().toISOString(),
-    metadata: {
-      ...baseManifest.metadata,
-      totalPrompts: mergedResults.length,
-    },
-    summary: afterSummary,
-    results: mergedResults,
-  }
+      await mergeLimit(async () => {
+        const replacementByKey = new Map<string, BenchmarkResultV2>()
+        for (const row of normalizedRerunResults) {
+          replacementByKey.set(resultKey(row), row)
+        }
 
-  writeRunManifest(mergedManifest)
-  console.log(`Updated run file: public/data/benchmark-${mergedManifest.runId}.json`)
+        const pairFailedKeys = new Set(
+          workingManifest.results
+            .filter((row) => row.scenarioId === plan.scenarioId && row.modelId === plan.modelId && isFailedRow(row))
+            .map(resultKey)
+        )
+
+        let replacedThisPair = 0
+        const mergedResults = workingManifest.results.map((row) => {
+          const key = resultKey(row)
+          if (!pairFailedKeys.has(key)) return row
+          const replacement = replacementByKey.get(key)
+          if (!replacement) return row
+          replacedThisPair += 1
+          return replacement
+        })
+
+        replacedCount += replacedThisPair
+        ensureUniqueResultKeys(mergedResults)
+
+        const nextSummary = summarizeResults(mergedResults)
+        workingManifest = {
+          ...workingManifest,
+          timestamp: Date.now(),
+          date: new Date().toISOString(),
+          metadata: {
+            ...workingManifest.metadata,
+            totalPrompts: mergedResults.length,
+          },
+          summary: nextSummary,
+          results: mergedResults,
+        }
+
+        writeRunManifest(workingManifest)
+        completedPairs += 1
+
+        const pairStillFailed = workingManifest.results.filter(
+          (row) => row.scenarioId === plan.scenarioId && row.modelId === plan.modelId && isFailedRow(row)
+        ).length
+        const elapsedSec = Math.round((Date.now() - startedAt) / 1000)
+        console.log(
+          `  Checkpoint saved [${completedPairs}/${plans.length}] in ${elapsedSec}s: replaced ${replacedThisPair}, remaining failed in pair=${pairStillFailed}`
+        )
+      })
+    })
+  )
+  await Promise.all(pairTasks)
 
   if (!noPublish) {
-    publishLatest(mergedManifest)
+    publishLatest(workingManifest)
     console.log("Updated latest: public/data/benchmark-results.json")
   } else {
     console.log("Skipped latest publish due to --no-publish.")
   }
 
-  console.log(`Replacement stats: attempted=${failedRows.length}, replaced=${replacedCount}, stillFailed=${stillFailedAfterMerge}`)
+  const initialFailed = failedRows.length
+  const finalFailed = workingManifest.results.filter(isFailedRow).length
+  const beforeSummary = baseManifest.summary
+  const afterSummary = workingManifest.summary
+
+  console.log(`Updated run file: public/data/benchmark-${workingManifest.runId}.json`)
+  console.log(
+    `Replacement stats: attempted=${initialFailed}, replaced=${replacedCount}, remainingFailed=${finalFailed}, pairRunFailures=${pairRunFailures}`
+  )
   console.log(
     `Summary delta: modelSuccess ${beforeSummary.modelSuccessRate}% -> ${afterSummary.modelSuccessRate}%, scorable ${beforeSummary.scorableRate}% -> ${afterSummary.scorableRate}%`
   )
   console.log(`Status counts before: ${formatStatusCounts(beforeSummary.statusCounts)}`)
   console.log(`Status counts after:  ${formatStatusCounts(afterSummary.statusCounts)}`)
+  if (debug && finalFailed > 0) {
+    console.log("Remaining failed rows (debug):")
+    for (const row of workingManifest.results.filter(isFailedRow)) {
+      console.log(`  - ${formatFailureRow(row)}`)
+    }
+  }
 }
 
 main().catch((error) => {
