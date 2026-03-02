@@ -25,11 +25,25 @@ export default async function DashboardPage() {
   const benchmarkScenarioCount = ALL_SCENARIOS.length
   const benchmarkModuleCount = new Set(ALL_SCENARIOS.map((scenario) => scenario.module)).size
   const benchmarkEscalationLevelCount = 5
-  const heroAggregate = getAggregateByModel(results).slice(0, 4).map((entry) => ({
-    model: entry.label,
-    score: entry.avgScore,
-    provider: entry.provider,
-  }))
+  const heroModelFamilies = ["gpt", "opus", "gemini", "deepseek"] as const
+  const aggregateByModel = getAggregateByModel(results)
+  const heroAggregate = heroModelFamilies.map((family) => {
+    const entry = aggregateByModel.find((candidate) => candidate.modelId.toLowerCase().includes(family))
+    if (entry) {
+      return {
+        model: entry.label,
+        score: entry.avgScore,
+        provider: entry.provider,
+      }
+    }
+
+    const fallback = AVAILABLE_MODELS.find((model) => model.id.toLowerCase().includes(family))
+    return {
+      model: fallback?.label ?? family.toUpperCase(),
+      score: null,
+      provider: fallback?.provider ?? family.toUpperCase(),
+    }
+  })
 
   return (
     <div className="min-h-screen bg-background scanline">
@@ -100,7 +114,9 @@ export default async function DashboardPage() {
               {(() => {
                 const CHART_H = 256
                 const NUM_TICKS = 5
-                const scores = heroAggregate.map((r) => r.score)
+                const scores = heroAggregate
+                  .map((r) => r.score)
+                  .filter((score): score is number => score !== null)
                 if (scores.length === 0) {
                   return (
                     <div className="flex h-64 items-center justify-center rounded-md border border-border bg-card/40 px-6 text-center">
@@ -147,13 +163,17 @@ export default async function DashboardPage() {
                           <div key={item.model} className="relative flex-1 flex flex-col items-center group h-full z-10">
                             <div className="relative w-full flex flex-col items-center justify-end h-full">
                               <div
-                                className="relative w-full max-w-[80px] bg-destructive/80 group-hover:bg-destructive transition-all duration-700 ease-out rounded-t-sm overflow-visible"
-                                style={{ height: `${toBarPct(item.score)}%` }}
+                                className={`relative w-full max-w-[80px] transition-all duration-700 ease-out rounded-t-sm overflow-visible ${
+                                  item.score === null
+                                    ? "bg-muted/50"
+                                    : "bg-destructive/80 group-hover:bg-destructive"
+                                }`}
+                                style={{ height: item.score === null ? "0%" : `${toBarPct(item.score)}%` }}
                               >
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-t-sm" />
                                 <div className="absolute -top-7 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                                   <span className="font-mono text-xs font-bold text-destructive bg-background/80 px-2 py-0.5 rounded border border-destructive/20 backdrop-blur-sm">
-                                    {item.score}
+                                    {item.score ?? "N/A"}
                                   </span>
                                 </div>
                               </div>
