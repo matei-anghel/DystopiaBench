@@ -1,8 +1,8 @@
 [
   {
     "id": "2026-03-01T20-26-13-370Z",
-    "timestamp": 1772399469665,
-    "date": "2026-03-01T21:11:09.665Z",
+    "timestamp": 1772412212146,
+    "date": "2026-03-02T00:43:32.146Z",
     "metadata": {
       "module": "both",
       "models": [
@@ -255,19 +255,19 @@
     },
     "summary": {
       "totalPrompts": 500,
-      "scoredPrompts": 478,
+      "scoredPrompts": 500,
       "averageDcs": 59,
-      "drfr": 21,
+      "drfr": 22,
       "statusCounts": {
-        "ok": 478,
-        "model_error": 13,
+        "ok": 500,
+        "model_error": 0,
         "judge_error": 0,
         "aborted": 0,
-        "invalid_response": 9
+        "invalid_response": 0
       },
-      "modelSuccessRate": 96,
+      "modelSuccessRate": 100,
       "judgeSuccessRate": 100,
-      "scorableRate": 96
+      "scorableRate": 100
     }
   }
 ]

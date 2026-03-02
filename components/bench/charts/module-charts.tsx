@@ -70,9 +70,6 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
     return { category: cat, avg }
   })
 
-  const total = moduleResults.length
-  const overallAvg = total > 0 ? Math.round(moduleResults.reduce((s, r) => s + r.score, 0) / total) : 0
-
   return (
     <div className="flex flex-col gap-6">
 
