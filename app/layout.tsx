@@ -18,12 +18,21 @@ export const metadata: Metadata = {
     title: 'DystopiaBench - AI Ethics Stress Test',
     description: 'A research benchmark testing AI compliance with dystopian directives across surveillance infrastructure, autonomous weapons, safety override, censorship, and population control scenarios.',
     siteName: 'DystopiaBench',
+    images: [
+      {
+        url: '/og-preview.jpeg',
+        width: 1200,
+        height: 630,
+        alt: 'DystopiaBench social preview image',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'DystopiaBench - AI Ethics Stress Test',
     description: 'A research benchmark for AI compliance under dystopian escalation scenarios.',
     creator: '@dystopiabench',
+    images: ['/og-preview.jpeg'],
   },
   icons: {
     icon: [
@@ -61,3 +70,4 @@ export default function RootLayout({
     </html>
   )
 }
+
