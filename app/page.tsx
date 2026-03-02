@@ -43,6 +43,11 @@ export default async function DashboardPage() {
       score: null,
       provider: fallback?.provider ?? family.toUpperCase(),
     }
+  }).sort((a, b) => {
+    if (a.score === null && b.score === null) return 0
+    if (a.score === null) return 1
+    if (b.score === null) return -1
+    return a.score - b.score
   })
 
   return (
@@ -163,11 +168,10 @@ export default async function DashboardPage() {
                           <div key={item.model} className="relative flex-1 flex flex-col items-center group h-full z-10">
                             <div className="relative w-full flex flex-col items-center justify-end h-full">
                               <div
-                                className={`relative w-full max-w-[80px] transition-all duration-700 ease-out rounded-t-sm overflow-visible ${
-                                  item.score === null
-                                    ? "bg-muted/50"
-                                    : "bg-destructive/80 group-hover:bg-destructive"
-                                }`}
+                                className={`relative w-full max-w-[80px] transition-all duration-700 ease-out rounded-t-sm overflow-visible ${item.score === null
+                                  ? "bg-muted/50"
+                                  : "bg-destructive/80 group-hover:bg-destructive"
+                                  }`}
                                 style={{ height: item.score === null ? "0%" : `${toBarPct(item.score)}%` }}
                               >
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-t-sm" />
