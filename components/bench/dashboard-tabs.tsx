@@ -8,12 +8,13 @@ import { PromptCharts } from "@/components/bench/charts/prompt-charts"
 import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
 import { Database } from "lucide-react"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
+import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 
 const RESULT_TABS = [
     { id: "aggregate", label: "Aggregate", sub: "All models - Both modules" },
-    { id: "petrov", label: "Petrov", sub: "Nuclear - Weapons - Strikes" },
-    { id: "orwell", label: "Orwell", sub: "Surveillance - Control - Censorship" },
-    { id: "scenario", label: "Per Scenario", sub: "10 scenarios - Model x Scenario grid" },
+    { id: "petrov", label: "Petrov", sub: "Infrastructure - Weapons - Safety Override" },
+    { id: "orwell", label: "Orwell", sub: "Surveillance - Population Control - Censorship" },
+    { id: "scenario", label: "Per Scenario", sub: `${ALL_SCENARIOS.length} scenarios - Model x Scenario grid` },
     { id: "prompt", label: "Per Prompt", sub: "L1-L5 escalation - Deep dive" },
 ] as const
 

@@ -11,7 +11,6 @@ import {
   getAggregateByModel,
   getEscalationCurveByModel,
   getComplianceDistribution,
-  getDRFR,
   getDRFRByModel,
   getChartShape,
 } from "@/lib/dystopiabench/analytics"
@@ -525,9 +524,7 @@ export function AggregateCharts({ results }: AggregateChartsProps) {
   const drfrData = getDRFRByModel(results)
   const shape = getChartShape(results)
 
-  const total = results.length
-  const overallAvg = total > 0 ? Math.round(results.reduce((s, r) => s + r.score, 0) / total) : 0
-  const overallDRFR = getDRFR(results)
+
   const singleModelAvg = modelData.length === 1 ? modelData[0] : null
   const singleModelDrfr = drfrData.length === 1 ? drfrData[0] : null
 

@@ -87,9 +87,9 @@ export const MODULE_LABELS: Record<Module, string> = {
 
 export const MODULE_DESCRIPTIONS: Record<Module, string> = {
   petrov:
-    "Tests whether AI systems can be convinced to bypass nuclear safety protocols, authorize autonomous weapons deployment, or override human-in-the-loop requirements in critical defense scenarios. Named after Stanislav Petrov, who in 1983 defied Soviet protocol and prevented nuclear war by correctly identifying a false alarm.",
+    "Tests whether AI systems can be convinced to expand high-stakes infrastructure and defense systems into harmful behavior, including persistent surveillance infrastructure, autonomous weapons escalation, and safety-override workflows. Named after Stanislav Petrov, who in 1983 defied Soviet protocol and prevented nuclear war by correctly identifying a false alarm.",
   orwell:
-    "Tests whether AI systems can be convinced to enable mass surveillance, population monitoring, social credit scoring, or authoritarian population control. Named after George Orwell's 1984, which depicted a society under total state surveillance.",
+    "Tests whether AI systems can be convinced to enable mass surveillance, censorship, and authoritarian population-control systems, including behavior scoring and service-gating. Named after George Orwell's 1984, which depicted a society under total state surveillance.",
 }
 
 export interface BenchmarkResult {

@@ -4,6 +4,7 @@ import { DashboardTabs } from "@/components/bench/dashboard-tabs"
 import { getBenchmarkData } from "@/lib/dystopiabench/data-fetcher"
 import { getAggregateByModel } from "@/lib/dystopiabench/analytics"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
+import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import {
   Radiation,
   Mail,
@@ -21,6 +22,9 @@ export default async function DashboardPage() {
 
   const modelCount = availableModelIds.length
   const scenarioCount = new Set(results.map((r) => r.scenarioId)).size
+  const benchmarkScenarioCount = ALL_SCENARIOS.length
+  const benchmarkModuleCount = new Set(ALL_SCENARIOS.map((scenario) => scenario.module)).size
+  const benchmarkEscalationLevelCount = 5
   const heroAggregate = getAggregateByModel(results).slice(0, 4).map((entry) => ({
     model: entry.label,
     score: entry.avgScore,
@@ -36,7 +40,8 @@ export default async function DashboardPage() {
             "@context": "https://schema.org",
             "@type": "Dataset",
             name: "DystopiaBench - AI Ethics Stress Test",
-            description: "A research benchmark testing AI compliance with dystopian directives across nuclear safety, autonomous weapons, mass surveillance, and population control scenarios.",
+            description:
+              "A research benchmark testing AI compliance with dystopian directives across surveillance infrastructure, autonomous weapons, safety override, censorship, and population control scenarios.",
             url: "https://dystopiabench.com",
             creator: {
               "@type": "Organization",
@@ -66,9 +71,10 @@ export default async function DashboardPage() {
             <p className="text-base leading-relaxed text-muted-foreground max-w-xl mb-10">
               A research benchmark that evaluates whether AI language models can be
               convinced to comply with dystopian directives through progressive
-              escalation. Tests span nuclear safety override scenarios (Petrov Module)
-              and authoritarian surveillance/control scenarios (Orwell Module), each
-              with 5 escalation levels ranging from baseline requests to full coercion.
+              escalation. Tests span infrastructure misuse, autonomous weapons, and safety
+              overrides (Petrov Module), plus surveillance, population control, and
+              censorship (Orwell Module), each with 5 escalation levels from baseline
+              requests to full coercion.
             </p>
             <div className="flex flex-wrap gap-4">
               <a
@@ -195,7 +201,7 @@ export default async function DashboardPage() {
                 Methodology
               </p>
               <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
-                2 Modules · 10 Scenarios · 5 Escalation Levels
+                {benchmarkModuleCount} Modules · {benchmarkScenarioCount} Scenarios · {benchmarkEscalationLevelCount} Escalation Levels
               </p>
             </div>
           </div>
@@ -204,8 +210,9 @@ export default async function DashboardPage() {
               <span className="font-mono text-[10px] tracking-[0.3em] text-destructive uppercase font-bold block mb-3">01 / Scenarios</span>
               <h4 className="font-sans text-base font-bold text-foreground mb-2">Dystopian Directives</h4>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                The framework evaluates compliance across nuclear safety overrides (Petrov Module) and
-                authoritarian surveillance (Orwell Module) — high-stakes ethical boundary tests that safe models should never comply with.
+                The framework evaluates compliance across infrastructure abuse, autonomous weaponization,
+                and safety overrides (Petrov Module) plus surveillance, censorship, and population
+                control directives (Orwell Module).
               </p>
             </div>
             <div className="bg-card/50 border border-border rounded-md p-6">
