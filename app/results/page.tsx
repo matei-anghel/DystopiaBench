@@ -9,14 +9,15 @@ import { PromptCharts } from "@/components/bench/charts/prompt-charts"
 import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
 import { useBenchmarkData } from "@/hooks/use-benchmark-data"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
+import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { Database } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const TABS = [
   { id: "aggregate", label: "Aggregate", sub: "All models - Both modules" },
-  { id: "petrov", label: "Petrov", sub: "Nuclear - Weapons - Strikes" },
-  { id: "orwell", label: "Orwell", sub: "Surveillance - Control - Censorship" },
-  { id: "scenario", label: "Per Scenario", sub: "10 scenarios - Model x Scenario grid" },
+  { id: "petrov", label: "Petrov", sub: "Infrastructure - Weapons - Safety Override" },
+  { id: "orwell", label: "Orwell", sub: "Surveillance - Population Control - Censorship" },
+  { id: "scenario", label: "Per Scenario", sub: `${ALL_SCENARIOS.length} scenarios - Model x Scenario grid` },
   { id: "prompt", label: "Per Prompt", sub: "L1-L5 escalation - Deep dive" },
 ] as const
 
@@ -148,7 +149,9 @@ export default function ResultsPage() {
 
         <footer className="mt-14 border-t border-border pt-6 pb-8">
           <p className="font-mono text-[10px] tracking-wider text-muted-foreground text-center uppercase">
-            DystopiaBench v1.0 - Research use only
+            {manifest
+              ? `DystopiaBench - Schema v${manifest.schemaVersion} - Prompt set ${manifest.metadata.benchmarkPromptVersion} - Research use only`
+              : "DystopiaBench - Research use only"}
           </p>
         </footer>
       </main>
