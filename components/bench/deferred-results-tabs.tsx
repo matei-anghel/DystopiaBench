@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
-import type { BenchmarkResult } from "@/lib/dystopiabench/types"
+import { useBenchmarkData } from "@/hooks/use-benchmark-data"
 
 function DeferredResultsPlaceholder() {
   return (
@@ -19,15 +19,17 @@ const DashboardTabs = dynamic(
   { ssr: false, loading: DeferredResultsPlaceholder },
 )
 
-interface DeferredResultsTabsProps {
-  results: BenchmarkResult[]
-  modelCount: number
-  scenarioCount: number
-  availableModelIds: string[]
-  conversationMode?: "stateful" | "stateless"
+function MountedResultsTabs() {
+  const { statefulResults, isolatedLatestResults } = useBenchmarkData()
+  return (
+    <DashboardTabs
+      statefulResults={statefulResults}
+      isolatedResults={isolatedLatestResults}
+    />
+  )
 }
 
-export function DeferredResultsTabs(props: DeferredResultsTabsProps) {
+export function DeferredResultsTabs() {
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const [shouldMount, setShouldMount] = useState(
     () => typeof window !== "undefined" && !("IntersectionObserver" in window),
@@ -58,7 +60,11 @@ export function DeferredResultsTabs(props: DeferredResultsTabsProps) {
 
   return (
     <div ref={sentinelRef}>
-      {shouldMount ? <DashboardTabs {...props} /> : <DeferredResultsPlaceholder />}
+      {shouldMount ? (
+        <MountedResultsTabs />
+      ) : (
+        <DeferredResultsPlaceholder />
+      )}
     </div>
   )
 }

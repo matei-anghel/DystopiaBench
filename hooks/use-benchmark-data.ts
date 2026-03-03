@@ -1,61 +1,80 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { loadRuns, loadSavedRun, type RunIndexItem } from "@/lib/dystopiabench/load-results"
-import type { RunManifestV2, BenchmarkResultV2 } from "@/lib/dystopiabench/schemas"
+import {
+  getRunConversationMode,
+  loadRuns,
+  loadSavedRun,
+  type RunIndexItem,
+} from "@/lib/dystopiabench/load-results"
+import type { RunManifestV2 } from "@/lib/dystopiabench/schemas"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 
 export type SelectedRunId = "latest" | string
 
-export interface BenchmarkDataState {
-  loading: boolean
-  runs: RunIndexItem[]
-  selectedRunId: SelectedRunId
+interface ResolvedRun {
   results: BenchmarkResult[]
   manifest: RunManifestV2 | null
-  rawManifestResults: BenchmarkResultV2[] | null
   loadError: string | null
   missingRun: boolean
-  setSelectedRunId: (runId: SelectedRunId) => Promise<void>
+}
+
+export interface BenchmarkDataState {
+  loading: boolean
+  statefulRuns: RunIndexItem[]
+  selectedStatefulRunId: SelectedRunId
+  statefulResults: BenchmarkResult[]
+  statefulManifest: RunManifestV2 | null
+  statefulLoadError: string | null
+  statefulMissingRun: boolean
+  isolatedLatestResults: BenchmarkResult[]
+  isolatedLatestManifest: RunManifestV2 | null
+  isolatedLoadError: string | null
+  setSelectedStatefulRunId: (runId: SelectedRunId) => Promise<void>
   refresh: () => Promise<void>
 }
 
 export function useBenchmarkData(): BenchmarkDataState {
   const [loading, setLoading] = useState(true)
-  const [runs, setRuns] = useState<RunIndexItem[]>([])
-  const [selectedRunId, setSelectedRunIdState] = useState<SelectedRunId>("latest")
-  const [results, setResults] = useState<BenchmarkResult[]>([])
-  const [manifest, setManifest] = useState<RunManifestV2 | null>(null)
-  const [rawManifestResults, setRawManifestResults] = useState<BenchmarkResultV2[] | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [missingRun, setMissingRun] = useState(false)
+  const [statefulRuns, setStatefulRuns] = useState<RunIndexItem[]>([])
+  const [selectedStatefulRunId, setSelectedStatefulRunIdState] = useState<SelectedRunId>("latest")
+  const [statefulResults, setStatefulResults] = useState<BenchmarkResult[]>([])
+  const [statefulManifest, setStatefulManifest] = useState<RunManifestV2 | null>(null)
+  const [statefulLoadError, setStatefulLoadError] = useState<string | null>(null)
+  const [statefulMissingRun, setStatefulMissingRun] = useState(false)
+  const [isolatedLatestResults, setIsolatedLatestResults] = useState<BenchmarkResult[]>([])
+  const [isolatedLatestManifest, setIsolatedLatestManifest] = useState<RunManifestV2 | null>(null)
+  const [isolatedLoadError, setIsolatedLoadError] = useState<string | null>(null)
 
-  const selectedRunIdRef = useRef<SelectedRunId>("latest")
-  const latestVersionRef = useRef(0)
+  const selectedStatefulRunIdRef = useRef<SelectedRunId>("latest")
+  const statefulLatestVersionRef = useRef(0)
+  const statelessLatestVersionRef = useRef(0)
 
-  const resolveRun = useCallback(async (runId: SelectedRunId) => {
+  const resolveStatefulRun = useCallback(async (runId: SelectedRunId): Promise<ResolvedRun> => {
     try {
       const loaded = await loadSavedRun(
         runId === "latest" ? undefined : runId,
-        runId === "latest" ? { latestVersion: latestVersionRef.current } : undefined,
+        runId === "latest"
+          ? {
+            latestVersion: statefulLatestVersionRef.current,
+            latestMode: "stateful",
+            expectedMode: "stateful",
+          }
+          : { expectedMode: "stateful" },
       )
 
-      if (loaded && loaded.results.length > 0) {
+      if (loaded) {
         return {
           results: loaded.results,
           manifest: loaded.manifest,
-          rawManifestResults: loaded.manifest?.results ?? null,
           loadError: null,
           missingRun: false,
         }
       }
 
-      // No data found for a specific run ID
-      // No data found
       return {
         results: [],
         manifest: null,
-        rawManifestResults: null,
         loadError: null,
         missingRun: runId !== "latest",
       }
@@ -63,46 +82,83 @@ export function useBenchmarkData(): BenchmarkDataState {
       return {
         results: [],
         manifest: null,
-        rawManifestResults: null,
-        loadError: error instanceof Error ? error.message : "Failed to load run data.",
+        loadError: error instanceof Error ? error.message : "Failed to load stateful run data.",
         missingRun: false,
       }
     }
   }, [])
 
-  const setSelectedRunId = useCallback(
-    async (runId: SelectedRunId) => {
-      if (runId !== selectedRunIdRef.current) {
-        latestVersionRef.current += 1
-        selectedRunIdRef.current = runId
+  const resolveLatestIsolatedRun = useCallback(async (): Promise<Omit<ResolvedRun, "missingRun">> => {
+    try {
+      const loaded = await loadSavedRun(undefined, {
+        latestVersion: statelessLatestVersionRef.current,
+        latestMode: "stateless",
+        expectedMode: "stateless",
+      })
+
+      if (loaded) {
+        return {
+          results: loaded.results,
+          manifest: loaded.manifest,
+          loadError: null,
+        }
       }
 
-      setSelectedRunIdState(runId)
-      const resolved = await resolveRun(runId)
-      setResults(resolved.results)
-      setManifest(resolved.manifest)
-      setRawManifestResults(resolved.rawManifestResults)
-      setLoadError(resolved.loadError)
-      setMissingRun(resolved.missingRun)
+      return {
+        results: [],
+        manifest: null,
+        loadError: null,
+      }
+    } catch (error) {
+      return {
+        results: [],
+        manifest: null,
+        loadError: error instanceof Error ? error.message : "Failed to load isolated run data.",
+      }
+    }
+  }, [])
+
+  const setSelectedStatefulRunId = useCallback(
+    async (runId: SelectedRunId) => {
+      if (runId !== selectedStatefulRunIdRef.current) {
+        statefulLatestVersionRef.current += 1
+        selectedStatefulRunIdRef.current = runId
+      }
+
+      setSelectedStatefulRunIdState(runId)
+      const resolved = await resolveStatefulRun(runId)
+      setStatefulResults(resolved.results)
+      setStatefulManifest(resolved.manifest)
+      setStatefulLoadError(resolved.loadError)
+      setStatefulMissingRun(resolved.missingRun)
     },
-    [resolveRun],
+    [resolveStatefulRun],
   )
 
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
       const runIndex = await loadRuns()
-      setRuns(runIndex)
-      const resolved = await resolveRun(selectedRunId)
-      setResults(resolved.results)
-      setManifest(resolved.manifest)
-      setRawManifestResults(resolved.rawManifestResults)
-      setLoadError(resolved.loadError)
-      setMissingRun(resolved.missingRun)
+      const filteredStatefulRuns = runIndex.filter((run) => getRunConversationMode(run) === "stateful")
+      setStatefulRuns(filteredStatefulRuns)
+
+      const [resolvedStateful, resolvedIsolated] = await Promise.all([
+        resolveStatefulRun(selectedStatefulRunIdRef.current),
+        resolveLatestIsolatedRun(),
+      ])
+
+      setSelectedStatefulRunIdState(selectedStatefulRunIdRef.current)
+      setStatefulResults(resolvedStateful.results)
+      setStatefulManifest(resolvedStateful.manifest)
+      setStatefulLoadError(resolvedStateful.loadError)
+      setStatefulMissingRun(resolvedStateful.missingRun)
+      setIsolatedLatestResults(resolvedIsolated.results)
+      setIsolatedLatestManifest(resolvedIsolated.manifest)
+      setIsolatedLoadError(resolvedIsolated.loadError)
     } finally {
       setLoading(false)
     }
-  }, [resolveRun, selectedRunId])
+  }, [resolveLatestIsolatedRun, resolveStatefulRun])
 
   useEffect(() => {
     void refresh()
@@ -110,14 +166,16 @@ export function useBenchmarkData(): BenchmarkDataState {
 
   return {
     loading,
-    runs,
-    selectedRunId,
-    results,
-    manifest,
-    rawManifestResults,
-    loadError,
-    missingRun,
-    setSelectedRunId,
+    statefulRuns,
+    selectedStatefulRunId,
+    statefulResults,
+    statefulManifest,
+    statefulLoadError,
+    statefulMissingRun,
+    isolatedLatestResults,
+    isolatedLatestManifest,
+    isolatedLoadError,
+    setSelectedStatefulRunId,
     refresh,
   }
 }

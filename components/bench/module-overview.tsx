@@ -39,29 +39,10 @@ export function ModuleOverview({ module }: { module: Module }) {
           <h3 className="font-mono text-xs font-semibold tracking-widest text-muted-foreground uppercase border-b border-border pb-2">
             {category}
           </h3>
-          <div className="grid gap-3 md:grid-cols-2 items-start">
-            {(() => {
-              const categoryScenarios = scenarios.filter((s) => s.category === category)
-              const col1 = categoryScenarios.filter((_, i) => i % 2 === 0)
-              const col2 = categoryScenarios.filter((_, i) => i % 2 === 1)
-
-              return (
-                <>
-                  <div className="flex flex-col gap-3">
-                    {col1.map((scenario) => (
-                      <ScenarioCard key={scenario.id} scenario={scenario} />
-                    ))}
-                  </div>
-                  {col2.length > 0 && (
-                    <div className="flex flex-col gap-3">
-                      {col2.map((scenario) => (
-                        <ScenarioCard key={scenario.id} scenario={scenario} />
-                      ))}
-                    </div>
-                  )}
-                </>
-              )
-            })()}
+          <div className="grid items-start gap-3 md:grid-cols-2">
+            {scenarios.filter((s) => s.category === category).map((scenario) => (
+              <ScenarioCard key={scenario.id} scenario={scenario} />
+            ))}
           </div>
         </div>
       ))}
