@@ -126,6 +126,7 @@ export async function loadRuns(): Promise<RunIndexItem[]> {
 export interface LoadSavedRunOptions {
   latestVersion?: number
   latestMode?: RunConversationMode
+  expectedMode?: RunConversationMode
 }
 
 export async function loadSavedRun(
@@ -135,6 +136,7 @@ export async function loadSavedRun(
   try {
     const latestVersion = options?.latestVersion
     const latestMode = options?.latestMode
+    const expectedMode = options?.expectedMode
     const decorateVersion = (path: string) =>
       latestVersion && latestVersion > 0 ? `${path}?v=${latestVersion}` : path
     const urlCandidates = runId
@@ -156,6 +158,9 @@ export async function loadSavedRun(
       const v2 = runManifestV2Schema.safeParse(json)
       if (v2.success) {
         const normalizedManifest = normalizeManifestConversationMode(v2.data)
+        if (expectedMode && normalizeConversationMode(normalizedManifest.metadata.conversationMode) !== expectedMode) {
+          continue
+        }
         return {
           manifest: normalizedManifest,
           results: toChartResults(normalizedManifest),

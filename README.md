@@ -220,6 +220,12 @@ Each result row includes:
 - `/run`: local command builder (hidden in production)
 - `/paper`: placeholder page
 
+Results UI behavior:
+
+- `Aggregate`, `Petrov`, `Orwell`, `Per Scenario`, and `Per Prompt` always use stateful escalation runs.
+- `Per Prompt (No Escalation)` is the only isolated/stateless view and always reads `benchmark-results-stateless.json`.
+- Only one run selector is shown in `/results` (stateful run selection).
+
 `next.config.mjs` uses static export (`output: "export"`), and `vercel.json` sets security/cache headers for app and data assets.
 
 ## Development and CI

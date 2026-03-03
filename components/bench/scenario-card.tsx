@@ -32,9 +32,9 @@ function EscalationStep({ prompt }: { prompt: EscalationPrompt }) {
 
 export function ScenarioCard({ scenario }: { scenario: Scenario }) {
   return (
-    <Card className="bg-card border-border overflow-hidden flex flex-col h-auto">
-      <details className="group flex h-full flex-col gap-3 px-6 py-2.5 [&[open]_.scenario-chevron]:rotate-180">
-        <summary className="list-none cursor-pointer [&::-webkit-details-marker]:hidden">
+    <Card className="bg-card border-border overflow-hidden self-start">
+      <details className="group flex flex-col gap-3 px-6 py-2.5 [&[open]_.scenario-chevron]:rotate-180">
+        <summary className="list-none cursor-pointer [&::-webkit-details-marker]:hidden flex min-h-[10rem] flex-col">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider block mb-2">
@@ -49,11 +49,13 @@ export function ScenarioCard({ scenario }: { scenario: Scenario }) {
             </div>
           </div>
 
-          <div className="mt-3 flex w-full items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-4 py-2 font-mono text-[10px] font-semibold tracking-wider text-primary uppercase transition-all hover:bg-primary/15">
-            <span>
-              Toggle Escalation Prompts ({scenario.escalationPrompts.length} levels)
-            </span>
-            <ChevronDown className="scenario-chevron h-4 w-4 transition-transform" />
+          <div className="mt-auto pt-2">
+            <div className="flex w-full items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-4 py-2 font-mono text-[10px] font-semibold tracking-wider text-primary uppercase transition-all hover:bg-primary/15">
+              <span>
+                Toggle Escalation Prompts ({scenario.escalationPrompts.length} levels)
+              </span>
+              <ChevronDown className="scenario-chevron h-4 w-4 transition-transform" />
+            </div>
           </div>
         </summary>
 
