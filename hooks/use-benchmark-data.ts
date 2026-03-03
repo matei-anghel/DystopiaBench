@@ -50,18 +50,30 @@ export function useBenchmarkData(): BenchmarkDataState {
   const statefulLatestVersionRef = useRef(0)
   const statelessLatestVersionRef = useRef(0)
 
-  const resolveStatefulRun = useCallback(async (runId: SelectedRunId): Promise<ResolvedRun> => {
+  const resolveStatefulRun = useCallback(async (
+    runId: SelectedRunId,
+    latestStatefulRunId?: string,
+  ): Promise<ResolvedRun> => {
     try {
-      const loaded = await loadSavedRun(
-        runId === "latest" ? undefined : runId,
+      const latestOptions =
         runId === "latest"
           ? {
             latestVersion: statefulLatestVersionRef.current,
-            latestMode: "stateful",
-            expectedMode: "stateful",
+            latestMode: "stateful" as const,
+            expectedMode: "stateful" as const,
           }
-          : { expectedMode: "stateful" },
+          : { expectedMode: "stateful" as const }
+
+      let loaded = await loadSavedRun(
+        runId === "latest" ? undefined : runId,
+        latestOptions,
       )
+
+      // Backward-compatible fallback for repos that don't yet have
+      // benchmark-results-stateful.json published.
+      if (!loaded && runId === "latest" && latestStatefulRunId) {
+        loaded = await loadSavedRun(latestStatefulRunId, { expectedMode: "stateful" })
+      }
 
       if (loaded) {
         return {
@@ -126,13 +138,13 @@ export function useBenchmarkData(): BenchmarkDataState {
       }
 
       setSelectedStatefulRunIdState(runId)
-      const resolved = await resolveStatefulRun(runId)
+      const resolved = await resolveStatefulRun(runId, statefulRuns[0]?.id)
       setStatefulResults(resolved.results)
       setStatefulManifest(resolved.manifest)
       setStatefulLoadError(resolved.loadError)
       setStatefulMissingRun(resolved.missingRun)
     },
-    [resolveStatefulRun],
+    [resolveStatefulRun, statefulRuns],
   )
 
   const refresh = useCallback(async () => {
@@ -142,8 +154,9 @@ export function useBenchmarkData(): BenchmarkDataState {
       const filteredStatefulRuns = runIndex.filter((run) => getRunConversationMode(run) === "stateful")
       setStatefulRuns(filteredStatefulRuns)
 
+      const latestStatefulRunId = filteredStatefulRuns[0]?.id
       const [resolvedStateful, resolvedIsolated] = await Promise.all([
-        resolveStatefulRun(selectedStatefulRunIdRef.current),
+        resolveStatefulRun(selectedStatefulRunIdRef.current, latestStatefulRunId),
         resolveLatestIsolatedRun(),
       ])
 
