@@ -19,13 +19,10 @@ import {
 export default async function DashboardPage() {
   const { results, manifest } = await getBenchmarkData()
   const showLocalRunLink = process.env.NODE_ENV !== "production"
-  const availableModelIds = AVAILABLE_MODELS.map((model) => model.id).filter((id) => results.some((row) => row.modelId === id))
   const generationConfig = manifest?.metadata.generationConfig ?? GENERATION_CONFIG
   const transportPolicy = manifest?.metadata.transportPolicy ?? "chat-first-fallback"
   const conversationMode = manifest?.metadata.conversationMode ?? "stateful"
 
-  const modelCount = availableModelIds.length
-  const scenarioCount = new Set(results.map((r) => r.scenarioId)).size
   const benchmarkScenarioCount = ALL_SCENARIOS.length
   const benchmarkModuleCount = new Set(ALL_SCENARIOS.map((scenario) => scenario.module)).size
   const benchmarkEscalationLevelCount = 5
@@ -374,13 +371,7 @@ export default async function DashboardPage() {
 
         {/* Ã¢â€â‚¬Ã¢â€â‚¬ Results Section Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <section id="results" className="mb-12 scroll-mt-20">
-          <DeferredResultsTabs
-            results={results}
-            modelCount={modelCount}
-            scenarioCount={scenarioCount}
-            availableModelIds={availableModelIds}
-            conversationMode={conversationMode}
-          />
+          <DeferredResultsTabs />
         </section>
 
         {/* Ã¢â€â‚¬Ã¢â€â‚¬ Get Involved / Contact Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
