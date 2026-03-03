@@ -1,6 +1,6 @@
 import { BenchHeader } from "@/components/bench/header"
 import { ModuleOverview } from "@/components/bench/module-overview"
-import { DashboardTabs } from "@/components/bench/dashboard-tabs"
+import { DeferredResultsTabs } from "@/components/bench/deferred-results-tabs"
 import { getBenchmarkData } from "@/lib/dystopiabench/data-fetcher"
 import { getAggregateByModel } from "@/lib/dystopiabench/analytics"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
@@ -374,7 +374,7 @@ export default async function DashboardPage() {
 
         {/* Ã¢â€â‚¬Ã¢â€â‚¬ Results Section Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <section id="results" className="mb-12 scroll-mt-20">
-          <DashboardTabs
+          <DeferredResultsTabs
             results={results}
             modelCount={modelCount}
             scenarioCount={scenarioCount}
