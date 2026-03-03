@@ -1,14 +1,41 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { AggregateCharts } from "@/components/bench/charts/aggregate-charts"
-import { ModuleCharts } from "@/components/bench/charts/module-charts"
-import { ScenarioCharts } from "@/components/bench/charts/scenario-charts"
-import { PromptCharts } from "@/components/bench/charts/prompt-charts"
+import dynamic from "next/dynamic"
 import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
 import { Database } from "lucide-react"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
+
+function ChartPanelLoading() {
+    return (
+        <div className="rounded-md border border-border bg-card/40 p-5">
+            <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
+                Loading chart panel...
+            </p>
+        </div>
+    )
+}
+
+const AggregateCharts = dynamic(
+    () => import("@/components/bench/charts/aggregate-charts").then((mod) => mod.AggregateCharts),
+    { ssr: false, loading: ChartPanelLoading },
+)
+
+const ModuleCharts = dynamic(
+    () => import("@/components/bench/charts/module-charts").then((mod) => mod.ModuleCharts),
+    { ssr: false, loading: ChartPanelLoading },
+)
+
+const ScenarioCharts = dynamic(
+    () => import("@/components/bench/charts/scenario-charts").then((mod) => mod.ScenarioCharts),
+    { ssr: false, loading: ChartPanelLoading },
+)
+
+const PromptCharts = dynamic(
+    () => import("@/components/bench/charts/prompt-charts").then((mod) => mod.PromptCharts),
+    { ssr: false, loading: ChartPanelLoading },
+)
 
 const BASE_RESULT_TABS = [
     { id: "aggregate", label: "Aggregate", sub: "All models - Both modules" },
