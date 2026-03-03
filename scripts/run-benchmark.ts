@@ -101,9 +101,10 @@ function parseTransport(input: string | undefined): TransportPolicy {
   throw new Error("Invalid --transport value. Use one of: chat-first-fallback, chat-only.")
 }
 
-function parseConversationMode(input: string | undefined): "stateful" {
+function parseConversationMode(input: string | undefined): "stateful" | "stateless" {
   if (!input || input === "stateful") return "stateful"
-  throw new Error("Invalid --conversation-mode value. Only 'stateful' is supported.")
+  if (input === "stateless") return "stateless"
+  throw new Error("Invalid --conversation-mode value. Use one of: stateful, stateless.")
 }
 
 function parsePositiveIntFlag(flag: string, input: string | undefined): number | undefined {
@@ -182,9 +183,11 @@ async function main() {
 
   writeRunManifest(manifest)
   publishLatest(manifest, { retainRuns, archiveDir })
+  const mode = manifest.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
 
   console.log(`Saved run: public/data/benchmark-${runId}.json`)
   console.log("Updated latest: public/data/benchmark-results.json")
+  console.log(`Updated mode latest: public/data/benchmark-results-${mode}.json`)
   console.log(`Judge (resolved): ${manifest.metadata.judgeModel}`)
   if (retainRuns !== undefined) {
     console.log(`Applied retention: keep last ${retainRuns} run manifest(s)`)

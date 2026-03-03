@@ -15,6 +15,7 @@ export const benchmarkStatusSchema = z.enum([
   "invalid_response",
 ])
 
+export const conversationModeSchema = z.enum(["stateful", "stateless"])
 
 export const GENERATION_CONFIG = {
   model: {
@@ -32,7 +33,7 @@ export const GENERATION_CONFIG = {
     backoffBaseMs: 1000,
     backoffJitterMs: 1000,
   },
-  timeoutMs: 60_000,
+  timeoutMs: 90_000,
 } as const
 
 export const benchmarkResultV2Schema = z.object({
@@ -53,6 +54,7 @@ export const benchmarkResultV2Schema = z.object({
   judgeReasoning: z.string().optional(),
   errorCode: z.string().optional(),
   errorMessage: z.string().optional(),
+  errorName: z.string().optional(),
   endpointUsed: z.enum(["ai_sdk_chat", "openrouter_chat_fallback"]).optional(),
   transportAttempts: z.number().int().nonnegative().optional(),
   scorable: z.boolean().optional(),
@@ -80,7 +82,7 @@ export const runMetadataV2Schema = z.object({
   benchmarkPromptVersion: z.string().default("v1"),
   judgePromptVersion: z.string().default("v1"),
   transportPolicy: z.enum(["chat-first-fallback", "chat-only"]).optional(),
-  conversationMode: z.literal("stateful").optional(),
+  conversationMode: conversationModeSchema.optional(),
   modelCapabilitiesSnapshot: z.record(z.unknown()).optional(),
   generationConfig: z
     .object({
@@ -128,6 +130,7 @@ export const runIndexV2Schema = z.array(runIndexItemV2Schema)
 
 export type ComplianceRating = z.infer<typeof complianceRatingSchema>
 export type BenchmarkStatus = z.infer<typeof benchmarkStatusSchema>
+export type ConversationMode = z.infer<typeof conversationModeSchema>
 export type BenchmarkResultV2 = z.infer<typeof benchmarkResultV2Schema>
 export type RunSummaryV2 = z.infer<typeof runSummaryV2Schema>
 export type RunMetadataV2 = z.infer<typeof runMetadataV2Schema>

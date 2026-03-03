@@ -9,7 +9,7 @@ import {
 } from "@/lib/dystopiabench/models"
 import { ALL_SCENARIOS, ORWELL_SCENARIOS, PETROV_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import type { EscalationLevel, Module } from "@/lib/dystopiabench/types"
-import type { TransportPolicy } from "@/lib/dystopiabench/runner"
+import type { ConversationMode, TransportPolicy } from "@/lib/dystopiabench/runner"
 import { Card } from "@/components/ui/card"
 import { AlertTriangle, Terminal, Info } from "lucide-react"
 
@@ -31,6 +31,7 @@ export function BenchmarkRunner() {
   const [selectedLevels, setSelectedLevels] = useState<EscalationLevel[]>([1, 2, 3, 4, 5])
   const [selectedJudgeModel, setSelectedJudgeModel] = useState<string>(DEFAULT_JUDGE_MODEL)
   const [selectedTransport, setSelectedTransport] = useState<TransportPolicy>("chat-first-fallback")
+  const [selectedConversationMode, setSelectedConversationMode] = useState<ConversationMode>("stateful")
 
   const toggleModel = (id: string) => {
     setSelectedModels((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
@@ -106,8 +107,12 @@ export function BenchmarkRunner() {
     if (selectedModels.length === 0) return "Select at least one model."
     const modelsArg = selectedModels.join(",")
     const levelsArg = selectedLevels.join(",")
-    return `pnpm bench:run --module=${selectedModule} --models=${modelsArg} --levels=${levelsArg} --judge-model=${selectedJudgeModel} --transport=${selectedTransport} --conversation-mode=stateful`
-  }, [selectedJudgeModel, selectedLevels, selectedModels, selectedModule, selectedTransport])
+    const commonArgs = `--module=${selectedModule} --models=${modelsArg} --levels=${levelsArg} --judge-model=${selectedJudgeModel} --transport=${selectedTransport}`
+    if (selectedConversationMode === "stateless") {
+      return `pnpm bench:run-isolated ${commonArgs}`
+    }
+    return `pnpm bench:run ${commonArgs} --conversation-mode=stateful`
+  }, [selectedConversationMode, selectedJudgeModel, selectedLevels, selectedModels, selectedModule, selectedTransport])
 
   return (
     <div className="flex flex-col gap-8">
@@ -138,6 +143,26 @@ export function BenchmarkRunner() {
                   }`}
               >
                 {moduleOption === "both" ? "Both Modules" : `${moduleOption} Module`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
+            Conversation Mode
+          </label>
+          <div className="flex gap-2">
+            {(["stateful", "stateless"] as ConversationMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setSelectedConversationMode(mode)}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${selectedConversationMode === mode
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                {mode === "stateful" ? "Stateful Escalation" : "Isolated Prompts"}
               </button>
             ))}
           </div>
@@ -285,12 +310,19 @@ export function BenchmarkRunner() {
           <Info className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
           <div>
             <p className="font-mono text-xs text-amber-200 font-bold uppercase mb-1">
-              Stateful Escalation Mode
+              {selectedConversationMode === "stateful"
+                ? "Stateful Escalation Mode"
+                : "Isolated Prompt Mode"}
             </p>
             <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
-              Each scenario-model pair runs as a single conversation (L1→L5). If a model call fails,
-              remaining levels for that pair are skipped. Scorable prompts may be lower than scheduled prompts
-              due to transport errors or timeouts.
+              {selectedConversationMode === "stateful" ? (
+                <>
+                  Each scenario-model pair runs as one escalating conversation (L1-&gt;L5). If a model call fails,
+                  later levels are still attempted with reset history for that pair.
+                </>
+              ) : (
+                "Each scenario-model-level prompt runs with a fresh context and no prior history. Use this to measure compliance for prompts in isolation."
+              )}
             </p>
           </div>
         </div>

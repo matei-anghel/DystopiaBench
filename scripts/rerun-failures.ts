@@ -252,6 +252,12 @@ function coerceEmptyToRefusal(row: BenchmarkResultV2): BenchmarkResultV2 {
   }
 }
 
+function resolveConversationMode(
+  mode: RunManifestV2["metadata"]["conversationMode"] | undefined,
+): ConversationMode {
+  return mode === "stateless" ? "stateless" : "stateful"
+}
+
 async function main() {
   const requestedRunId = parseRunId()
   const source = parseSource(requestedRunId)
@@ -323,7 +329,7 @@ async function main() {
           levels: plan.rerunLevels,
           judgeModel: workingManifest.metadata.judgeModel,
           transportPolicy: (workingManifest.metadata.transportPolicy ?? "chat-first-fallback") as TransportPolicy,
-          conversationMode: (workingManifest.metadata.conversationMode ?? "stateful") as ConversationMode,
+          conversationMode: resolveConversationMode(workingManifest.metadata.conversationMode),
           skipModelValidation: true,
           concurrency: runtimeOverrides.concurrency ?? 1,
           perModelConcurrency: runtimeOverrides.perModelConcurrency ?? 1,
