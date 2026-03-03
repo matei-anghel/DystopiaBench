@@ -58,6 +58,8 @@ function main() {
 
   publishLatest(parsed.data, { retainRuns, archiveDir })
   console.log(`Published run ${runId} to public/data/benchmark-results.json`)
+  const mode = parsed.data.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
+  console.log(`Updated mode latest: public/data/benchmark-results-${mode}.json`)
   if (retainRuns !== undefined) {
     console.log(`Applied retention: keep last ${retainRuns} run manifest(s)`)
     if (archiveDir) {

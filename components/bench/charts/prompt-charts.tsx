@@ -197,12 +197,23 @@ function LevelModelGrid({
   )
 }
 
-function GlobalLevelBar({ data }: { data: Array<Record<string, string | number | null>> }) {
+function GlobalLevelBar({
+  data,
+  viewMode,
+}: {
+  data: Array<Record<string, string | number | null>>
+  viewMode: "stateful" | "stateless"
+}) {
+  const levelLabel = viewMode === "stateless" ? "Prompt Level" : "Escalation Level"
+  const levelSub =
+    viewMode === "stateless"
+      ? "How average compliance changes by prompt level when each prompt runs in a fresh context."
+      : "How average compliance across all models and scenarios changes with pressure."
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label="Avg Score by Escalation Level - All Scenarios"
-        sub="How average compliance across all models and scenarios changes with pressure."
+        label={`Avg Score by ${levelLabel} - All Scenarios`}
+        sub={levelSub}
       />
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 4 }}>
@@ -251,10 +262,12 @@ function ScenarioPromptDrillDown({
   results,
   models,
   hasMultiModel,
+  viewMode,
 }: {
   results: BenchmarkResult[]
   models: typeof AVAILABLE_MODELS
   hasMultiModel: boolean
+  viewMode: "stateful" | "stateless"
 }) {
   const [selectedId, setSelectedId] = useState<string>(ALL_SCENARIOS[0].id)
   const data = useMemo(() => buildPromptData(results, selectedId, models), [models, results, selectedId])
@@ -309,10 +322,14 @@ function ScenarioPromptDrillDown({
 
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label="Per-Prompt Escalation - All Models"
+          label={viewMode === "stateless" ? "Per-Prompt (No Escalation) - All Models" : "Per-Prompt Escalation - All Models"}
           sub={hasMultiModel
-            ? "Each model's score at each of the 5 escalation levels for this scenario."
-            : "Single model mode. Average score per escalation level for this scenario."}
+            ? viewMode === "stateless"
+              ? "Each model's score at each prompt level for this scenario with fresh context."
+              : "Each model's score at each of the 5 escalation levels for this scenario."
+            : viewMode === "stateless"
+              ? "Single model mode. Average score per prompt level for this scenario with fresh context."
+              : "Single model mode. Average score per escalation level for this scenario."}
         />
         <div className="h-[220px] md:h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -470,9 +487,11 @@ function ScenarioPromptDrillDown({
 export function PromptCharts({
   results,
   selectedModelIds,
+  viewMode = "stateful",
 }: {
   results: BenchmarkResult[]
   selectedModelIds?: string[]
+  viewMode?: "stateful" | "stateless"
 }) {
   const shape = getChartShape(results)
   const activeModels = useMemo(
@@ -485,16 +504,22 @@ export function PromptCharts({
     [results, selectedModelIds],
   )
   const globalData = useMemo(() => buildGlobalLevelData(results, activeModels), [activeModels, results])
+  const promptSectionTitle = viewMode === "stateless" ? "Per-Scenario Prompt Drill Down (No Escalation)" : "Per-Scenario Prompt Drill Down (Escalation)"
 
   return (
     <div className="flex flex-col gap-6">
-      <GlobalLevelBar data={globalData} />
+      <GlobalLevelBar data={globalData} viewMode={viewMode} />
       <LevelModelGrid data={globalData} models={activeModels} hasSingleModel={shape.hasSingleModel} />
       <div className="border-t border-border pt-6">
         <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase mb-5">
-          Per-Scenario Prompt Drill Down
+          {promptSectionTitle}
         </p>
-        <ScenarioPromptDrillDown results={results} models={activeModels} hasMultiModel={shape.hasMultiModel} />
+        <ScenarioPromptDrillDown
+          results={results}
+          models={activeModels}
+          hasMultiModel={shape.hasMultiModel}
+          viewMode={viewMode}
+        />
       </div>
     </div>
   )

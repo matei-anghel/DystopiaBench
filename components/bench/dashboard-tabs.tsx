@@ -10,15 +10,14 @@ import { Database } from "lucide-react"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 
-const RESULT_TABS = [
+const BASE_RESULT_TABS = [
     { id: "aggregate", label: "Aggregate", sub: "All models - Both modules" },
     { id: "petrov", label: "Petrov", sub: "Infrastructure - Weapons - Safety Override" },
     { id: "orwell", label: "Orwell", sub: "Surveillance - Population Control - Censorship" },
     { id: "scenario", label: "Per Scenario", sub: `${ALL_SCENARIOS.length} scenarios - Model x Scenario grid` },
-    { id: "prompt", label: "Per Prompt", sub: "L1-L5 escalation - Deep dive" },
 ] as const
 
-type TabId = typeof RESULT_TABS[number]["id"]
+type TabId = "aggregate" | "petrov" | "orwell" | "scenario" | "prompt"
 
 function normalizeSelection(selected: string[], available: string[], { initial = false } = {}): string[] {
     const next = selected.filter((id) => available.includes(id))
@@ -30,12 +29,14 @@ export function DashboardTabs({
     results,
     modelCount,
     scenarioCount,
-    availableModelIds
+    availableModelIds,
+    conversationMode = "stateful",
 }: {
     results: BenchmarkResult[]
     modelCount: number
     scenarioCount: number
     availableModelIds: string[]
+    conversationMode?: "stateful" | "stateless"
 }) {
     const [activeTab, setActiveTab] = useState<TabId>("aggregate")
     const [hasInteracted, setHasInteracted] = useState(false)
@@ -50,6 +51,15 @@ export function DashboardTabs({
         const selectedSet = new Set(selectedModelIds)
         return results.filter((row) => selectedSet.has(row.modelId))
     }, [results, selectedModelIds])
+    const resultTabs = useMemo(
+        () => [
+            ...BASE_RESULT_TABS,
+            conversationMode === "stateless"
+                ? { id: "prompt" as const, label: "Per Prompt (No Escalation)", sub: "L1-L5 isolated prompts - Deep dive" }
+                : { id: "prompt" as const, label: "Per Prompt", sub: "L1-L5 escalation - Deep dive" },
+        ],
+        [conversationMode],
+    )
 
     const toggleModel = (modelId: string) => {
         setHasInteracted(true)
@@ -94,12 +104,12 @@ export function DashboardTabs({
                 onToggleAll={toggleAll}
             />
 
-            <div className="flex gap-1.5 mb-8 overflow-x-auto pb-1">
-                {RESULT_TABS.map((tab) => (
+            <div className="mb-8 grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))]">
+                {resultTabs.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`shrink-0 flex flex-col items-start rounded-md border px-4 py-2.5 transition-colors ${activeTab === tab.id
+                        className={`flex w-full min-w-0 flex-col items-start rounded-md border px-4 py-2.5 text-left transition-colors ${activeTab === tab.id
                             ? "border-primary bg-primary/10 text-primary"
                             : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-muted-foreground/40"
                             }`}
@@ -107,7 +117,7 @@ export function DashboardTabs({
                         <span className="font-mono text-xs font-bold tracking-wide uppercase">
                             {tab.label}
                         </span>
-                        <span className={`font-mono text-[9px] mt-0.5 ${activeTab === tab.id ? "text-primary/70" : "text-muted-foreground"
+                        <span className={`mt-0.5 font-mono text-[9px] leading-relaxed ${activeTab === tab.id ? "text-primary/70" : "text-muted-foreground"
                             }`}>
                             {tab.sub}
                         </span>
@@ -119,7 +129,13 @@ export function DashboardTabs({
             {activeTab === "petrov" && <ModuleCharts module="petrov" results={filteredResults} selectedModelIds={selectedModelIds} />}
             {activeTab === "orwell" && <ModuleCharts module="orwell" results={filteredResults} selectedModelIds={selectedModelIds} />}
             {activeTab === "scenario" && <ScenarioCharts results={filteredResults} selectedModelIds={selectedModelIds} />}
-            {activeTab === "prompt" && <PromptCharts results={filteredResults} selectedModelIds={selectedModelIds} />}
+            {activeTab === "prompt" && (
+                <PromptCharts
+                    results={filteredResults}
+                    selectedModelIds={selectedModelIds}
+                    viewMode={conversationMode}
+                />
+            )}
         </>
     )
 }

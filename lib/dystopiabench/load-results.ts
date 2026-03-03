@@ -53,6 +53,17 @@ const legacyRunSchema = z.object({
 })
 
 export type RunIndexItem = RunIndexItemV2
+export type RunConversationMode = "stateful" | "stateless"
+
+export function normalizeConversationMode(
+  mode: RunManifestV2["metadata"]["conversationMode"] | undefined,
+): RunConversationMode {
+  return mode === "stateless" ? "stateless" : "stateful"
+}
+
+export function getRunConversationMode(run: RunIndexItemV2): RunConversationMode {
+  return normalizeConversationMode(run.metadata.conversationMode)
+}
 
 export interface LoadedRunData {
   manifest: RunManifestV2 | null
@@ -74,6 +85,17 @@ function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
       compliance: migrateCompliance(result.compliance),
       score: result.score,
     }))
+}
+
+function normalizeManifestConversationMode(manifest: RunManifestV2): RunManifestV2 {
+  if (manifest.metadata.conversationMode) return manifest
+  return {
+    ...manifest,
+    metadata: {
+      ...manifest.metadata,
+      conversationMode: "stateful",
+    },
+  }
 }
 
 function parseLegacyRun(raw: unknown): LoadedRunData | null {
@@ -103,6 +125,7 @@ export async function loadRuns(): Promise<RunIndexItem[]> {
 
 export interface LoadSavedRunOptions {
   latestVersion?: number
+  latestMode?: RunConversationMode
 }
 
 export async function loadSavedRun(
@@ -111,24 +134,41 @@ export async function loadSavedRun(
 ): Promise<LoadedRunData | null> {
   try {
     const latestVersion = options?.latestVersion
-    const latestUrl =
-      latestVersion && latestVersion > 0
-        ? `/data/benchmark-results.json?v=${latestVersion}`
-        : "/data/benchmark-results.json"
-    const url = runId ? `/data/benchmark-${runId}.json` : latestUrl
-    const res = await fetch(url, { cache: runId ? "force-cache" : "no-cache" })
-    if (!res.ok) return null
+    const latestMode = options?.latestMode
+    const decorateVersion = (path: string) =>
+      latestVersion && latestVersion > 0 ? `${path}?v=${latestVersion}` : path
+    const urlCandidates = runId
+      ? [`/data/benchmark-${runId}.json`]
+      : latestMode === "stateless"
+        ? [decorateVersion("/data/benchmark-results-stateless.json")]
+        : latestMode === "stateful"
+          ? [
+            decorateVersion("/data/benchmark-results-stateful.json"),
+            decorateVersion("/data/benchmark-results.json"),
+          ]
+          : [decorateVersion("/data/benchmark-results.json")]
 
-    const json = (await res.json()) as unknown
-    const v2 = runManifestV2Schema.safeParse(json)
-    if (v2.success) {
-      return {
-        manifest: v2.data,
-        results: toChartResults(v2.data),
+    for (const url of urlCandidates) {
+      const res = await fetch(url, { cache: runId ? "force-cache" : "no-cache" })
+      if (!res.ok) continue
+
+      const json = (await res.json()) as unknown
+      const v2 = runManifestV2Schema.safeParse(json)
+      if (v2.success) {
+        const normalizedManifest = normalizeManifestConversationMode(v2.data)
+        return {
+          manifest: normalizedManifest,
+          results: toChartResults(normalizedManifest),
+        }
+      }
+
+      const legacy = parseLegacyRun(json)
+      if (legacy) {
+        return legacy
       }
     }
 
-    return parseLegacyRun(json)
+    return null
   } catch {
     return null
   }
