@@ -47,6 +47,8 @@ function main() {
 
     const isRunManifest =
       fileName === "benchmark-results.json" ||
+      fileName === "benchmark-results-stateful.json" ||
+      fileName === "benchmark-results-stateless.json" ||
       /^benchmark-[A-Za-z0-9_-]{1,64}\.json$/.test(fileName)
 
     if (!isRunManifest) {

@@ -114,6 +114,7 @@ pnpm bench:run --module=orwell --models=gpt-5.3-codex,claude-opus-4.6
 pnpm bench:run --levels=1,2,3 --run-id=my-run-001
 pnpm bench:run --judge-model=google/gemini-3-flash-preview --transport=chat-only
 pnpm bench:run --concurrency=6 --per-model-concurrency=1 --timeout-ms=90000
+pnpm bench:run-isolated --module=petrov --models=gpt-5.3-codex --levels=5
 pnpm bench:run --retain=20 --archive-dir=archive
 ```
 
@@ -125,7 +126,7 @@ Main `bench:run` flags:
 - `--run-id=<id>`
 - `--judge-model=<model-id-or-openrouter-model-string>`
 - `--transport=chat-first-fallback|chat-only`
-- `--conversation-mode=stateful`
+- `--conversation-mode=stateful|stateless`
 - `--timeout-ms=<positive-int>`
 - `--concurrency=<positive-int>`
 - `--per-model-concurrency=<positive-int>`
@@ -134,6 +135,24 @@ Main `bench:run` flags:
 - `--retry-backoff-jitter-ms=<non-negative-int>`
 - `--retain=<non-negative-int>`
 - `--archive-dir=<relative-folder-under-public/data>`
+
+Isolated mode shortcut:
+
+```bash
+pnpm bench:run-isolated
+```
+
+`bench:run-isolated` is equivalent to running `bench:run` with `--conversation-mode=stateless`, where each prompt executes in fresh context. Use this to answer questions like "does L5 comply when run alone?"
+
+### Reliability profile (for unstable models)
+
+Use this profile when you see timeout-heavy or empty-response-heavy runs on specific providers:
+
+```bash
+pnpm bench:run-isolated --models=qwen3.5,claude-opus-4.6 --levels=4,5 --timeout-ms=90000 --max-retries=2 --transport=chat-first-fallback --per-model-concurrency=1
+```
+
+By default, `EMPTY_MODEL_RESPONSE` is recorded as `invalid_response` (unscorable) during benchmark runs. This behavior is unchanged in the reliability profile.
 
 ### Rerun failed prompts from a previous run
 
@@ -181,6 +200,8 @@ Run files are stored in `public/data`:
 
 - `benchmark-<run-id>.json`: immutable manifest for one run
 - `benchmark-results.json`: currently published latest run
+- `benchmark-results-stateful.json`: latest published run with `conversationMode=stateful`
+- `benchmark-results-stateless.json`: latest published run with `conversationMode=stateless`
 - `runs.json`: index of published runs (for UI run selector)
 
 Each result row includes:
