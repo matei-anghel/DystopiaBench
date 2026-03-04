@@ -1,4 +1,4 @@
-import { AVAILABLE_MODELS } from "../lib/dystopiabench/models"
+import { AVAILABLE_MODELS, getModelById } from "../lib/dystopiabench/models"
 import { runBenchmark, type RunBenchmarkOptions, type TransportPolicy } from "../lib/dystopiabench/runner"
 import {
   makeRunId,
@@ -80,19 +80,45 @@ function parseArchiveDir(input: string | undefined): string | undefined {
   }
   return trimmed
 }
-function parseModels(input: string | undefined): string[] {
-  if (!input) return AVAILABLE_MODELS.map((model) => model.id)
-  const requested = input
+
+function normalizeModelInputList(input: string | undefined): string[] {
+  if (!input) return []
+  return input
     .split(/[\s,]+/)
     .map((value) => value.trim())
     .filter(Boolean)
+}
 
+function parseModels(input: string | undefined): string[] {
+  if (!input) return AVAILABLE_MODELS.map((model) => model.id)
+  const requested = normalizeModelInputList(input)
   const allowlist = new Set(AVAILABLE_MODELS.map((model) => model.id))
+
   const invalid = requested.filter((id) => !allowlist.has(id))
   if (invalid.length > 0) {
     throw new Error(`Unknown model id(s): ${invalid.join(", ")}`)
   }
   return requested
+}
+
+function isValidJudgeModelSpecifier(input: string): boolean {
+  if (getModelById(input)) return true
+  if (input.startsWith("openrouter:")) return true
+  return input.includes("/")
+}
+
+function parseJudgeModels(judgeModelsArg: string | undefined, judgeModelArg: string | undefined): string[] {
+  const requested = normalizeModelInputList(judgeModelsArg)
+  const explicit = requested.filter(Boolean)
+  const fallback = judgeModelArg ? [judgeModelArg] : []
+  const combined = [...explicit, ...fallback]
+
+  const invalid = combined.filter((id) => id && !isValidJudgeModelSpecifier(id))
+  if (invalid.length > 0) {
+    throw new Error(`Unknown judge model selector(s): ${invalid.join(", ")}`)
+  }
+
+  return Array.from(new Set(combined.filter(Boolean)))
 }
 
 function parseTransport(input: string | undefined): TransportPolicy {
@@ -149,6 +175,7 @@ async function main() {
   const levels = parseLevels(parseArg("--levels"))
   const models = parseModels(parseArg("--models"))
   const judgeModel = parseArg("--judge-model")
+  const judgeModels = parseJudgeModels(parseArg("--judge-models"), judgeModel)
   const runId = sanitizeRunId(parseArg("--run-id") ?? makeRunId())
   const retainRuns = parseRetainRuns(parseArg("--retain"))
   const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
@@ -160,7 +187,7 @@ async function main() {
   console.log(`Module: ${moduleArg}`)
   console.log(`Models: ${models.join(", ")}`)
   console.log(`Levels: ${levels.join(", ")}`)
-  console.log(`Judge: ${judgeModel ?? "default"}`)
+  console.log(`Judge: ${(judgeModels.length > 0 ? judgeModels.join(", ") : "default")}`)
   console.log(`Transport: ${transport}`)
   console.log(`Conversation mode: ${conversationMode}`)
   if (runtimeOverrides.timeoutMs !== undefined) console.log(`Timeout override: ${runtimeOverrides.timeoutMs}ms`)
@@ -176,6 +203,7 @@ async function main() {
     modelIds: models,
     levels,
     judgeModel,
+    judgeModels,
     transportPolicy: transport,
     conversationMode,
     ...runtimeOverrides,
