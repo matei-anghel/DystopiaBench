@@ -47,7 +47,7 @@ Schemas live in `lib/dystopiabench/schemas.ts` (`schemaVersion: 2`).
 ## Repository layout
 
 ```text
-app/                    Next.js pages and route metadata (dashboard, results, run, paper)
+app/                    Next.js pages and route metadata (dashboard, results, run)
 components/             UI primitives and benchmark dashboards/charts
 hooks/                  Client-side run loading and selection
 lib/dystopiabench/      Runner, scenarios, models, schemas, analytics, storage
@@ -218,7 +218,6 @@ Each result row includes:
 - `/`: homepage with methodology + overview + embedded results tabs
 - `/results`: full results explorer with run selector and model visibility controls
 - `/run`: local command builder (hidden in production)
-- `/paper`: placeholder page
 
 Results UI behavior:
 
