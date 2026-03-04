@@ -105,11 +105,11 @@ export default async function DashboardPage() {
                 Explore Results
               </a>
               <a
-                href="/paper"
+                href="/#methodology"
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 font-mono text-sm font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50 hover:border-primary/50"
               >
                 <FileText className="h-4 w-4" />
-                Read Paper
+                Read Methodology
               </a>
             </div>
           </div>
@@ -214,6 +214,10 @@ export default async function DashboardPage() {
           </div>
         </section>
 
+        {/* Results Section */}
+        <section id="results" className="mb-12 scroll-mt-20">
+          <DeferredResultsTabs />
+        </section>
 
         {/* Ã¢â€â‚¬Ã¢â€â‚¬ Methodology Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <section id="methodology" className="mb-12 scroll-mt-20">
@@ -369,11 +373,6 @@ export default async function DashboardPage() {
           <ModuleOverview module="orwell" />
         </section>
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Results Section Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
-        <section id="results" className="mb-12 scroll-mt-20">
-          <DeferredResultsTabs />
-        </section>
-
         {/* Ã¢â€â‚¬Ã¢â€â‚¬ Get Involved / Contact Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <section id="contact" className="rounded-xl border border-border bg-card/60 overflow-hidden mb-16 shadow-2xl scroll-mt-20">
           <div className="grid lg:grid-cols-2">
@@ -430,11 +429,11 @@ export default async function DashboardPage() {
                     View Implementation
                   </a>
                   <a
-                    href="/paper"
+                    href="/#methodology"
                     className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card px-5 py-3 font-mono text-xs font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50"
                   >
                     <FileText className="h-3.5 w-3.5" />
-                    Read Paper
+                    Read Methodology
                   </a>
                 </div>
               </div>
