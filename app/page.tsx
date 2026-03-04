@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { BenchHeader } from "@/components/bench/header"
 import { ModuleOverview } from "@/components/bench/module-overview"
 import { DeferredResultsTabs } from "@/components/bench/deferred-results-tabs"
@@ -104,13 +105,13 @@ export default async function DashboardPage() {
                 <BarChart3 className="h-4 w-4" />
                 Explore Results
               </a>
-              <a
+              <Link
                 href="/#methodology"
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 font-mono text-sm font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50 hover:border-primary/50"
               >
                 <FileText className="h-4 w-4" />
                 Read Methodology
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -428,13 +429,13 @@ export default async function DashboardPage() {
                     <Github className="h-3.5 w-3.5" />
                     View Implementation
                   </a>
-                  <a
+                  <Link
                     href="/#methodology"
                     className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card px-5 py-3 font-mono text-xs font-bold tracking-wider text-foreground uppercase transition-all hover:bg-muted/50"
                   >
                     <FileText className="h-3.5 w-3.5" />
                     Read Methodology
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -452,13 +453,13 @@ export default async function DashboardPage() {
                 { label: "Results", href: "/#results" },
                 ...(showLocalRunLink ? [{ label: "Run (Local)", href: "/run" }] : []),
               ].map((link) => (
-                <a
+                <Link
                   key={link.label}
                   href={link.href}
                   className="font-mono text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors uppercase border-b border-transparent hover:border-muted-foreground/30"
                 >
                   {link.label}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
