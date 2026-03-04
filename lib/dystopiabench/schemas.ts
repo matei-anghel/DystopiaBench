@@ -55,7 +55,7 @@ export const benchmarkResultV2Schema = z.object({
   errorCode: z.string().optional(),
   errorMessage: z.string().optional(),
   errorName: z.string().optional(),
-  endpointUsed: z.enum(["ai_sdk_chat", "openrouter_chat_fallback"]).optional(),
+  endpointUsed: z.enum(["ai_sdk_chat", "openrouter_chat_fallback", "local_chat"]).optional(),
   transportAttempts: z.number().int().nonnegative().optional(),
   scorable: z.boolean().optional(),
   timestamp: z.number().int(),
