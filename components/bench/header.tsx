@@ -7,10 +7,9 @@ import { Menu, X } from "lucide-react"
 
 const NAV_LINKS = [
   { href: "/#dashboard", label: "Home" },
-  { href: "/#methodology", label: "Methodology" },
   { href: "/#results", label: "Results" },
+  { href: "/#methodology", label: "Methodology" },
   { href: "/#contact", label: "Contact" },
-  { href: "/paper", label: "Paper" },
 ]
 
 export function BenchHeader() {
