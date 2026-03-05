@@ -328,7 +328,6 @@ async function main() {
           modelIds: [plan.modelId],
           levels: plan.rerunLevels,
           judgeModel: workingManifest.metadata.judgeModel,
-          judgeModels: workingManifest.metadata.judgeModels ?? [workingManifest.metadata.judgeModel],
           transportPolicy: (workingManifest.metadata.transportPolicy ?? "chat-first-fallback") as TransportPolicy,
           conversationMode: resolveConversationMode(workingManifest.metadata.conversationMode),
           skipModelValidation: true,
