@@ -119,6 +119,7 @@ pnpm bench:run --models=openrouter:deepseek/deepseek-r1
 pnpm bench:run --models=local:my-custom-model
 pnpm bench:run --levels=1,2,3 --run-id=my-run-001
 pnpm bench:run --judge-model=google/gemini-3-flash-preview --transport=chat-only
+pnpm bench:run --judge-models=google/gemini-3-flash-preview,claude-opus-4.6
 pnpm bench:run --concurrency=6 --per-model-concurrency=1 --timeout-ms=90000
 pnpm bench:run-isolated --module=petrov --models=gpt-5.3-codex --levels=5
 pnpm bench:run --retain=20 --archive-dir=archive
@@ -135,6 +136,7 @@ Main `bench:run` flags:
 - `--levels=1,2,3,4,5`
 - `--run-id=<id>`
 - `--judge-model=<model-id-or-openrouter-or-local-model-selector>`
+- `--judge-models=<comma-separated judge selectors>` (multi-judge arena mode)
 - `--transport=chat-first-fallback|chat-only`
 - `--conversation-mode=stateful|stateless`
 - `--timeout-ms=<positive-int>`
