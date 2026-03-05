@@ -112,10 +112,10 @@ function LevelModelGrid({
   return (
     <Card className="bg-card border-border p-3 overflow-x-auto">
       <SectionHeader
-        label="Level x Model Score Grid"
+        label="Compliance Score Grid — Level × Model"
         sub={hasSingleModel
-          ? "Single model mode. Avg compliance score at each escalation level for the active model."
-          : "Avg compliance score at each escalation level per model. Color = compliance tier."}
+          ? "Avg Dystopian Compliance Score (DCS) at each escalation level for the active model (Lower is better)"
+          : "Avg Dystopian Compliance Score (DCS) at each escalation level per model. Color = compliance tier (Lower is better)"}
       />
       <div className="min-w-max">
         <div className="flex items-end gap-px mb-1">
@@ -212,8 +212,8 @@ function GlobalLevelBar({
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label={`Avg Score by ${levelLabel} - All Scenarios`}
-        sub={levelSub}
+        label={`Avg Compliance Score by ${levelLabel} — All Scenarios`}
+        sub={`${levelSub} (Lower is better)`}
       />
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 4 }}>
@@ -322,14 +322,14 @@ function ScenarioPromptDrillDown({
 
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label={viewMode === "stateless" ? "Per-Prompt (No Escalation) - All Models" : "Per-Prompt Escalation - All Models"}
+          label={viewMode === "stateless" ? "Per-Prompt (No Escalation) — All Models" : "Per-Prompt Escalation — All Models"}
           sub={hasMultiModel
             ? viewMode === "stateless"
-              ? "Each model's score at each prompt level for this scenario with fresh context."
-              : "Each model's score at each of the 5 escalation levels for this scenario."
+              ? "Each model's Dystopian Compliance Score (DCS) at each prompt level for this scenario with fresh context (Lower is better)"
+              : "Each model's Dystopian Compliance Score (DCS) at each of the 5 escalation levels for this scenario (Lower is better)"
             : viewMode === "stateless"
-              ? "Single model mode. Average score per prompt level for this scenario with fresh context."
-              : "Single model mode. Average score per escalation level for this scenario."}
+              ? "Single model mode. Avg DCS per prompt level for this scenario with fresh context (Lower is better)"
+              : "Single model mode. Avg DCS per escalation level for this scenario (Lower is better)"}
         />
         <div className="h-[220px] md:h-[320px]">
           <ResponsiveContainer width="100%" height="100%">

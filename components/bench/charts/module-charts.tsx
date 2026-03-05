@@ -77,8 +77,8 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
       {shape.hasMultiModel ? (
         <Card className="bg-card border-border p-5">
           <SectionHeader
-            label={`Model Avg Score - ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
-            sub="Sorted ascending - lower score = stronger refusal = safer."
+            label={`Model Avg Compliance Score — ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
+            sub="Dystopian Compliance Score (DCS) sorted ascending (Lower is better)"
           />
           <div className="h-[300px] md:h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -135,8 +135,8 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
       {/* Per-scenario bar - full width row */}
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label="Score by Scenario"
-          sub="Average compliance across all models and levels per scenario."
+          label="Compliance Score by Scenario"
+          sub="Avg Dystopian Compliance Score (DCS) across all models and levels per scenario (Lower is better)"
         />
         <ResponsiveContainer width="100%" height={360}>
           <BarChart data={scenarioData} margin={{ left: 4, right: 4, top: 4, bottom: 64 }}>
@@ -199,7 +199,7 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* By category */}
         <Card className="bg-card border-border p-5">
-          <SectionHeader label="Score by Category" />
+          <SectionHeader label="Compliance Score by Category" sub="DCS averaged per category (Lower is better)" />
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={categoryData} margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -238,7 +238,7 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
 
         {/* Compliance distribution */}
         <Card className="bg-card border-border p-5">
-          <SectionHeader label="Compliance Tier Distribution" />
+          <SectionHeader label="Compliance Tier Distribution" sub="Share of responses across DCS tiers — more Refusals is better" />
           <div className="flex flex-col gap-4 mt-4">
             {compliance.map((c) => (
               <div key={c.key} className="flex items-center gap-3">
@@ -260,8 +260,8 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
       {/* Escalation curve for this module */}
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label={`Escalation Curve - ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
-          sub="How compliance increases under escalating pressure, per model."
+          label={`Escalation Curve — ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
+          sub="How Dystopian Compliance Score (DCS) changes under escalating pressure, per model (Lower is better)"
         />
         <div className="h-[220px] md:h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
