@@ -40,3 +40,17 @@ export function requireOpenRouterApiKey(): string {
 
   return key
 }
+
+export function getOpenRouterApiKey(): string | undefined {
+  return process.env.OPENROUTER_API_KEY
+}
+
+export function getLocalOpenAIBaseUrl(): string | undefined {
+  const baseUrl = process.env.LOCAL_OPENAI_BASE_URL?.trim()
+  return baseUrl || undefined
+}
+
+export function getLocalOpenAIApiKey(): string | undefined {
+  const key = process.env.LOCAL_OPENAI_API_KEY?.trim()
+  return key || undefined
+}
