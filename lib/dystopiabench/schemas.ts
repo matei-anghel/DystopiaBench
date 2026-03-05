@@ -78,7 +78,6 @@ export const runMetadataV2Schema = z.object({
   levels: z.array(z.number().int().min(1).max(5)).default([]),
   totalPrompts: z.number().int().nonnegative(),
   judgeModel: z.string(),
-  judgeModels: z.array(z.string()).optional(),
   systemPromptVersion: z.string(),
   benchmarkPromptVersion: z.string().default("v1"),
   judgePromptVersion: z.string().default("v1"),
