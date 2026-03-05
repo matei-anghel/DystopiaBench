@@ -2,7 +2,7 @@
 import { generateText, type ModelMessage } from "ai"
 import { z } from "zod"
 import { ALL_SCENARIOS, ORWELL_SCENARIOS, PETROV_SCENARIOS } from "./scenarios"
-import { DEFAULT_JUDGE_MODEL, getModelById } from "./models"
+import { AVAILABLE_MODELS, DEFAULT_JUDGE_MODEL, getModelById } from "./models"
 import { COMPLIANCE_SCORES } from "./types"
 import { requireOpenRouterApiKey } from "./env"
 import pLimit from "p-limit"
@@ -73,16 +73,6 @@ export type TransportPolicy = "chat-first-fallback" | "chat-only"
 export type ConversationMode = "stateful" | "stateless"
 export type EndpointUsed = "ai_sdk_chat" | "openrouter_chat_fallback"
 
-type ModelBackend = "openrouter"
-
-interface ResolvedModelSpec {
-  id: string
-  label: string
-  provider: string
-  modelString: string
-  backend: ModelBackend
-}
-
 export interface RunBenchmarkOptions {
   runId: string
   module: "petrov" | "orwell" | "both"
@@ -90,7 +80,6 @@ export interface RunBenchmarkOptions {
   levels: Array<1 | 2 | 3 | 4 | 5>
   scenarioIds?: string[]
   judgeModel?: string
-  judgeModels?: string[]
   transportPolicy?: TransportPolicy
   conversationMode?: ConversationMode
   timeoutMs?: number
@@ -106,79 +95,13 @@ export interface RunBenchmarkOptions {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseModelIdentifier(input: string): ResolvedModelSpec {
-  const trimmed = input.trim()
-  if (!trimmed) {
-    throw new Error("Model identifier cannot be empty.")
-  }
+function resolveJudgeModel(input: string | undefined): string {
+  if (!input) return DEFAULT_JUDGE_MODEL
 
-  const known = getModelById(trimmed)
-  if (known) {
-    return {
-      id: known.id,
-      label: known.label,
-      provider: known.provider,
-      modelString: known.modelString,
-      backend: "openrouter",
-    }
-  }
+  const asKnownId = getModelById(input)
+  if (asKnownId) return asKnownId.modelString
 
-  const colonIndex = trimmed.indexOf(":")
-  if (colonIndex >= 0) {
-    const provider = trimmed.slice(0, colonIndex).toLowerCase()
-    const model = trimmed.slice(colonIndex + 1).trim()
-    if (!model) {
-      throw new Error(`Invalid model identifier '${trimmed}': missing model after provider prefix.`)
-    }
-
-    if (provider === "openrouter") {
-      return {
-        id: trimmed,
-        label: `OpenRouter ${model}`,
-        provider: "OpenRouter",
-        modelString: model,
-        backend: "openrouter",
-      }
-    }
-
-    throw new Error(
-      `Unknown model identifier '${trimmed}'. Use a model ID from AVAILABLE_MODELS or a prefix like openrouter:<model-string>.`
-    )
-  }
-
-  if (trimmed.includes("/")) {
-    return {
-      id: trimmed,
-      label: trimmed,
-      provider: "OpenRouter",
-      modelString: trimmed,
-      backend: "openrouter",
-    }
-  }
-
-  throw new Error(
-    `Unknown model identifier '${trimmed}'. Use a model ID from AVAILABLE_MODELS or a model string with '/'.`
-  )
-}
-
-function resolveJudgeModels(input: string[] | undefined, fallbackModel?: string): string[] {
-  const raw =
-    (input && input.length > 0)
-      ? input
-      : fallbackModel
-        ? [fallbackModel]
-        : [DEFAULT_JUDGE_MODEL]
-
-  const unique = Array.from(new Set(raw.map((value) => value.trim()).filter(Boolean)))
-  if (unique.length === 0) {
-    return [DEFAULT_JUDGE_MODEL]
-  }
-
-  for (const value of unique) {
-    parseModelIdentifier(value)
-  }
-
-  return unique
+  return input
 }
 
 /**
@@ -309,82 +232,6 @@ function parseJudgeOutput(rawText: string): z.infer<typeof complianceSchema> {
   }
 }
 
-type JudgeVote = {
-  judge: string
-  compliance: ComplianceRating
-  reasoning: string
-}
-
-function scoreToCompliance(score: number): ComplianceRating {
-  const candidates = COMPLIANCE_VALUES.map((compliance) => ({
-    compliance,
-    score: COMPLIANCE_SCORES[compliance],
-  }))
-  const best = candidates.reduce((prev, current) => {
-    const prevDiff = Math.abs(prev.score - score)
-    const currDiff = Math.abs(current.score - score)
-    if (currDiff < prevDiff) return current
-    if (currDiff > prevDiff) return prev
-    // Deterministic tie-break toward more conservative resistance.
-    return current.score < prev.score ? current : prev
-  })
-
-  return best.compliance
-}
-
-function aggregateJudgeVotes(votes: JudgeVote[]): {
-  compliance: ComplianceRating
-  score: number
-  reasoning: string
-} {
-  const counts = new Map<ComplianceRating, number>()
-  const scoreTotals = new Map<ComplianceRating, number>()
-
-  for (const vote of votes) {
-    counts.set(vote.compliance, (counts.get(vote.compliance) ?? 0) + 1)
-    scoreTotals.set(vote.compliance, (scoreTotals.get(vote.compliance) ?? 0) + COMPLIANCE_SCORES[vote.compliance])
-  }
-
-  let topCompliance: ComplianceRating | undefined
-  let topCount = 0
-  let topAverage = 0
-
-  for (const [compliance, count] of counts) {
-    const average = Math.round(scoreTotals.get(compliance)! / count)
-    if (count > topCount || (count === topCount && average > topAverage)) {
-      topCompliance = compliance
-      topCount = count
-      topAverage = average
-    }
-  }
-
-  if (!topCompliance) {
-    throw new Error("No valid judge votes to aggregate.")
-  }
-
-  const tied = [...counts.entries()].filter(([, count]) => count === topCount)
-  let finalCompliance = topCompliance
-
-  if (tied.length > 1) {
-    const allScores = votes.map((vote) => COMPLIANCE_SCORES[vote.compliance])
-    const averageScore = Math.round(
-      allScores.reduce((sum, score) => sum + score, 0) / allScores.length
-    )
-    finalCompliance = scoreToCompliance(averageScore)
-  }
-
-  const detail = votes
-    .map((vote) => `${vote.judge}: ${vote.reasoning}`)
-    .join(" | ")
-    .slice(0, JUDGE_REASONING_MAX_CHARS)
-
-  return {
-    compliance: finalCompliance,
-    score: COMPLIANCE_SCORES[finalCompliance],
-    reasoning: `Arena consensus (${votes.length} judges): ${detail}`,
-  }
-}
-
 function getScenarios(module: "petrov" | "orwell" | "both") {
   if (module === "petrov") return PETROV_SCENARIOS
   if (module === "orwell") return ORWELL_SCENARIOS
@@ -447,44 +294,6 @@ function isTransientNetworkError(error: unknown): boolean {
   return TRANSIENT_NETWORK_ERROR_PATTERNS.some((pattern) => message.includes(pattern))
 }
 
-const OPENROUTER_API_BASE_URL = "https://openrouter.ai/api/v1"
-
-function toChatCompletionMessages(messages: ModelMessage[]): ChatCompletionMessage[] {
-  return messages.map((message) => ({
-    role: message.role as ChatCompletionMessage["role"],
-    content:
-      typeof message.content === "string"
-        ? message.content
-        : JSON.stringify(message.content),
-  }))
-}
-
-interface ModelCallResult {
-  text: string
-  endpointUsed: EndpointUsed
-  transportAttempts: number
-}
-
-type GenerationConfigOverride = {
-  temperature: number
-  topP: number
-  maxOutputTokens: number
-}
-
-function withTransportAttempts(error: unknown, transportAttempts: number): Error & { transportAttempts: number } {
-  const baseError = error instanceof Error ? error : new Error(String(error))
-  const errorWithAttempts = baseError as Error & { transportAttempts: number }
-  errorWithAttempts.transportAttempts = transportAttempts
-  return errorWithAttempts
-}
-
-function getErrorTransportAttempts(error: unknown): number | undefined {
-  if (!error || typeof error !== "object") return undefined
-  const attempts = (error as { transportAttempts?: unknown }).transportAttempts
-  if (typeof attempts !== "number" || !Number.isFinite(attempts) || attempts < 1) return undefined
-  return Math.floor(attempts)
-}
-
 interface ChatCompletionMessage {
   role: "system" | "user" | "assistant"
   content: string
@@ -495,17 +304,13 @@ interface ChatCompletionMessage {
  * Used when the AI SDK path fails with a transport error or returns empty text.
  */
 async function openRouterChatFallback(
-  apiKey: string | undefined,
+  apiKey: string,
   modelString: string,
   messages: ChatCompletionMessage[],
-  config: GenerationConfigOverride,
+  config: typeof GENERATION_CONFIG.model,
   timeoutMs: number,
 ): Promise<string> {
-  if (!apiKey) {
-    throw new Error("Missing OPENROUTER_API_KEY. Configure OPENROUTER_API_KEY for fallback usage.")
-  }
-
-  const response = await fetch(`${OPENROUTER_API_BASE_URL}/chat/completions`, {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -541,107 +346,6 @@ async function openRouterChatFallback(
   return ""
 }
 
-async function callModel(
-  apiClients: {
-    openrouter?: ReturnType<typeof createOpenAI>
-  },
-  openRouterApiKey: string | undefined,
-  model: ResolvedModelSpec,
-  messages: ModelMessage[],
-  config: GenerationConfigOverride,
-  transportPolicy: TransportPolicy,
-  timeoutMs: number,
-): Promise<ModelCallResult> {
-  if (apiClients.openrouter) {
-    const fallbackMessages = toChatCompletionMessages(messages)
-    let endpointUsed: EndpointUsed = "ai_sdk_chat"
-    let transportAttempts = 1
-
-    let primaryFailed = false
-    let primaryError: Error | undefined
-    let text = ""
-
-    try {
-      const modelResult = await generateText({
-        model: apiClients.openrouter.chat(model.modelString),
-        messages,
-        temperature: config.temperature,
-        topP: config.topP,
-        maxOutputTokens: config.maxOutputTokens,
-        maxRetries: 0,
-        abortSignal: AbortSignal.timeout(timeoutMs),
-      })
-
-      text = modelResult.text
-      if (!text.trim()) {
-        text = extractTextFromModelResult(modelResult)
-      }
-    } catch (err) {
-      primaryError = err instanceof Error ? err : new Error(String(err))
-      const fallbackEligible =
-        transportPolicy === "chat-first-fallback" &&
-        (isTransportError(primaryError.message) ||
-          isTimeoutLikeError(primaryError) ||
-          isTransientNetworkError(primaryError))
-
-      if (fallbackEligible) {
-        primaryFailed = true
-      } else {
-        throw withTransportAttempts(primaryError, transportAttempts)
-      }
-    }
-
-    if (primaryFailed) {
-      transportAttempts += 1
-      endpointUsed = "openrouter_chat_fallback"
-      console.warn(
-        `  ⤷ Primary transport failed for ${model.id}: ${primaryError?.message?.slice(0, 80)}. Trying fallback...`
-      )
-
-      try {
-        text = await openRouterChatFallback(
-          openRouterApiKey,
-          model.modelString,
-          fallbackMessages,
-          config,
-          timeoutMs,
-        )
-      } catch (fallbackError) {
-        throw withTransportAttempts(fallbackError, transportAttempts)
-      }
-    }
-
-    // If primary call returned empty text, try fallback once before classifying as invalid.
-    if (!text.trim() && transportPolicy === "chat-first-fallback" && endpointUsed === "ai_sdk_chat") {
-      try {
-        transportAttempts += 1
-        endpointUsed = "openrouter_chat_fallback"
-        console.warn(`  ⤷ Primary returned empty response for ${model.id}. Trying fallback...`)
-        text = await openRouterChatFallback(
-          openRouterApiKey,
-          model.modelString,
-          fallbackMessages,
-          config,
-          timeoutMs,
-        )
-      } catch (fallbackError) {
-        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
-        console.warn(
-          `  ⤷ Fallback after empty response failed for ${model.id}: ${fallbackMessage.slice(0, 120)}`
-        )
-      }
-    }
-
-    return {
-      text,
-      endpointUsed,
-      transportAttempts,
-    }
-  }
-
-  throw new Error(`Unsupported model backend '${model.backend}' for ${model.id}`)
-}
-
 // ---------------------------------------------------------------------------
 // Model capabilities snapshot
 // ---------------------------------------------------------------------------
@@ -659,7 +363,7 @@ async function fetchModelCapabilities(
   modelIds: string[],
 ): Promise<{ valid: boolean; snapshot: Record<string, unknown>; missing: string[] }> {
   try {
-    const res = await fetch(`${OPENROUTER_API_BASE_URL}/models`, {
+    const res = await fetch("https://openrouter.ai/api/v1/models", {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(15_000),
     })
@@ -735,13 +439,8 @@ export function summarizeResults(results: BenchmarkResultV2[]): RunSummaryV2 {
 // ---------------------------------------------------------------------------
 
 export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunManifestV2> {
-  const judgeModelIds = resolveJudgeModels(options.judgeModels, options.judgeModel)
-  const resolvedTestModels = options.modelIds.map((id) => parseModelIdentifier(id))
-  const resolvedJudgeModels = judgeModelIds.map((id) => parseModelIdentifier(id))
-  if (resolvedTestModels.length === 0) {
-    throw new Error("No valid models selected.")
-  }
-
+  const judgeModel = resolveJudgeModel(options.judgeModel)
+  const apiKey = requireOpenRouterApiKey()
   const transportPolicy: TransportPolicy = options.transportPolicy ?? "chat-first-fallback"
   const conversationMode: ConversationMode = options.conversationMode ?? "stateful"
   const timeoutMs = options.timeoutMs ?? GENERATION_CONFIG.timeoutMs
@@ -751,13 +450,15 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const retryBackoffBaseMs = options.retryBackoffBaseMs ?? GENERATION_CONFIG.retryPolicy.backoffBaseMs
   const retryBackoffJitterMs = options.retryBackoffJitterMs ?? GENERATION_CONFIG.retryPolicy.backoffJitterMs
 
-  const openRouterApiKey = requireOpenRouterApiKey()
   const openrouter = createOpenAI({
-    apiKey: openRouterApiKey,
-    baseURL: OPENROUTER_API_BASE_URL,
+    apiKey,
+    baseURL: "https://openrouter.ai/api/v1",
   })
 
-  const openRouterModelStrings = Array.from(new Set(resolvedTestModels.map((model) => model.modelString)))
+  const models = AVAILABLE_MODELS.filter((model) => options.modelIds.includes(model.id))
+  if (models.length === 0) {
+    throw new Error("No valid models selected.")
+  }
 
   const allScenarios = getScenarios(options.module)
   const requestedScenarioIds = options.scenarioIds ? new Set(options.scenarioIds) : undefined
@@ -777,14 +478,15 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const sortedLevels = [...options.levels].sort((a, b) => a - b)
 
   // ---- Model validation ----
+  const modelStrings = models.map((m) => m.modelString)
   let capabilities: { valid: boolean; snapshot: Record<string, unknown>; missing: string[] } = {
     valid: true,
     snapshot: {},
     missing: [],
   }
-  if (!options.skipModelValidation && openRouterModelStrings.length > 0) {
+  if (!options.skipModelValidation) {
     console.log("[Pre-run] Validating model IDs against OpenRouter catalog...")
-    capabilities = await fetchModelCapabilities(openRouterApiKey, openRouterModelStrings)
+    capabilities = await fetchModelCapabilities(apiKey, modelStrings)
     if (capabilities.missing.length > 0) {
       console.warn(`[Pre-run] WARNING: Models not found in OpenRouter: ${capabilities.missing.join(", ")}`)
     } else {
@@ -793,7 +495,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   }
 // Pre-compute total for progress counter
   const total = scenarios.reduce((acc, s) => {
-    return acc + resolvedTestModels.length * sortedLevels.filter((lvl) => s.escalationPrompts.some((p) => p.level === lvl)).length
+    return acc + models.length * sortedLevels.filter((lvl) => s.escalationPrompts.some((p) => p.level === lvl)).length
   }, 0)
   let completed = 0
   const startedAt = Date.now()
@@ -831,7 +533,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const tasks: Promise<void>[] = []
 
   for (const scenario of scenarios) {
-    for (const model of resolvedTestModels) {
+    for (const model of models) {
       // Collect which levels we'll run for this scenario
       const levelsForScenario = sortedLevels.filter((lvl) =>
         scenario.escalationPrompts.some((p) => p.level === lvl)
@@ -863,7 +565,6 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
             let retryCount = 0
 
             while (retryCount <= maxRetries) {
-              let attemptsBeforeCall = transportAttempts
               try {
                 // Build model messages: system message (with optional scenario context) + conversation history + new user prompt
                 const systemPrompt = scenario.systemContext
@@ -876,22 +577,97 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                   { role: "user", content: benchmarkPrompt },
                 ]
 
-                attemptsBeforeCall = transportAttempts
-                transportAttempts += 1
+	                transportAttempts++
+	                endpointUsed = "ai_sdk_chat"
 
-                const modelCall = await callModel(
-                  { openrouter },
-                  openRouterApiKey,
-                  model,
-                  modelMessages,
-                  GENERATION_CONFIG.model,
-                  transportPolicy,
-                  timeoutMs,
-                )
+	                let primaryFailed = false
+	                let primaryError: Error | undefined
+		                const fallbackMessages: ChatCompletionMessage[] = [
+		                  { role: "system", content: systemPrompt },
+		                  ...historyMessages.map((m) => ({
+		                    role: m.role as "system" | "user" | "assistant",
+		                    content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+		                  })),
+		                  { role: "user", content: benchmarkPrompt },
+		                ]
 
-                response = modelCall.text
-                endpointUsed = modelCall.endpointUsed
-                transportAttempts = attemptsBeforeCall + modelCall.transportAttempts
+	                // ---- Primary: AI SDK Chat ----
+	                try {
+	                  const modelResult = await generateText({
+	                    model: openrouter.chat(model.modelString),
+	                    messages: modelMessages,
+	                    temperature: GENERATION_CONFIG.model.temperature,
+                    topP: GENERATION_CONFIG.model.topP,
+                    maxOutputTokens: GENERATION_CONFIG.model.maxOutputTokens,
+	                    maxRetries: 0,
+	                    abortSignal: AbortSignal.timeout(timeoutMs),
+	                  })
+	                  response = modelResult.text
+	                  if (!response.trim()) {
+	                    response = extractTextFromModelResult(modelResult)
+	                  }
+		                } catch (err) {
+	                  primaryError = err instanceof Error ? err : new Error(String(err))
+	                  const fallbackEligible =
+	                    transportPolicy === "chat-first-fallback" &&
+	                    (
+	                      isTransportError(primaryError.message) ||
+	                      isTimeoutLikeError(primaryError) ||
+	                      isTransientNetworkError(primaryError)
+	                    )
+		                  // Only try fallback if it looks like a transport issue or primary timed out.
+		                  if (fallbackEligible) {
+		                    primaryFailed = true
+		                  } else {
+		                    throw primaryError
+		                  }
+	                }
+
+                // ---- Fallback: direct OpenRouter Chat Completions ----
+	                if (primaryFailed) {
+	                  transportAttempts++
+	                  endpointUsed = "openrouter_chat_fallback"
+	                  console.warn(
+	                    `  ⤷ Primary transport failed for ${model.id}: ${primaryError?.message?.slice(0, 80)}. Trying fallback...`
+	                  )
+
+	                  response = await openRouterChatFallback(
+	                    apiKey,
+	                    model.modelString,
+                    fallbackMessages,
+                    GENERATION_CONFIG.model,
+	                    timeoutMs,
+	                  )
+	                }
+
+	                // If primary call returned empty text, try fallback once before counting the attempt as invalid.
+	                if (
+	                  !response.trim() &&
+	                  transportPolicy === "chat-first-fallback" &&
+	                  endpointUsed === "ai_sdk_chat"
+	                ) {
+	                  try {
+	                    transportAttempts++
+	                    endpointUsed = "openrouter_chat_fallback"
+	                    console.warn(
+	                      `  ⤷ Primary returned empty response for ${model.id}. Trying fallback...`
+	                    )
+	                    response = await openRouterChatFallback(
+	                      apiKey,
+	                      model.modelString,
+	                      fallbackMessages,
+	                      GENERATION_CONFIG.model,
+	                      timeoutMs,
+	                    )
+	                  } catch (fallbackError) {
+	                    const fallbackMessage = fallbackError instanceof Error
+	                      ? fallbackError.message
+	                      : String(fallbackError)
+	                    console.warn(
+	                      `  ⤷ Fallback after empty response failed for ${model.id}: ${fallbackMessage.slice(0, 120)}`
+	                    )
+	                  }
+	                }
 
                 if (!response.trim()) {
                   // Empty completions are often transient provider artifacts; retry first.
@@ -906,13 +682,13 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                     await new Promise(resolve => setTimeout(resolve, delay))
                     continue
                   }
-                  status = "invalid_response"
-                  compliance = "hesitant"
-                  score = null
-                  errorCode = "EMPTY_MODEL_RESPONSE"
-                  errorMessage = "Model returned an empty response."
-                  errorName = undefined
-                } else {
+	                  status = "invalid_response"
+	                  compliance = "hesitant"
+	                  score = null
+	                  errorCode = "EMPTY_MODEL_RESPONSE"
+	                  errorMessage = "Model returned an empty response."
+	                  errorName = undefined
+	                } else {
                   // In stateful mode, preserve escalation context across levels.
                   if (conversationMode === "stateful") {
                     conversationMessages.push({ role: "user", content: benchmarkPrompt })
@@ -921,106 +697,88 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
 
                   // Judge the response
                   try {
-                    const judgeVotes: JudgeVote[] = []
-                    let lastJudgeError: Error | undefined
+                    let judgeSuccess = false
+                    for (let judgeAttempt = 0; judgeAttempt < JUDGE_MAX_ATTEMPTS; judgeAttempt++) {
+                      try {
+                        const judgeResult = await generateText({
+                          model: openrouter.chat(judgeModel),
+                          messages: [
+                            { role: "system", content: JUDGE_SYSTEM_PROMPT },
+                            {
+                              role: "user",
+                              content: buildJudgePrompt({
+                                scenarioId: scenario.id,
+                                benchmarkPrompt,
+                                modelResponse: response,
+                              }),
+                            },
+                          ],
+                          temperature: GENERATION_CONFIG.judge.temperature,
+                          topP: GENERATION_CONFIG.judge.topP,
+                          maxOutputTokens: GENERATION_CONFIG.judge.maxOutputTokens,
+                          maxRetries: 0,
+                          abortSignal: AbortSignal.timeout(timeoutMs),
+                        })
 
-                    for (const judgeModel of resolvedJudgeModels) {
-                      for (let judgeAttempt = 0; judgeAttempt < JUDGE_MAX_ATTEMPTS; judgeAttempt++) {
-                        try {
-                          const judgeResult = await callModel(
-                            { openrouter },
-                            openRouterApiKey,
-                            judgeModel,
-                            [
-                              { role: "system", content: JUDGE_SYSTEM_PROMPT },
-                              {
-                                role: "user",
-                                content: buildJudgePrompt({
-                                  scenarioId: scenario.id,
-                                  benchmarkPrompt,
-                                  modelResponse: response,
-                                }),
-                              },
-                            ],
-                            GENERATION_CONFIG.judge,
-                            transportPolicy,
-                            timeoutMs,
-                          )
-
-                          const parsedJudge = parseJudgeOutput(judgeResult.text)
-                          judgeVotes.push({
-                            judge: judgeModel.id,
-                            compliance: parsedJudge.compliance,
-                            reasoning: parsedJudge.reasoning,
-                          })
-                          break
-                        } catch (judgeError) {
-                          lastJudgeError = judgeError instanceof Error ? judgeError : new Error(String(judgeError))
-                          if (judgeAttempt === JUDGE_MAX_ATTEMPTS - 1) {
-                            lastJudgeError = lastJudgeError ?? new Error("Judge failed after retries.")
-                          }
+                        const parsedJudge = parseJudgeOutput(judgeResult.text)
+                        compliance = parsedJudge.compliance
+                        score = COMPLIANCE_SCORES[compliance]
+                        judgeReasoning = parsedJudge.reasoning
+                        judgeSuccess = true
+                        break
+                      } catch (judgeError) {
+                        if (judgeAttempt === JUDGE_MAX_ATTEMPTS - 1) {
+                          throw judgeError
                         }
                       }
                     }
-
-                    if (judgeVotes.length === 0) {
-                      throw lastJudgeError ?? new Error("All judge models failed.")
+                    if (!judgeSuccess) {
+                      throw new Error("Judge failed after retries")
                     }
-
-                    const aggregatedJudge = aggregateJudgeVotes(judgeVotes)
-                    compliance = aggregatedJudge.compliance
-                    score = aggregatedJudge.score
-                    judgeReasoning = aggregatedJudge.reasoning
                   } catch (error) {
-                    status = "judge_error"
-                    compliance = "hesitant"
-                    score = null
-                    errorCode = "JUDGE_FAILED"
-                    errorMessage = error instanceof Error ? error.message : "Judge classification failed."
-                    errorName = error instanceof Error ? error.name : undefined
-                  }
-                }
-                break // Success, exit retry loop
-              } catch (error) {
-                const errorObj = error instanceof Error ? error : new Error("Model call failed.")
-                const message = errorObj.message || "Model call failed."
-                const errorTransportAttempts = getErrorTransportAttempts(errorObj)
-                if (errorTransportAttempts !== undefined) {
-                  transportAttempts = attemptsBeforeCall + errorTransportAttempts
-                }
-                const retryableError = isTimeoutLikeError(errorObj) || isTransientNetworkError(errorObj)
+	                    status = "judge_error"
+	                    compliance = "hesitant"
+	                    score = null
+	                    errorCode = "JUDGE_FAILED"
+	                    errorMessage = error instanceof Error ? error.message : "Judge classification failed."
+	                    errorName = error instanceof Error ? error.name : undefined
+	                  }
+	                }
+	                break; // Success, exit retry loop
+	              } catch (error) {
+	                const errorObj = error instanceof Error ? error : new Error("Model call failed.")
+	                const message = errorObj.message || "Model call failed."
+	                const retryableError = isTimeoutLikeError(errorObj) || isTransientNetworkError(errorObj)
 
-                // Exponential backoff
-                if (retryCount < maxRetries && retryableError) {
-                  retryCount++
-                  const delay =
-                    Math.pow(2, retryCount) * retryBackoffBaseMs +
-                    Math.random() * retryBackoffJitterMs
-                  console.warn(
-                    `[Retry ${retryCount}/${maxRetries}] Model ${model.id} failed. Waiting ${Math.round(delay)}ms...`
-                  )
+	                // Exponential backoff
+	                if (retryCount < maxRetries && retryableError) {
+	                  retryCount++
+	                  const delay =
+	                    Math.pow(2, retryCount) * retryBackoffBaseMs +
+	                    Math.random() * retryBackoffJitterMs
+	                  console.warn(`[Retry ${retryCount}/${maxRetries}] Model ${model.id} failed. Waiting ${Math.round(delay)}ms...`)
                   await new Promise(resolve => setTimeout(resolve, delay))
-                  continue
+                  continue;
                 }
 
-                response = ""
-                compliance = "hesitant"
-                score = null
-                if (isTimeoutLikeError(errorObj)) {
-                  status = "aborted"
-                  errorCode = "ABORTED"
-                } else if (isTransportError(message)) {
-                  status = "model_error"
-                  errorCode = "TRANSPORT_INCOMPATIBLE"
+	                response = ""
+	                compliance = "hesitant"
+	                score = null
+	                if (isTimeoutLikeError(errorObj)) {
+	                  status = "aborted"
+	                  errorCode = "ABORTED"
+	                } else if (isTransportError(message)) {
+	                  status = "model_error"
+	                  errorCode = "TRANSPORT_INCOMPATIBLE"
                 } else {
-                  status = "model_error"
-                  errorCode = "MODEL_FAILED"
-                }
-                errorMessage = message
-                errorName = errorObj.name
-                break // Failed all retries
-              }
-            }
+	                  status = "model_error"
+	                  errorCode = "MODEL_FAILED"
+	                }
+	                errorMessage = message
+	                errorName = errorObj.name
+	                break; // Failed all retries
+	              }
+	            }
 
             const scorable = status === "ok" && score !== null
 
@@ -1028,10 +786,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
             const icon = STATUS_ICON[status] ?? "?"
             const cLabel = COMPLIANCE_ICON[compliance] ?? ""
             const pct = Math.round((completed / total) * 100)
-            const epLabel =
-              endpointUsed === "openrouter_chat_fallback"
-                ? " [fallback]"
-                : ""
+            const epLabel = endpointUsed === "openrouter_chat_fallback" ? " [fallback]" : ""
             process.stdout.write(
               `  ${icon} [${completed}/${total} ${pct}%] ${model.id} | ${scenario.id} L${level} | ${compliance} ${cLabel}${epLabel}  (${elapsedStr()})\n`
             )
@@ -1051,21 +806,21 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
               compliance,
               score,
               status,
-              judgeReasoning: judgeReasoning || undefined,
-              errorCode,
-              errorMessage,
-              errorName,
-              endpointUsed,
-              transportAttempts,
-              scorable,
+	              judgeReasoning: judgeReasoning || undefined,
+	              errorCode,
+	              errorMessage,
+	              errorName,
+	              endpointUsed,
+	              transportAttempts,
+	              scorable,
               timestamp: Date.now(),
             })
 
             // If the model call failed entirely, reset conversation and continue to next level
             // so that every prompt is always attempted and recorded.
-            if (conversationMode === "stateful" && (status === "model_error" || status === "aborted")) {
-              conversationMessages.length = 0
-            }
+              if (conversationMode === "stateful" && (status === "model_error" || status === "aborted")) {
+                conversationMessages.length = 0
+              }
             }
           })
         })
@@ -1099,11 +854,10 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
 
   const metadata: RunMetadataV2 = {
     module: options.module,
-    models: resolvedTestModels.map((model) => model.id),
+    models: models.map((model) => model.id),
     levels: options.levels,
     totalPrompts: results.length,
-    judgeModel: resolvedJudgeModels[0]?.id ?? DEFAULT_JUDGE_MODEL,
-    judgeModels: resolvedJudgeModels.map((model) => model.id),
+    judgeModel,
     systemPromptVersion: SYSTEM_PROMPT_VERSION,
     benchmarkPromptVersion: BENCHMARK_PROMPT_VERSION,
     judgePromptVersion: JUDGE_PROMPT_VERSION,
@@ -1123,3 +877,4 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     results,
   }
 }
+
