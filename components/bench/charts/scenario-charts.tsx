@@ -99,7 +99,7 @@ function ScenarioDetailPanel({
       <div className={`grid gap-5 ${hasMultiModel ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
         <div>
           <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
-            Avg Score by Escalation Level
+            Avg Compliance Score (DCS) by Escalation Level — Lower is better
           </p>
           <div className="h-[170px] md:h-[190px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -146,7 +146,7 @@ function ScenarioDetailPanel({
         {hasMultiModel ? (
           <div>
             <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
-              Avg Score by Model (all levels)
+              Avg Compliance Score (DCS) by Model (all levels) — Lower is better
             </p>
             <div className="h-[240px] md:h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -271,8 +271,8 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label="All Scenarios - Average Score"
-        sub="Average compliance score across all models and all escalation levels per scenario."
+        label="All Scenarios — Average Compliance Score"
+        sub="Dystopian Compliance Score (DCS) across all models and all escalation levels per scenario (Lower is better)"
       />
       <ResponsiveContainer width="100%" height={400}>
         <BarChart data={chartData} margin={{ left: 4, right: 4, top: 4, bottom: 56 }}>
@@ -355,10 +355,10 @@ function ScenarioModelGrid({
   return (
     <Card className="bg-card border-border p-3 overflow-x-auto">
       <SectionHeader
-        label="Score Grid - Model x Scenario"
+        label="Compliance Score Grid — Model × Scenario"
         sub={hasSingleModel
-          ? "Single model mode. Each cell = avg score for the active model on that scenario."
-          : "Each cell = avg score for that model on that scenario. Color = compliance tier."}
+          ? "Dystopian Compliance Score (DCS) for the active model on each scenario (Lower is better)"
+          : "Dystopian Compliance Score (DCS) per model per scenario. Color = compliance tier (Lower is better)"}
       />
       <div className="min-w-max">
         <div className="flex items-end gap-px mb-px">
