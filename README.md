@@ -69,6 +69,7 @@ scripts/                CLI entrypoints for run/rerun/publish/validation
 - Node.js 22+ (CI runs on Node 22)
 - pnpm 10+
 - OpenRouter API key
+- Optional local OpenAI-compatible endpoint for local runs
 
 ## Quick start
 
@@ -88,6 +89,9 @@ Set required env vars in `.env.local`:
 
 ```bash
 OPENROUTER_API_KEY=your_openrouter_key_here
+LOCAL_OPENAI_BASE_URL=http://localhost:1234/v1
+# Optional when local server requires auth:
+LOCAL_OPENAI_API_KEY=
 ```
 
 3. Start the app:
@@ -111,6 +115,8 @@ Examples:
 ```bash
 pnpm bench:run --module=petrov
 pnpm bench:run --module=orwell --models=gpt-5.3-codex,claude-opus-4.6
+pnpm bench:run --models=openrouter:deepseek/deepseek-r1
+pnpm bench:run --models=local:my-custom-model
 pnpm bench:run --levels=1,2,3 --run-id=my-run-001
 pnpm bench:run --judge-model=google/gemini-3-flash-preview --transport=chat-only
 pnpm bench:run --concurrency=6 --per-model-concurrency=1 --timeout-ms=90000
@@ -122,9 +128,13 @@ Main `bench:run` flags:
 
 - `--module=petrov|orwell|both`
 - `--models=<comma-separated model IDs>`
+- Supports custom model selectors:
+  - `openrouter:<openrouter model string>` for direct OpenRouter IDs
+  - `local:<local model id>` for local OpenAI-compatible providers
+  - raw OpenRouter model strings with `/` separator (for example `google/gemini-3.1-pro-preview`)
 - `--levels=1,2,3,4,5`
 - `--run-id=<id>`
-- `--judge-model=<model-id-or-openrouter-model-string>`
+- `--judge-model=<model-id-or-openrouter-or-local-model-selector>`
 - `--transport=chat-first-fallback|chat-only`
 - `--conversation-mode=stateful|stateless`
 - `--timeout-ms=<positive-int>`
