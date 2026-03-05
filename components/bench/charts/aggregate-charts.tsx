@@ -137,8 +137,8 @@ function ModelBarChart({ data }: { data: ReturnType<typeof getAggregateByModel> 
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label="Average DCS by Model"
-        sub="Dystopian Compliance Score. Lower = stronger refusal = better safety."
+        label="Average Dystopian Compliance Score by Model"
+        sub="DCS — measures how willingly a model complies with harmful requests (Lower is better)"
       />
       <div className="h-[300px] md:h-[420px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -180,8 +180,8 @@ function DRFRChart({ data }: { data: ReturnType<typeof getDRFRByModel> }) {
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label="DRFR by Model"
-        sub="Directed Refusal to Failure Ratio. Higher = more principled refusals = safer."
+        label="Directed Refusal Rate by Model"
+        sub="DRFR — percentage of harmful prompts the model refused on principle (Higher is better)"
       />
       <div className="h-[300px] md:h-[420px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -224,8 +224,8 @@ function EscalationCurveChart({ data }: { data: ReturnType<typeof getEscalationC
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label="Escalation Curve - All Models"
-        sub="How each model's DCS changes as pressure escalates from L1 to L5."
+        label="Escalation Curve — All Models"
+        sub="How each model's Dystopian Compliance Score (DCS) changes as pressure escalates from L1 to L5 (Lower is better)"
       />
       <div className="h-[220px] md:h-[360px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -279,8 +279,8 @@ function ComplianceDistributionBars({ data }: { data: ReturnType<typeof getCompl
   return (
     <Card className="bg-card border-border p-5 flex flex-col">
       <SectionHeader
-        label="DCS Distribution"
-        sub="Share of all test results across DCS compliance tiers."
+        label="Compliance Score Distribution"
+        sub="Share of all test results across Dystopian Compliance Score (DCS) tiers — more Refusals is better"
       />
       <div className="flex flex-col justify-around flex-1 gap-6 py-4">
         {sorted.map((row) => (
@@ -326,8 +326,8 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
     return (
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label="Petrov vs Orwell - Module Breakdown"
-          sub="Single-model view. Average DCS by module."
+          label="Petrov vs Orwell — Module Breakdown"
+          sub="Single-model view. Average Dystopian Compliance Score (DCS) by module (Lower is better)"
         />
         <p className="mb-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
           {modelLabel} - {provider}
@@ -392,8 +392,8 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label="Petrov vs Orwell - Model Breakdown"
-        sub="Average DCS per module per model. Compare safety profiles across domain types."
+        label="Petrov vs Orwell — Model Breakdown"
+        sub="Average Dystopian Compliance Score (DCS) per module per model. Compare safety profiles across domain types (Lower is better)"
       />
       <div className="h-[220px] md:h-[360px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -468,8 +468,8 @@ function ModelRadarChart({ results }: { results: BenchmarkResult[] }) {
   return (
     <Card className="bg-card border-border px-5 pt-4 pb-5">
       <div className="mb-1">
-        <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase">Escalation Radar - All Models</p>
-        <p className="font-mono text-[10px] text-muted-foreground mt-0.5">DCS by escalation pressure level.</p>
+        <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase">Escalation Radar — All Models</p>
+        <p className="font-mono text-[10px] text-muted-foreground mt-0.5">Dystopian Compliance Score (DCS) by escalation pressure level (Lower is better)</p>
       </div>
       <div className="h-[360px] md:h-[560px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -534,8 +534,8 @@ export function AggregateCharts({ results }: AggregateChartsProps) {
       {shape.hasSingleModel && singleModelAvg && singleModelDrfr ? (
         <div className="grid gap-6 lg:grid-cols-2">
           <SingleModelMetricCard
-            label="Average DCS"
-            sub="Single-model view. Comparison chart hidden."
+            label="Average Dystopian Compliance Score"
+            sub="DCS — measures willingness to comply with harmful requests (Lower is better)"
             modelLabel={singleModelAvg.label}
             provider={singleModelAvg.provider}
             value={singleModelAvg.avgScore}
@@ -543,8 +543,8 @@ export function AggregateCharts({ results }: AggregateChartsProps) {
             valueColor={scoreColor(singleModelAvg.avgScore)}
           />
           <SingleModelMetricCard
-            label="DRFR"
-            sub="Single-model view. Comparison chart hidden."
+            label="Directed Refusal Rate"
+            sub="DRFR — percentage of harmful prompts refused on principle (Higher is better)"
             modelLabel={singleModelDrfr.label}
             provider={singleModelDrfr.provider}
             value={`${singleModelDrfr.drfr}%`}
