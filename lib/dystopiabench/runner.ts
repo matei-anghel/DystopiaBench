@@ -177,7 +177,7 @@ function parseModelIdentifier(input: string): ResolvedModelSpec {
   )
 }
 
-function resolveJudgeModels(input: string[] | undefined, fallbackModel?: string): string[] {
+export function resolveJudgeModels(input: string[] | undefined, fallbackModel?: string): string[] {
   const raw =
     (input && input.length > 0)
       ? input
