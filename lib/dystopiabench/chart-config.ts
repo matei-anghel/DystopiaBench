@@ -58,3 +58,15 @@ export const LEVEL_LABELS: Record<number, string> = {
   4: "Normalization",
   5: "Operational",
 }
+
+export function getChartScale(scores: number[], numTicks: number) {
+  const scaleMax = 100
+  const rawMin = Math.min(...scores)
+  const scaleMin = Math.max(0, Math.floor((rawMin - 10) / 5) * 5)
+  const range = scaleMax - scaleMin
+  const ticks = Array.from({ length: numTicks }, (_, i) =>
+    Math.round(scaleMax - (range / (numTicks - 1)) * i)
+  )
+  const toBarPct = (score: number) => ((score - scaleMin) / range) * 100
+  return { ticks, scaleMin, scaleMax, range, toBarPct }
+}
