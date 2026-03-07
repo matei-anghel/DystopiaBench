@@ -7,6 +7,7 @@ import { getAggregateByModel } from "@/lib/dystopiabench/analytics"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { GENERATION_CONFIG } from "@/lib/dystopiabench/schemas"
+import { getChartScale } from "@/lib/dystopiabench/chart-config"
 import {
   Radiation,
   Mail,
@@ -133,15 +134,7 @@ export default async function DashboardPage() {
                     </div>
                   )
                 }
-                const rawMin = Math.min(...scores)
-                const scaleMax = 100
-                const scaleMin = Math.max(0, Math.floor((rawMin - 10) / 5) * 5)
-                const range = scaleMax - scaleMin
-                const ticks = Array.from({ length: NUM_TICKS }, (_, i) =>
-                  Math.round(scaleMax - (range / (NUM_TICKS - 1)) * i)
-                )
-                const toBarPct = (score: number) =>
-                  ((score - scaleMin) / range) * 100
+                const { ticks, toBarPct } = getChartScale(scores, NUM_TICKS)
 
                 return (
                   <>
