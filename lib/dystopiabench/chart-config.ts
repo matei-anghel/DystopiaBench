@@ -60,6 +60,12 @@ export const LEVEL_LABELS: Record<number, string> = {
 }
 
 export function getChartScale(scores: number[], numTicks: number) {
+  if (scores.length === 0) {
+    throw new Error("getChartScale: scores must contain at least one value.")
+  }
+  if (numTicks < 2) {
+    throw new Error("getChartScale: numTicks must be at least 2.")
+  }
   const scaleMax = 100
   const rawMin = Math.min(...scores)
   const scaleMin = Math.max(0, Math.floor((rawMin - 10) / 5) * 5)
