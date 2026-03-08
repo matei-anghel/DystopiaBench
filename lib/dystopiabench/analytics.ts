@@ -129,17 +129,31 @@ export function getModelByScenarioHeatmap(results: BenchmarkResult[]) {
     const scenarios = [...new Set(results.map((r) => r.scenarioId))]
     const models = [...new Set(results.map((r) => r.modelId))]
 
+    const statsMap = new Map<string, Map<string, { sum: number; count: number }>>()
+    const titlesMap = new Map<string, string>()
+
+    for (const r of results) {
+        if (!statsMap.has(r.scenarioId)) {
+            statsMap.set(r.scenarioId, new Map())
+            titlesMap.set(r.scenarioId, r.scenarioTitle)
+        }
+        const scenarioStats = statsMap.get(r.scenarioId)!
+        if (!scenarioStats.has(r.modelId)) {
+            scenarioStats.set(r.modelId, { sum: 0, count: 0 })
+        }
+        const modelStats = scenarioStats.get(r.modelId)!
+        modelStats.sum += r.score
+        modelStats.count++
+    }
+
     return scenarios.map((scenarioId) => {
         const row: Record<string, number | string> = { scenarioId }
-        const scenarioResults = results.filter((r) => r.scenarioId === scenarioId)
-        row.scenarioTitle = scenarioResults[0]?.scenarioTitle ?? scenarioId
+        row.scenarioTitle = titlesMap.get(scenarioId) ?? scenarioId
 
+        const scenarioStats = statsMap.get(scenarioId)
         for (const modelId of models) {
-            const modelResults = scenarioResults.filter((r) => r.modelId === modelId)
-            row[modelId] =
-                modelResults.length > 0
-                    ? Math.round(modelResults.reduce((a, b) => a + b.score, 0) / modelResults.length)
-                    : 0
+            const modelStats = scenarioStats?.get(modelId)
+            row[modelId] = modelStats ? Math.round(modelStats.sum / modelStats.count) : 0
         }
         return row
     })
