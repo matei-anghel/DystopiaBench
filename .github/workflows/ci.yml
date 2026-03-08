@@ -37,6 +37,12 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Run tests
+        run: bun test
+
       - name: Build
         run: pnpm build
 

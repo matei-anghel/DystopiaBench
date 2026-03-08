@@ -1,19 +1,8 @@
-
-import { expect, test, mock } from "bun:test";
-
-// Mock external dependencies that are missing in the environment
-mock.module("@ai-sdk/openai", () => ({
-  createOpenAI: () => ({}),
-}));
-mock.module("ai", () => ({
-  generateText: () => ({}),
-}));
-mock.module("p-limit", () => ({
-  default: () => () => ({}),
-}));
+import { expect, test } from "bun:test";
 
 import { resolveJudgeModels } from "./runner";
 import { DEFAULT_JUDGE_MODEL } from "./models";
+
 
 test("resolveJudgeModels - should return DEFAULT_JUDGE_MODEL when input is undefined and no fallback", () => {
   const result = resolveJudgeModels(undefined);
@@ -28,6 +17,12 @@ test("resolveJudgeModels - should return DEFAULT_JUDGE_MODEL when input is empty
 test("resolveJudgeModels - should return fallbackModel when input is undefined", () => {
   const fallback = "openrouter:gpt-4";
   const result = resolveJudgeModels(undefined, fallback);
+  expect(result).toEqual([fallback]);
+});
+
+test("resolveJudgeModels - should return fallbackModel when input is empty array", () => {
+  const fallback = "openrouter:gpt-4";
+  const result = resolveJudgeModels([], fallback);
   expect(result).toEqual([fallback]);
 });
 
