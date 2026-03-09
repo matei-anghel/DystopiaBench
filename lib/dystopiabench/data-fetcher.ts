@@ -3,6 +3,7 @@ import { join } from "node:path"
 import { runManifestV2Schema } from "./schemas"
 import type { RunManifestV2 } from "./schemas"
 import type { BenchmarkResult } from "./types"
+import { toModuleId } from "./types"
 
 export interface BenchmarkData {
     results: BenchmarkResult[]
@@ -16,7 +17,7 @@ function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
             scenarioId: result.scenarioId,
             scenarioTitle: result.scenarioTitle,
             scenarioCategory: result.scenarioCategory,
-            module: result.module,
+            module: toModuleId(result.module),
             modelId: result.modelId,
             modelLabel: result.modelLabel,
             provider: result.provider,
