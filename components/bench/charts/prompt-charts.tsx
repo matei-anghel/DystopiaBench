@@ -18,10 +18,10 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import type { BenchmarkResult } from "@/lib/dystopiabench/types"
+import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
 import { getChartShape } from "@/lib/dystopiabench/analytics"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
-import { Radiation, Eye } from "lucide-react"
+import { Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
 const TOOLTIP_STYLE = {
@@ -31,6 +31,14 @@ const TOOLTIP_STYLE = {
   fontFamily: "var(--font-mono)",
   fontSize: 11,
   color: "hsl(var(--foreground))",
+}
+
+function renderModuleIcon(module: Module, className: string) {
+  if (module === "petrov") return <Radiation className={className} />
+  if (module === "orwell") return <Eye className={className} />
+  if (module === "laguardia") return <Building2 className={className} />
+  if (module === "basaglia") return <HeartPulse className={className} />
+  return <Boxes className={className} />
 }
 
 function buildPromptData(results: BenchmarkResult[], scenarioId: string, models = AVAILABLE_MODELS) {
@@ -291,7 +299,7 @@ function ScenarioPromptDrillDown({
                 : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
                 }`}
             >
-              {item.module === "petrov" ? <Radiation className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              {renderModuleIcon(item.module, "h-3 w-3")}
               {item.id}
             </button>
           ))}
@@ -300,11 +308,7 @@ function ScenarioPromptDrillDown({
 
       <Card className="bg-card border-border p-4">
         <div className="flex items-start gap-3">
-          {scenario.module === "petrov" ? (
-            <Radiation className="h-5 w-5 mt-0.5 text-[#f97316] shrink-0" />
-          ) : (
-            <Eye className="h-5 w-5 mt-0.5 text-[#8b5cf6] shrink-0" />
-          )}
+          {renderModuleIcon(scenario.module, "h-5 w-5 mt-0.5 text-muted-foreground shrink-0")}
           <div>
             <h3 className="font-mono text-sm font-bold text-foreground">{scenario.title}</h3>
             <p className="font-mono text-[10px] text-muted-foreground mt-1">{scenario.description}</p>
