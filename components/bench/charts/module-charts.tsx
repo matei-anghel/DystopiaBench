@@ -5,8 +5,7 @@ import {
   LineChart, Line, Cell,
 } from "recharts"
 import { Card } from "@/components/ui/card"
-import type { Module } from "@/lib/dystopiabench/types"
-import type { BenchmarkResult } from "@/lib/dystopiabench/types"
+import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
 import {
   getComplianceDistribution,
   getAggregateByModel,
@@ -18,7 +17,7 @@ import {
   scoreColor, scoreLabel, LEVEL_LABELS,
 } from "@/lib/dystopiabench/chart-config"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import { PETROV_SCENARIOS, ORWELL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
+import { getModuleById } from "@/lib/dystopiabench/scenarios"
 import { SectionHeader } from "./section-header"
 
 const TOOLTIP_STYLE = {
@@ -37,47 +36,40 @@ interface Props {
 }
 
 export function ModuleCharts({ module, results, selectedModelIds }: Props) {
+  const scenarioModule = getModuleById(module)
   const moduleResults = results.filter((r) => r.module === module)
   const shape = getChartShape(moduleResults)
-  const scenarios = module === "petrov" ? PETROV_SCENARIOS : ORWELL_SCENARIOS
+  const scenarios = scenarioModule?.scenarios ?? []
+  const moduleLabel = scenarioModule?.label ?? String(module)
   const activeModels = AVAILABLE_MODELS.filter((model) =>
     selectedModelIds
       ? selectedModelIds.includes(model.id)
       : moduleResults.some((row) => row.modelId === model.id),
   )
 
-  // Model bar data for this module
   const modelData = getAggregateByModel(moduleResults)
-
-  // Escalation curve for this module
   const escalation = getEscalationCurveByModel(moduleResults)
-
-  // Compliance distribution for this module
   const compliance = getComplianceDistribution(moduleResults)
 
-  // Per-scenario avg score (across all models)
-  const scenarioData = scenarios.map((s) => {
-    const rows = moduleResults.filter((r) => r.scenarioId === s.id)
-    const avg = rows.length ? Math.round(rows.reduce((sum, r) => sum + r.score, 0) / rows.length) : 0
-    return { id: s.id, title: s.title, avg, category: s.category }
+  const scenarioData = scenarios.map((scenario) => {
+    const rows = moduleResults.filter((result) => result.scenarioId === scenario.id)
+    const avg = rows.length ? Math.round(rows.reduce((sum, result) => sum + result.score, 0) / rows.length) : 0
+    return { id: scenario.id, title: scenario.title, avg, category: scenario.category }
   })
 
-  // Per-category avg
-  const categories = [...new Set(scenarios.map((s) => s.category))]
-  const categoryData = categories.map((cat) => {
-    const rows = moduleResults.filter((r) => r.scenarioCategory === cat)
-    const avg = rows.length ? Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length) : 0
-    return { category: cat, avg }
+  const categories = [...new Set(scenarios.map((scenario) => scenario.category))]
+  const categoryData = categories.map((category) => {
+    const rows = moduleResults.filter((result) => result.scenarioCategory === category)
+    const avg = rows.length ? Math.round(rows.reduce((sum, result) => sum + result.score, 0) / rows.length) : 0
+    return { category, avg }
   })
 
   return (
     <div className="flex flex-col gap-6">
-
-      {/* Model scores (this module) */}
       {shape.hasMultiModel ? (
         <Card className="bg-card border-border p-5">
           <SectionHeader
-            label={`Model Avg Compliance Score — ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
+            label={`Model Avg Compliance Score - ${moduleLabel}`}
             sub="Dystopian Compliance Score (DCS) sorted ascending (Lower is better)"
           />
           <div className="h-[300px] md:h-[400px]">
@@ -85,15 +77,22 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
               <BarChart data={modelData} margin={{ left: 4, right: 4, top: 4, bottom: 72 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis
-                  type="category" dataKey="label"
+                  type="category"
+                  dataKey="label"
                   tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                  axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false}
-                  angle={-40} textAnchor="end" interval={0}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  tickLine={false}
+                  angle={-40}
+                  textAnchor="end"
+                  interval={0}
                 />
                 <YAxis
-                  type="number" domain={[0, 100]}
+                  type="number"
+                  domain={[0, 100]}
                   tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                  axisLine={false} tickLine={false} width={28}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
                 />
                 <Tooltip
                   cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
@@ -132,7 +131,6 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
         </Card>
       )}
 
-      {/* Per-scenario bar - full width row */}
       <Card className="bg-card border-border p-5">
         <SectionHeader
           label="Compliance Score by Scenario"
@@ -142,13 +140,14 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
           <BarChart data={scenarioData} margin={{ left: 4, right: 4, top: 4, bottom: 64 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis
-              type="category" dataKey="title"
+              type="category"
+              dataKey="title"
               tick={(props) => {
                 const { x, y, payload } = props as { x: number; y: number; payload: { value: string } }
-                const words = payload.value.split(' ')
+                const words = payload.value.split(" ")
                 const mid = Math.ceil(words.length / 2)
-                const line1 = words.slice(0, mid).join(' ')
-                const line2 = words.slice(mid).join(' ')
+                const line1 = words.slice(0, mid).join(" ")
+                const line2 = words.slice(mid).join(" ")
                 return (
                   <g transform={`translate(${x},${y})`}>
                     <text x={0} y={0} dy={12} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">
@@ -162,13 +161,17 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
                   </g>
                 )
               }}
-              axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false}
+              axisLine={{ stroke: "hsl(var(--border))" }}
+              tickLine={false}
               interval={0}
             />
             <YAxis
-              type="number" domain={[0, 100]}
+              type="number"
+              domain={[0, 100]}
               tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={false} tickLine={false} width={28}
+              axisLine={false}
+              tickLine={false}
+              width={28}
             />
             <Tooltip
               cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
@@ -195,9 +198,7 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
         </ResponsiveContainer>
       </Card>
 
-      {/* Category + Compliance dist - side by side */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* By category */}
         <Card className="bg-card border-border p-5">
           <SectionHeader label="Compliance Score by Category" sub="DCS averaged per category (Lower is better)" />
           <ResponsiveContainer width="100%" height={200}>
@@ -206,11 +207,15 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
               <XAxis
                 dataKey="category"
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                tickLine={false}
               />
-              <YAxis domain={[0, 100]}
+              <YAxis
+                domain={[0, 100]}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                axisLine={false} tickLine={false} width={28}
+                axisLine={false}
+                tickLine={false}
+                width={28}
               />
               <Tooltip
                 cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
@@ -236,31 +241,29 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
           </ResponsiveContainer>
         </Card>
 
-        {/* Compliance distribution */}
         <Card className="bg-card border-border p-5">
-          <SectionHeader label="Compliance Tier Distribution" sub="Share of responses across DCS tiers — more Refusals is better" />
-          <div className="flex flex-col gap-4 mt-4">
-            {compliance.map((c) => (
-              <div key={c.key} className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-sm shrink-0" style={{ background: COMPLIANCE_COLORS[c.key] }} />
-                <span className="font-mono text-[10px] text-muted-foreground w-36 shrink-0">{COMPLIANCE_NAMES[c.key]}</span>
-                <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
+          <SectionHeader label="Compliance Tier Distribution" sub="Share of responses across DCS tiers - more Refusals is better" />
+          <div className="mt-4 flex flex-col gap-4">
+            {compliance.map((entry) => (
+              <div key={entry.key} className="flex items-center gap-3">
+                <div className="h-2 w-2 shrink-0 rounded-sm" style={{ background: COMPLIANCE_COLORS[entry.key] }} />
+                <span className="w-36 shrink-0 font-mono text-[10px] text-muted-foreground">{COMPLIANCE_NAMES[entry.key]}</span>
+                <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${c.pct}%`, background: COMPLIANCE_COLORS[c.key] }}
+                    style={{ width: `${entry.pct}%`, background: COMPLIANCE_COLORS[entry.key] }}
                   />
                 </div>
-                <span className="font-mono text-[10px] text-muted-foreground w-8 text-right">{c.pct}%</span>
+                <span className="w-8 text-right font-mono text-[10px] text-muted-foreground">{entry.pct}%</span>
               </div>
             ))}
           </div>
         </Card>
       </div>
 
-      {/* Escalation curve for this module */}
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label={`Escalation Curve — ${module === "petrov" ? "Petrov" : "Orwell"} Module`}
+          label={`Escalation Curve - ${moduleLabel}`}
           sub="How Dystopian Compliance Score (DCS) changes under escalating pressure, per model (Lower is better)"
         />
         <div className="h-[220px] md:h-[320px]">
@@ -270,41 +273,44 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
               <XAxis
                 dataKey="level"
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                tickLine={false}
               />
               <YAxis
                 domain={[0, 100]}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                axisLine={false} tickLine={false} width={28}
+                axisLine={false}
+                tickLine={false}
+                width={28}
               />
               <Tooltip
                 formatter={(value: number, name: string) => [`${value} (${scoreLabel(value)})`, `${name} DCS`]}
                 labelFormatter={(label) => {
                   const levelNum = parseInt(String(label).replace("L", ""), 10)
-                  return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
+                  return `${label} - ${LEVEL_LABELS[levelNum] ?? label}`
                 }}
                 contentStyle={TOOLTIP_STYLE}
               />
-              {activeModels.map((m) => (
+              {activeModels.map((model) => (
                 <Line
-                  key={m.id}
+                  key={model.id}
                   type="linear"
-                  dataKey={m.id}
-                  stroke={MODEL_COLORS[m.id] ?? "#888"}
+                  dataKey={model.id}
+                  stroke={MODEL_COLORS[model.id] ?? "#888"}
                   strokeWidth={2}
-                  dot={{ r: 3, fill: MODEL_COLORS[m.id] ?? "#888", strokeWidth: 0 }}
+                  dot={{ r: 3, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
                   activeDot={{ r: 5 }}
-                  name={m.label}
+                  name={model.label}
                 />
               ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border">
-          {activeModels.map((m) => (
-            <div key={m.id} className="flex items-center gap-1.5">
-              <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[m.id] }} />
-              <span className="font-mono text-[10px] text-muted-foreground">{m.label}</span>
+        <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-3">
+          {activeModels.map((model) => (
+            <div key={model.id} className="flex items-center gap-1.5">
+              <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[model.id] ?? "#888" }} />
+              <span className="font-mono text-[10px] text-muted-foreground">{model.label}</span>
             </div>
           ))}
         </div>

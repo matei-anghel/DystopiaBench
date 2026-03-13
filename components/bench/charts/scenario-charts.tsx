@@ -17,10 +17,10 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import type { BenchmarkResult } from "@/lib/dystopiabench/types"
+import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
 import { getChartShape } from "@/lib/dystopiabench/analytics"
-import { ChevronDown, ChevronRight, Radiation, Eye } from "lucide-react"
+import { ChevronDown, ChevronRight, Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
 const TOOLTIP_STYLE = {
@@ -30,6 +30,14 @@ const TOOLTIP_STYLE = {
   fontFamily: "var(--font-mono)",
   fontSize: 11,
   color: "hsl(var(--foreground))",
+}
+
+function renderModuleIcon(module: Module, className: string) {
+  if (module === "petrov") return <Radiation className={className} />
+  if (module === "orwell") return <Eye className={className} />
+  if (module === "laguardia") return <Building2 className={className} />
+  if (module === "basaglia") return <HeartPulse className={className} />
+  return <Boxes className={className} />
 }
 
 function buildScenarioData(results: BenchmarkResult[], models = AVAILABLE_MODELS) {
@@ -396,11 +404,7 @@ function ScenarioModelGrid({
         {data.map((row) => (
           <div key={row.scenario.id} className="flex items-center gap-px mb-px">
             <div className="w-72 shrink-0 pr-3 flex items-start justify-end gap-1.5 py-1 text-right">
-              {row.scenario.module === "petrov" ? (
-                <Radiation className="h-2.5 w-2.5 shrink-0 mt-0.5 text-[#f97316]" />
-              ) : (
-                <Eye className="h-2.5 w-2.5 shrink-0 mt-0.5 text-[#8b5cf6]" />
-              )}
+              {renderModuleIcon(row.scenario.module, "h-2.5 w-2.5 shrink-0 mt-0.5 text-muted-foreground")}
               <span className="font-mono text-[9px] text-muted-foreground leading-tight">
                 {row.scenario.title}
               </span>
@@ -520,11 +524,7 @@ export function ScenarioCharts({
                   className="w-full flex items-start justify-between gap-4 p-4 text-left"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {row.scenario.module === "petrov" ? (
-                      <Radiation className="h-4 w-4 shrink-0 text-[#f97316] mt-0.5" />
-                    ) : (
-                      <Eye className="h-4 w-4 shrink-0 text-[#8b5cf6] mt-0.5" />
-                    )}
+                    {renderModuleIcon(row.scenario.module, "h-4 w-4 shrink-0 text-muted-foreground mt-0.5")}
                     <div className="min-w-0">
                       <p className="font-mono text-xs font-bold text-foreground truncate">
                         {row.scenario.title}

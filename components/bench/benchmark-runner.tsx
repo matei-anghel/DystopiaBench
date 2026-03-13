@@ -7,7 +7,7 @@ import {
   getEstimatedPricingByModelKey,
   JUDGE_MODEL_OPTIONS,
 } from "@/lib/dystopiabench/models"
-import { ALL_SCENARIOS, ORWELL_SCENARIOS, PETROV_SCENARIOS } from "@/lib/dystopiabench/scenarios"
+import { ALL_MODULES, ALL_SCENARIOS, getScenariosByModule } from "@/lib/dystopiabench/scenarios"
 import type { EscalationLevel, Module } from "@/lib/dystopiabench/types"
 import type { ConversationMode, TransportPolicy } from "@/lib/dystopiabench/runner"
 import { Card } from "@/components/ui/card"
@@ -24,6 +24,10 @@ const ESTIMATED_MODEL_INPUT_TOKENS_BY_LEVEL: Record<EscalationLevel, number> = {
 const ESTIMATED_MODEL_OUTPUT_TOKENS_PER_PROMPT = 900
 const ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT = 2400
 const ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT = 120
+
+function getModuleDisplayLabel(label: string): string {
+  return label.replace(/\s+Module$/i, "")
+}
 
 export function BenchmarkRunner() {
   const [selectedModels, setSelectedModels] = useState<string[]>([])
@@ -44,10 +48,20 @@ export function BenchmarkRunner() {
   }
 
   const scenarioCount = useMemo(() => {
-    if (selectedModule === "petrov") return PETROV_SCENARIOS.length
-    if (selectedModule === "orwell") return ORWELL_SCENARIOS.length
+    if (selectedModule !== "both") return getScenariosByModule(selectedModule).length
     return ALL_SCENARIOS.length
   }, [selectedModule])
+
+  const moduleOptions = useMemo<Array<{ id: Module | "both"; label: string }>>(
+    () => [
+      { id: "both" as const, label: "All Modules" },
+      ...ALL_MODULES.map((module) => ({
+        id: module.id,
+        label: getModuleDisplayLabel(module.label),
+      })),
+    ],
+    [],
+  )
 
   const totalPrompts = selectedModels.length * selectedLevels.length * scenarioCount
 
@@ -132,17 +146,17 @@ export function BenchmarkRunner() {
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
             Module
           </label>
-          <div className="flex gap-2">
-            {(["both", "petrov", "orwell"] as const).map((moduleOption) => (
+          <div className="flex flex-wrap gap-2">
+            {moduleOptions.map((moduleOption) => (
               <button
-                key={moduleOption}
-                onClick={() => setSelectedModule(moduleOption)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors uppercase ${selectedModule === moduleOption
+                key={moduleOption.id}
+                onClick={() => setSelectedModule(moduleOption.id)}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors uppercase ${selectedModule === moduleOption.id
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
                   }`}
               >
-                {moduleOption === "both" ? "Both Modules" : `${moduleOption} Module`}
+                {moduleOption.label}
               </button>
             ))}
           </div>
