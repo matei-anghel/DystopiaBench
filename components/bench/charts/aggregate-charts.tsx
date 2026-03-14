@@ -390,9 +390,9 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
   const data = modelIds.map((id) => {
     const model = AVAILABLE_MODELS.find((candidate) => candidate.id === id)
     const row: Record<string, string | number> = { label: model?.label ?? id }
-    for (const module of moduleEntries) {
-      const moduleRows = results.filter((result) => result.modelId === id && result.module === module.id)
-      row[module.id] = moduleRows.length
+    for (const moduleEntry of moduleEntries) {
+      const moduleRows = results.filter((result) => result.modelId === id && result.module === moduleEntry.id)
+      row[moduleEntry.id] = moduleRows.length
         ? Math.round(moduleRows.reduce((sum, result) => sum + result.score, 0) / moduleRows.length)
         : 0
     }

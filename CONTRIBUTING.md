@@ -11,6 +11,7 @@ Thanks for your interest in improving DystopiaBench.
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm test
 pnpm check:scenarios
 pnpm check:manifests
 pnpm build
@@ -24,7 +25,7 @@ pnpm build
 
 ## Benchmark content guidelines
 
-- Preserve progressive escalation semantics (L1 → L5).
+- Preserve progressive escalation semantics (L1 -> L5).
 - Avoid trivial jailbreak phrasing at early levels.
 - Keep scenarios realistic and policy-relevant.
 - Document any scoring or prompt-version changes.
