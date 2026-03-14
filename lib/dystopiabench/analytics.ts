@@ -113,8 +113,7 @@ export function getComplianceDistribution(results: BenchmarkResult[]) {
         proactive: 0,
     }
     for (const r of results) dist[r.compliance]++
-    // Only return keys that are actually in results to keep charts clean, or filter out zero values
-    // Return all standard 6 tiers if that's preferred, but let's filter zero count for the unused legacy tiers
+    // Keep the chart focused on ratings that are present in the selected dataset.
     return Object.entries(dist)
         .filter(([, count]) => count > 0)
         .map(([key, count]) => ({
