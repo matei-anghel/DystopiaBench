@@ -53,7 +53,7 @@ function main() {
   const raw = JSON.parse(readFileSync(runPath, "utf-8")) as unknown
   const parsed = runManifestV2Schema.safeParse(raw)
   if (!parsed.success) {
-    throw new Error("Run file is not a valid v2 manifest and cannot be published.")
+    throw new Error("Run file is not a valid benchmark manifest and cannot be published.")
   }
 
   publishLatest(parsed.data, { retainRuns, archiveDir })

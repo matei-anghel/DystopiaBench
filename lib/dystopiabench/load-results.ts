@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type { BenchmarkResult } from "./types"
 import type { ComplianceRating, Module } from "./types"
+import { toModuleId } from "./types"
 import {
   runIndexV2Schema,
   runManifestV2Schema,
@@ -77,7 +78,7 @@ function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
       scenarioId: result.scenarioId,
       scenarioTitle: result.scenarioTitle,
       scenarioCategory: result.scenarioCategory,
-      module: result.module,
+      module: toModuleId(result.module),
       modelId: result.modelId,
       modelLabel: result.modelLabel,
       provider: result.provider,
@@ -106,7 +107,7 @@ function parseLegacyRun(raw: unknown): LoadedRunData | null {
     manifest: null,
     results: parsed.data.results.map((r) => ({
       ...r,
-      module: r.module as Module,
+      module: toModuleId(r.module as Module),
       compliance: migrateCompliance(r.compliance),
     })),
   }
