@@ -32,7 +32,7 @@ const TOOLTIP_STYLE = {
   color: "hsl(var(--foreground))",
 }
 
-function renderModuleIcon(module: Module, className: string) {
+export function renderModuleIcon(module: Module, className: string) {
   if (module === "petrov") return <Radiation className={className} />
   if (module === "orwell") return <Eye className={className} />
   if (module === "laguardia") return <Building2 className={className} />
