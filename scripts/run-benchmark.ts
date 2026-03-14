@@ -1,4 +1,5 @@
 import { AVAILABLE_MODELS, getModelById } from "../lib/dystopiabench/models"
+import { ALL_SCENARIOS, getRegisteredModuleIds, getScenariosByModule } from "../lib/dystopiabench/scenarios"
 import { runBenchmark, type RunBenchmarkOptions, type TransportPolicy } from "../lib/dystopiabench/runner"
 import {
   makeRunId,
@@ -6,8 +7,9 @@ import {
   sanitizeRunId,
   writeRunManifest,
 } from "../lib/dystopiabench/storage"
+import { toModuleId, type BenchmarkModuleSelector } from "../lib/dystopiabench/types"
 
-type ModuleArg = "petrov" | "orwell" | "both"
+type ModuleArg = BenchmarkModuleSelector
 
 function parseArg(flag: string): string | undefined {
   const prefix = `${flag}=`
@@ -36,10 +38,16 @@ function parseArg(flag: string): string | undefined {
   return undefined
 }
 
+function hasFlag(flag: string): boolean {
+  return process.argv.includes(flag)
+}
+
 function parseModule(input: string | undefined): ModuleArg {
+  const registeredModules = new Set(getRegisteredModuleIds().map(String))
   if (!input) return "both"
-  if (input === "petrov" || input === "orwell" || input === "both") return input
-  throw new Error("Invalid --module value. Use one of: petrov, orwell, both.")
+  if (input === "both") return input
+  if (registeredModules.has(input)) return toModuleId(input)
+  throw new Error(`Invalid --module value. Use one of: ${[...registeredModules, "both"].join(", ")}.`)
 }
 
 function parseLevels(input: string | undefined): Array<1 | 2 | 3 | 4 | 5> {
@@ -126,6 +134,17 @@ function parseJudgeModels(judgeModelsArg: string | undefined, judgeModelArg: str
   return Array.from(new Set(combined.filter(Boolean)))
 }
 
+function parseScenarioIds(input: string | undefined): string[] | undefined {
+  if (!input) return undefined
+
+  const scenarioIds = input
+    .split(/[\s,]+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  return scenarioIds.length > 0 ? Array.from(new Set(scenarioIds)) : undefined
+}
+
 function parseTransport(input: string | undefined): TransportPolicy {
   if (!input) return "chat-first-fallback"
   if (input === "chat-first-fallback" || input === "chat-only") return input
@@ -181,20 +200,33 @@ async function main() {
   const models = parseModels(parseArg("--models"))
   const judgeModel = parseArg("--judge-model")
   const judgeModels = parseJudgeModels(parseArg("--judge-models"), judgeModel)
+  const scenarioIds = parseScenarioIds(parseArg("--scenario-ids"))
   const runId = sanitizeRunId(parseArg("--run-id") ?? makeRunId())
   const retainRuns = parseRetainRuns(parseArg("--retain"))
   const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
   const transport = parseTransport(parseArg("--transport"))
   const conversationMode = parseConversationMode(parseArg("--conversation-mode"))
+  const publishLatestAliases = !hasFlag("--no-publish-latest")
   const runtimeOverrides = parseRuntimeOverrides()
+
+  if (!publishLatestAliases && (retainRuns !== undefined || archiveDir !== undefined)) {
+    throw new Error("--retain and --archive-dir require publishing latest aliases. Remove --no-publish-latest or omit retention flags.")
+  }
 
   console.log(`Running benchmark ${runId}`)
   console.log(`Module: ${moduleArg}`)
   console.log(`Models: ${models.join(", ")}`)
   console.log(`Levels: ${levels.join(", ")}`)
+  if (scenarioIds && scenarioIds.length > 0) {
+    console.log(`Scenarios: ${scenarioIds.join(", ")} (${scenarioIds.length})`)
+  } else {
+    const scenarioCount = moduleArg === "both" ? ALL_SCENARIOS.length : getScenariosByModule(moduleArg).length
+    console.log(`Scenarios: all (${scenarioCount})`)
+  }
   console.log(`Judge: ${(judgeModels.length > 0 ? judgeModels.join(", ") : "default")}`)
   console.log(`Transport: ${transport}`)
   console.log(`Conversation mode: ${conversationMode}`)
+  console.log(`Publish latest aliases: ${publishLatestAliases ? "yes" : "no"}`)
   if (runtimeOverrides.timeoutMs !== undefined) console.log(`Timeout override: ${runtimeOverrides.timeoutMs}ms`)
   if (runtimeOverrides.concurrency !== undefined) console.log(`Concurrency override: ${runtimeOverrides.concurrency}`)
   if (runtimeOverrides.perModelConcurrency !== undefined) console.log(`Per-model concurrency override: ${runtimeOverrides.perModelConcurrency}`)
@@ -207,6 +239,7 @@ async function main() {
     module: moduleArg,
     modelIds: models,
     levels,
+    scenarioIds,
     judgeModel,
     judgeModels,
     transportPolicy: transport,
@@ -215,14 +248,21 @@ async function main() {
   })
 
   writeRunManifest(manifest)
-  publishLatest(manifest, { retainRuns, archiveDir })
+  if (publishLatestAliases) {
+    publishLatest(manifest, { retainRuns, archiveDir })
+  }
   const mode = manifest.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
 
   console.log(`Saved run: public/data/benchmark-${runId}.json`)
-  console.log("Updated latest: public/data/benchmark-results.json")
-  console.log(`Updated mode latest: public/data/benchmark-results-${mode}.json`)
+  if (publishLatestAliases) {
+    console.log("Updated latest: public/data/benchmark-results.json")
+    console.log(`Updated mode latest: public/data/benchmark-results-${mode}.json`)
+  } else {
+    console.log("Latest aliases unchanged (--no-publish-latest)")
+    console.log(`To publish later: pnpm bench:publish --run-id=${runId}`)
+  }
   console.log(`Judge (resolved): ${manifest.metadata.judgeModel}`)
-  if (retainRuns !== undefined) {
+  if (publishLatestAliases && retainRuns !== undefined) {
     console.log(`Applied retention: keep last ${retainRuns} run manifest(s)`)
     if (archiveDir) {
       console.log(`Archived older manifests under: public/data/${archiveDir}`)

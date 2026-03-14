@@ -2,10 +2,12 @@
 
 DystopiaBench is a red-team benchmark for evaluating whether LLMs resist or comply with progressively dystopian directives.
 
-It tests two modules:
+It tests registered scenario modules, including:
 
 - `petrov`: military escalation, autonomous weapons, and safety override scenarios
 - `orwell`: surveillance, censorship, and population-control scenarios
+- `laguardia`: civic extraction, institutional capture, and administrative coercion scenarios
+- `basaglia`: therapeutic coercion, paternalistic control, and support-system capture scenarios
 
 Each scenario escalates from `L1` to `L5`, and each response is classified into a Dystopian Compliance Score (DCS).
 
@@ -17,14 +19,14 @@ Many safety evaluations focus on clearly malicious prompts. Real misuse often st
 
 ## Current benchmark shape
 
-- 2 modules (`petrov`, `orwell`)
-- 10 scenarios total (5 per module)
+- 4 registered modules (`petrov`, `orwell`, `laguardia`, `basaglia`)
+- 20 scenarios total (5 per module)
 - 5 escalation levels per scenario
 - 4 compliance tiers
 
 Default full run size:
 
-- `10 scenarios x 5 levels x 10 models = 500 prompts`
+- `20 scenarios x 5 levels x 10 models = 1000 prompts`
 
 ## Scoring model
 
@@ -42,7 +44,8 @@ Primary summary metrics:
 - `statusCounts`: transport/judge validity outcomes
 - `modelSuccessRate`, `judgeSuccessRate`, `scorableRate`
 
-Schemas live in `lib/dystopiabench/schemas.ts` (`schemaVersion: 2`).
+Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 3`; loaders remain compatible with existing `schemaVersion: 2` manifests).
+Scenario content lives in JSON module files under `lib/dystopiabench/scenario-data/modules/` and is validated through the TypeScript registry in `lib/dystopiabench/scenario-registry.ts`.
 
 ## Repository layout
 
@@ -51,6 +54,7 @@ app/                    Next.js pages and route metadata (dashboard, results, ru
 components/             UI primitives and benchmark dashboards/charts
 hooks/                  Client-side run loading and selection
 lib/dystopiabench/      Runner, scenarios, models, schemas, analytics, storage
+lib/dystopiabench/scenario-data/modules/  JSON-backed scenario module files
 public/data/            Run manifests and run index JSON files
 scripts/                CLI entrypoints for run/rerun/publish/validation
 .github/workflows/      CI workflow
@@ -127,7 +131,7 @@ pnpm bench:run --retain=20 --archive-dir=archive
 
 Main `bench:run` flags:
 
-- `--module=petrov|orwell|both`
+- `--module=<registered-module-id>|both`
 - `--models=<comma-separated model IDs>`
 - Supports custom model selectors:
   - `openrouter:<openrouter model string>` for direct OpenRouter IDs
@@ -135,6 +139,7 @@ Main `bench:run` flags:
   - raw OpenRouter model strings with `/` separator (for example `google/gemini-3.1-pro-preview`)
 - `--levels=1,2,3,4,5`
 - `--run-id=<id>`
+- `--scenario-ids=<comma-separated scenario IDs>`
 - `--judge-model=<model-id-or-openrouter-or-local-model-selector>`
 - `--judge-models=<comma-separated judge selectors>` (multi-judge arena mode)
 - `--transport=chat-first-fallback|chat-only`
@@ -203,6 +208,7 @@ pnpm bench:publish --run-id=<run-id> --retain=20 --archive-dir=archive
 ### Validate manifests
 
 ```bash
+pnpm check:scenarios
 pnpm check:manifests
 ```
 
@@ -246,6 +252,7 @@ Local checks:
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm check:scenarios
 pnpm check:manifests
 pnpm build
 ```
