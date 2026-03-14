@@ -16,7 +16,7 @@ export function generateStaticParams() {
 }
 
 export default async function ModulePage({ params }: ModulePageProps) {
-  const { module } = await params
+  const { module } = params
   const scenarioModule = getModuleById(module)
 
   if (!scenarioModule) {
