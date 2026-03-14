@@ -313,13 +313,13 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
   if (hasSingleModel) {
     const modelLabel = results[0]?.modelLabel ?? "Unknown model"
     const provider = results[0]?.provider ?? "Unknown provider"
-    const data = ["petrov", "orwell"].map((module) => {
-      const rows = results.filter((r) => r.module === module)
+    const data = ["petrov", "orwell"].map((moduleKey) => {
+      const rows = results.filter((r) => r.module === moduleKey)
       const avg = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : 0
       return {
-        module: module === "petrov" ? "Petrov" : "Orwell",
+        module: moduleKey === "petrov" ? "Petrov" : "Orwell",
         avg,
-        color: MODULE_COLORS[module],
+        color: MODULE_COLORS[moduleKey],
       }
     })
 
