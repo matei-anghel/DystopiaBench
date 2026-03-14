@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
 import { Database } from "lucide-react"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
-import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
+import { ALL_MODULES, ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 
 function ChartPanelLoading() {
   return (
@@ -38,16 +38,9 @@ const PromptCharts = dynamic(
   { ssr: false, loading: ChartPanelLoading },
 )
 
-const RESULT_TABS = [
-  { id: "aggregate", label: "Aggregate", sub: "All models - Both modules" },
-  { id: "petrov", label: "Petrov", sub: "Infrastructure - Weapons - Safety Override" },
-  { id: "orwell", label: "Orwell", sub: "Surveillance - Population Control - Censorship" },
-  { id: "scenario", label: "Per Scenario", sub: `${ALL_SCENARIOS.length} scenarios - Model x Scenario grid` },
-  { id: "prompt", label: "Per Prompt", sub: "L1-L5 escalation - Deep dive" },
-  { id: "prompt_no_escalation", label: "Per Prompt (No Escalation)", sub: "L1-L5 isolated prompts - Deep dive" },
-] as const
-
-type TabId = (typeof RESULT_TABS)[number]["id"]
+function getModuleDisplayLabel(label: string): string {
+  return label.replace(/\s+Module$/i, "")
+}
 
 function normalizeSelection(selected: string[], available: string[], { initial = false } = {}): string[] {
   const next = selected.filter((id) => available.includes(id))
@@ -64,7 +57,27 @@ export function DashboardTabs({
   statefulResults,
   isolatedResults,
 }: DashboardTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabId>("aggregate")
+  const moduleTabs = useMemo(
+    () => ALL_MODULES.map((module) => ({
+      id: String(module.id),
+      moduleId: module.id,
+      label: getModuleDisplayLabel(module.label),
+      sub: `${module.scenarios.length} scenarios`,
+    })),
+    [],
+  )
+  const resultTabs = useMemo(
+    () => [
+      { id: "aggregate", label: "Aggregate", sub: `All models - ${ALL_MODULES.length} modules` },
+      ...moduleTabs.map(({ id, label, sub }) => ({ id, label, sub })),
+      { id: "scenario", label: "Per Scenario", sub: `${ALL_SCENARIOS.length} scenarios - Model x Scenario grid` },
+      { id: "prompt", label: "Per Prompt", sub: "L1-L5 escalation - Deep dive" },
+      { id: "prompt_no_escalation", label: "Per Prompt (No Escalation)", sub: "L1-L5 isolated prompts - Deep dive" },
+    ],
+    [moduleTabs],
+  )
+
+  const [activeTab, setActiveTab] = useState<string>("aggregate")
   const [hasInteracted, setHasInteracted] = useState(false)
   const [rawSelectedModelIds, setRawSelectedModelIds] = useState<string[]>([])
 
@@ -91,7 +104,7 @@ export function DashboardTabs({
   )
 
   const activeResults = activeTab === "prompt_no_escalation" ? filteredIsolatedResults : filteredStatefulResults
-  const scenarioCount = new Set(activeResults.map((r) => r.scenarioId)).size
+  const scenarioCount = new Set(activeResults.map((row) => row.scenarioId)).size
 
   const toggleModel = (modelId: string) => {
     setHasInteracted(true)
@@ -113,8 +126,8 @@ export function DashboardTabs({
 
   return (
     <>
-      <div className="flex items-center gap-3 mb-8">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 border border-primary/20">
+      <div className="mb-8 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/20 bg-primary/10">
           <Database className="h-5 w-5 text-primary" />
         </div>
         <div>
@@ -135,13 +148,13 @@ export function DashboardTabs({
       />
 
       <div className="mb-8 grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))]">
-        {RESULT_TABS.map((tab) => (
+        {resultTabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex w-full min-w-0 flex-col items-start rounded-md border px-4 py-2.5 text-left transition-colors ${activeTab === tab.id
               ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-muted-foreground/40"
+              : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground"
               }`}
           >
             <span className="font-mono text-xs font-bold tracking-wide uppercase">
@@ -155,8 +168,16 @@ export function DashboardTabs({
       </div>
 
       {activeTab === "aggregate" && <AggregateCharts results={filteredStatefulResults} />}
-      {activeTab === "petrov" && <ModuleCharts module="petrov" results={filteredStatefulResults} selectedModelIds={selectedModelIds} />}
-      {activeTab === "orwell" && <ModuleCharts module="orwell" results={filteredStatefulResults} selectedModelIds={selectedModelIds} />}
+      {moduleTabs.map((tab) => (
+        activeTab === tab.id ? (
+          <ModuleCharts
+            key={tab.id}
+            module={tab.moduleId}
+            results={filteredStatefulResults}
+            selectedModelIds={selectedModelIds}
+          />
+        ) : null
+      ))}
       {activeTab === "scenario" && <ScenarioCharts results={filteredStatefulResults} selectedModelIds={selectedModelIds} />}
       {activeTab === "prompt" && (
         <PromptCharts
@@ -174,10 +195,10 @@ export function DashboardTabs({
           />
         ) : (
           <Card className="bg-card border-border p-6">
-            <p className="font-mono text-xs text-muted-foreground uppercase mb-3">
+            <p className="mb-3 font-mono text-xs text-muted-foreground uppercase">
               No isolated run data found.
             </p>
-            <p className="font-mono text-[10px] text-muted-foreground mb-2 uppercase">Command</p>
+            <p className="mb-2 font-mono text-[10px] text-muted-foreground uppercase">Command</p>
             <code className="block whitespace-pre-wrap font-mono text-xs text-foreground">
               pnpm bench:run-isolated --module=both
             </code>
