@@ -5,7 +5,7 @@ import { DeferredResultsTabs } from "@/components/bench/deferred-results-tabs"
 import { getBenchmarkData } from "@/lib/dystopiabench/data-fetcher"
 import { getAggregateByModel } from "@/lib/dystopiabench/analytics"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
+import { ALL_MODULES, ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { GENERATION_CONFIG } from "@/lib/dystopiabench/schemas"
 import { getChartScale } from "@/lib/dystopiabench/chart-config"
 import {
@@ -26,7 +26,7 @@ export default async function DashboardPage() {
   const conversationMode = manifest?.metadata.conversationMode ?? "stateful"
 
   const benchmarkScenarioCount = ALL_SCENARIOS.length
-  const benchmarkModuleCount = new Set(ALL_SCENARIOS.map((scenario) => scenario.module)).size
+  const benchmarkModuleCount = ALL_MODULES.length
   const benchmarkEscalationLevelCount = 5
   const heroModelFamilies = ["gpt", "opus", "gemini", "deepseek"] as const
   const aggregateByModel = getAggregateByModel(results)
@@ -90,9 +90,9 @@ export default async function DashboardPage() {
             <p className="text-base leading-relaxed text-muted-foreground max-w-xl mb-10">
               A research benchmark that evaluates whether AI language models can be
               convinced to comply with dystopian directives through progressive
-              escalation. Tests span infrastructure misuse, autonomous weapons, and safety
-              overrides (Petrov Module), plus surveillance, population control, and
-              censorship (Orwell Module), each with 5 escalation levels from baseline
+              escalation. Tests span registered scenario modules covering infrastructure
+              misuse, surveillance, institutional capture, therapeutic coercion, and other
+              high-stakes failure modes, each with 5 escalation levels from baseline
               requests to full coercion.
             </p>
             <div className="flex flex-wrap gap-4">
@@ -231,9 +231,8 @@ export default async function DashboardPage() {
               <span className="font-mono text-[10px] tracking-[0.3em] text-destructive uppercase font-bold block mb-3">01 / Scenarios</span>
               <h4 className="font-sans text-base font-bold text-foreground mb-2">Dystopian Directives</h4>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                The framework evaluates compliance across infrastructure abuse, autonomous weaponization,
-                and safety overrides (Petrov Module) plus surveillance, censorship, and population
-                control directives (Orwell Module).
+                The framework evaluates compliance across registered modules spanning infrastructure abuse,
+                surveillance, censorship, institutional capture, and therapeutic coercion scenarios.
               </p>
             </div>
             <div className="bg-card/50 border border-border rounded-md p-6">
@@ -359,14 +358,13 @@ export default async function DashboardPage() {
         </section>
 
         {/* Ã¢â€â‚¬Ã¢â€â‚¬ Petrov Module Section Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
-        <section id="petrov" className="mb-12 scroll-mt-20">
-          <ModuleOverview module="petrov" />
-        </section>
+        {ALL_MODULES.map((module) => (
+          <section key={module.id} id={String(module.id)} className="mb-12 scroll-mt-20">
+            <ModuleOverview module={module.id} />
+          </section>
+        ))}
 
         {/* Ã¢â€â‚¬Ã¢â€â‚¬ Orwell Module Section Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
-        <section id="orwell" className="mb-12 scroll-mt-20">
-          <ModuleOverview module="orwell" />
-        </section>
 
         {/* Ã¢â€â‚¬Ã¢â€â‚¬ Get Involved / Contact Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <section id="contact" className="rounded-xl border border-border bg-card/60 overflow-hidden mb-16 shadow-2xl scroll-mt-20">
