@@ -4,9 +4,9 @@ import { ModuleOverview } from "@/components/bench/module-overview"
 import { ALL_MODULES, getModuleById } from "@/lib/dystopiabench/scenarios"
 
 interface ModulePageProps {
-  params: Promise<{
+  params: {
     module: string
-  }>
+  }
 }
 
 export function generateStaticParams() {
