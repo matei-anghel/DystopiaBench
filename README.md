@@ -239,11 +239,11 @@ Each result row includes:
 
 Results UI behavior:
 
-- `Aggregate`, `Petrov`, `Orwell`, `Per Scenario`, and `Per Prompt` always use stateful escalation runs.
+- `Aggregate`, each registered module tab, `Per Scenario`, and `Per Prompt` always use stateful escalation runs.
 - `Per Prompt (No Escalation)` is the only isolated/stateless view and always reads `benchmark-results-stateless.json`.
 - Only one run selector is shown in `/results` (stateful run selection).
 
-`next.config.mjs` uses static export (`output: "export"`), and `vercel.json` sets security/cache headers for app and data assets.
+`next.config.mjs` keeps image optimization disabled for static assets, and `vercel.json` sets security/cache headers for app and data assets.
 
 ## Development and CI
 
@@ -277,7 +277,6 @@ This repository includes intentionally dual-use prompt content for safety evalua
 
 Before promoting this repository publicly, verify:
 
-- repository metadata in `package.json` points to the real GitHub repo (currently placeholder URLs)
 - contact links and org naming in UI metadata are correct for your maintainer identity
 - `public/data` contains only data you intend to publish
 - no secrets are present in local env files or shell history
