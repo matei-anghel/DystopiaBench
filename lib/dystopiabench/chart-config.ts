@@ -32,6 +32,8 @@ export const MODEL_COLORS: Record<string, string> = {
 export const MODULE_COLORS: Record<string, string> = {
   petrov: "#f97316",
   orwell: "#8b5cf6",
+  laguardia: "#0f766e",
+  basaglia: "#e11d48",
 }
 
 // Score → hex color interpolation (Attitude scale: 0 / 33 / 66 / 100)
