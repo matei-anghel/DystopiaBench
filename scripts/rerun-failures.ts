@@ -14,6 +14,9 @@ import {
   type TransportPolicy,
 } from "../lib/dystopiabench/runner"
 import { getDataDir, publishLatest, sanitizeRunId, writeRunManifest } from "../lib/dystopiabench/storage"
+import { buildScenarioSelectionMetadata } from "../lib/dystopiabench/scenario-manifest"
+import { SCENARIO_CATALOG_VERSION } from "../lib/dystopiabench/scenarios"
+import { toModuleId, type Module } from "../lib/dystopiabench/types"
 
 type RerunSource = "latest" | "run"
 type RerunScope = "to-max-failed" | "all-levels" | "failed-only"
@@ -22,7 +25,7 @@ type EscalationLevel = 1 | 2 | 3 | 4 | 5
 interface FailedPairPlan {
   scenarioId: string
   modelId: string
-  module: "petrov" | "orwell"
+  module: Module
   failedLevels: EscalationLevel[]
   rerunLevels: EscalationLevel[]
 }
@@ -150,7 +153,7 @@ function loadBaseManifest(source: RerunSource, requestedRunId: string | undefine
   const raw = JSON.parse(readFileSync(sourcePath, "utf-8")) as unknown
   const parsed = runManifestV2Schema.safeParse(raw)
   if (!parsed.success) {
-    throw new Error(`Input file is not a valid v2 run manifest: ${sourcePath}`)
+    throw new Error(`Input file is not a valid benchmark run manifest: ${sourcePath}`)
   }
 
   return {
@@ -177,7 +180,7 @@ function buildPlan(manifest: RunManifestV2, scope: RerunScope): {
       byPair.set(key, {
         scenarioId: row.scenarioId,
         modelId: row.modelId,
-        module: row.module,
+        module: toModuleId(row.module),
         failedLevels: [level],
         rerunLevels: [],
       })
@@ -256,6 +259,22 @@ function resolveConversationMode(
   mode: RunManifestV2["metadata"]["conversationMode"] | undefined,
 ): ConversationMode {
   return mode === "stateless" ? "stateless" : "stateful"
+}
+
+function buildSelectionMetadataFromResults(results: BenchmarkResultV2[]) {
+  return buildScenarioSelectionMetadata(
+    Array.from(
+      new Map(
+        results.map((row) => [
+          row.scenarioId,
+          {
+            id: row.scenarioId,
+            module: toModuleId(row.module),
+          },
+        ])
+      ).values()
+    )
+  )
 }
 
 async function main() {
@@ -392,6 +411,9 @@ async function main() {
           metadata: {
             ...workingManifest.metadata,
             totalPrompts: mergedResults.length,
+            scenarioCatalogVersion:
+              workingManifest.metadata.scenarioCatalogVersion ?? SCENARIO_CATALOG_VERSION,
+            ...buildSelectionMetadataFromResults(mergedResults),
           },
           summary: nextSummary,
           results: mergedResults,

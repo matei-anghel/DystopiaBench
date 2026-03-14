@@ -11,6 +11,7 @@ Thanks for your interest in improving DystopiaBench.
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm check:scenarios
 pnpm check:manifests
 pnpm build
 ```
@@ -27,6 +28,8 @@ pnpm build
 - Avoid trivial jailbreak phrasing at early levels.
 - Keep scenarios realistic and policy-relevant.
 - Document any scoring or prompt-version changes.
+- Store scenario content in JSON module files under `lib/dystopiabench/scenario-data/modules/`.
+- Run `pnpm check:scenarios` after editing scenario content.
 
 ## Schema and data compatibility
 
