@@ -40,7 +40,7 @@ export const benchmarkResultV2Schema = z.object({
   scenarioId: z.string(),
   scenarioTitle: z.string(),
   scenarioCategory: z.string(),
-  module: z.enum(["petrov", "orwell"]),
+  module: z.string(),
   modelId: z.string(),
   modelLabel: z.string(),
   provider: z.string(),
@@ -73,10 +73,14 @@ export const runSummaryV2Schema = z.object({
 })
 
 export const runMetadataV2Schema = z.object({
-  module: z.enum(["petrov", "orwell", "both"]),
+  module: z.string(),
   models: z.array(z.string()).default([]),
   levels: z.array(z.number().int().min(1).max(5)).default([]),
   totalPrompts: z.number().int().nonnegative(),
+  scenarioCatalogVersion: z.string().optional(),
+  scenarioModuleIds: z.array(z.string()).optional(),
+  selectedScenarioIds: z.array(z.string()).optional(),
+  selectedScenarioCount: z.number().int().nonnegative().optional(),
   judgeModel: z.string(),
   judgeModels: z.array(z.string()).optional(),
   systemPromptVersion: z.string(),
@@ -110,7 +114,7 @@ export const runMetadataV2Schema = z.object({
 })
 
 export const runManifestV2Schema = z.object({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.union([z.literal(2), z.literal(3)]),
   runId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
   timestamp: z.number().int(),
   date: z.string(),

@@ -1,9 +1,9 @@
 ﻿import { createOpenAI } from "@ai-sdk/openai"
 import { generateText, type ModelMessage } from "ai"
 import { z } from "zod"
-import { ALL_SCENARIOS, ORWELL_SCENARIOS, PETROV_SCENARIOS } from "./scenarios"
+import { ALL_SCENARIOS, SCENARIO_CATALOG_VERSION, getScenariosByModule } from "./scenarios"
 import { DEFAULT_JUDGE_MODEL, getModelById } from "./models"
-import { COMPLIANCE_SCORES } from "./types"
+import { COMPLIANCE_SCORES, type BenchmarkModuleSelector } from "./types"
 import {
   getLocalOpenAIApiKey,
   getLocalOpenAIBaseUrl,
@@ -11,6 +11,7 @@ import {
 } from "./env"
 import pLimit from "p-limit"
 import { GENERATION_CONFIG, type BenchmarkResultV2, type BenchmarkStatus, type ComplianceRating, type RunManifestV2, type RunMetadataV2, type RunSummaryV2 } from "./schemas"
+import { buildScenarioSelectionMetadata } from "./scenario-manifest"
 
 // ---------------------------------------------------------------------------
 // System Prompt – Meridian Systems contractor persona (v5)
@@ -89,7 +90,7 @@ interface ResolvedModelSpec {
 
 export interface RunBenchmarkOptions {
   runId: string
-  module: "petrov" | "orwell" | "both"
+  module: BenchmarkModuleSelector
   modelIds: string[]
   levels: Array<1 | 2 | 3 | 4 | 5>
   scenarioIds?: string[]
@@ -401,9 +402,8 @@ function aggregateJudgeVotes(votes: JudgeVote[]): {
   }
 }
 
-function getScenarios(module: "petrov" | "orwell" | "both") {
-  if (module === "petrov") return PETROV_SCENARIOS
-  if (module === "orwell") return ORWELL_SCENARIOS
+function getScenarios(module: BenchmarkModuleSelector) {
+  if (module !== "both") return getScenariosByModule(module)
   return ALL_SCENARIOS
 }
 
@@ -1192,6 +1192,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     models: resolvedTestModels.map((model) => model.id),
     levels: options.levels,
     totalPrompts: results.length,
+    scenarioCatalogVersion: SCENARIO_CATALOG_VERSION,
+    ...buildScenarioSelectionMetadata(scenarios),
     judgeModel: resolvedJudgeModels[0]?.id ?? DEFAULT_JUDGE_MODEL,
     judgeModels: resolvedJudgeModels.map((model) => model.id),
     systemPromptVersion: SYSTEM_PROMPT_VERSION,
@@ -1204,7 +1206,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   }
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     runId: options.runId,
     timestamp: Date.now(),
     date: new Date().toISOString(),
