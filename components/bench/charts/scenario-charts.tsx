@@ -32,6 +32,76 @@ const TOOLTIP_STYLE = {
   color: "hsl(var(--foreground))",
 }
 
+const SCENARIO_TICK_MAX_LINE_LENGTH = 16
+const SCENARIO_TICK_MAX_LINES = 3
+const SCENARIO_BAR_SLOT_WIDTH = 96
+
+function wrapTickLabel(value: string, maxLineLength = SCENARIO_TICK_MAX_LINE_LENGTH, maxLines = SCENARIO_TICK_MAX_LINES) {
+  const words = value.split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let currentLine = ""
+
+  for (const word of words) {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word
+    if (currentLine && nextLine.length > maxLineLength) {
+      lines.push(currentLine)
+      currentLine = word
+    } else {
+      currentLine = nextLine
+    }
+  }
+
+  if (currentLine) {
+    lines.push(currentLine)
+  }
+
+  if (lines.length <= maxLines) {
+    return lines
+  }
+
+  const visibleLines = lines.slice(0, maxLines)
+  const finalLine = visibleLines[maxLines - 1] ?? ""
+  visibleLines[maxLines - 1] =
+    finalLine.length >= maxLineLength ? `${finalLine.slice(0, maxLineLength - 1)}...` : `${finalLine}...`
+
+  return visibleLines
+}
+
+function WrappedTick({
+  x,
+  y,
+  value,
+  fontSize,
+  lineHeight = 12,
+}: {
+  x: number
+  y: number
+  value: string
+  fontSize: number
+  lineHeight?: number
+}) {
+  const lines = wrapTickLabel(value)
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {lines.map((line, index) => (
+        <text
+          key={`${value}-${index}`}
+          x={0}
+          y={0}
+          dy={12 + index * lineHeight}
+          textAnchor="middle"
+          fill="hsl(var(--muted-foreground))"
+          fontSize={fontSize}
+          fontFamily="var(--font-mono)"
+        >
+          {line}
+        </text>
+      ))}
+    </g>
+  )
+}
+
 export function renderModuleIcon(module: Module, className: string) {
   if (module === "petrov") return <Radiation className={className} />
   if (module === "orwell") return <Eye className={className} />
@@ -275,6 +345,7 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
     title: row.scenario.title,
     avg: row.avgAll,
   }))
+  const minChartWidth = Math.max(chartData.length * SCENARIO_BAR_SLOT_WIDTH, 960)
 
   return (
     <Card className="bg-card border-border p-5">
@@ -282,66 +353,55 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
         label="All Scenarios — Average Compliance Score"
         sub="Dystopian Compliance Score (DCS) across all models and all escalation levels per scenario (Lower is better)"
       />
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={chartData} margin={{ left: 4, right: 4, top: 4, bottom: 56 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis
-            type="category"
-            dataKey="title"
-            tick={(props) => {
-              const { x, y, payload } = props as { x: number; y: number; payload: { value: string } }
-              const words = payload.value.split(' ')
-              const mid = Math.ceil(words.length / 2)
-              const line1 = words.slice(0, mid).join(' ')
-              const line2 = words.slice(mid).join(' ')
-              return (
-                <g transform={`translate(${x},${y})`}>
-                  <text x={0} y={0} dy={12} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">
-                    {line1}
-                  </text>
-                  {line2 && (
-                    <text x={0} y={0} dy={22} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">
-                      {line2}
-                    </text>
-                  )}
-                </g>
-              )
-            }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            tickLine={false}
-            interval={0}
-          />
-          <YAxis
-            type="number"
-            domain={[0, 100]}
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-            axisLine={false}
-            tickLine={false}
-            width={28}
-          />
-          <Tooltip
-            cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) return null
-              const d = payload[0].payload as { id: string; title: string; avg: number }
-              return (
-                <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
-                  <p className="mb-1 font-mono text-[10px] text-muted-foreground">{d.id}</p>
-                  <p className="font-mono text-xs font-bold text-foreground">{d.title}</p>
-                  <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
-                    {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
-                  </p>
-                </div>
-              )
-            }}
-          />
-          <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={22}>
-            {chartData.map((entry) => (
-              <Cell key={entry.id} fill={scoreColor(entry.avg)} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="overflow-x-auto pb-2">
+        <div style={{ minWidth: minChartWidth }}>
+          <ResponsiveContainer width="100%" height={440}>
+            <BarChart data={chartData} margin={{ left: 4, right: 20, top: 4, bottom: 92 }} barCategoryGap="28%">
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis
+                type="category"
+                dataKey="title"
+                tick={(props) => {
+                  const { x, y, payload } = props as { x: number; y: number; payload: { value: string } }
+                  return <WrappedTick x={x} y={y} value={payload.value} fontSize={8} />
+                }}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                tickLine={false}
+                interval={0}
+              />
+              <YAxis
+                type="number"
+                domain={[0, 100]}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                axisLine={false}
+                tickLine={false}
+                width={28}
+              />
+              <Tooltip
+                cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null
+                  const d = payload[0].payload as { id: string; title: string; avg: number }
+                  return (
+                    <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+                      <p className="mb-1 font-mono text-[10px] text-muted-foreground">{d.id}</p>
+                      <p className="font-mono text-xs font-bold text-foreground">{d.title}</p>
+                      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
+                        {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                      </p>
+                    </div>
+                  )
+                }}
+              />
+              <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={26}>
+                {chartData.map((entry) => (
+                  <Cell key={entry.id} fill={scoreColor(entry.avg)} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </Card>
   )
 }

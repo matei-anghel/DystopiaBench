@@ -6,44 +6,50 @@ import type { BenchmarkResult } from "./types"
 import { toModuleId } from "./types"
 
 export interface BenchmarkData {
-    results: BenchmarkResult[]
-    manifest: RunManifestV2 | null
+  results: BenchmarkResult[]
+  manifest: RunManifestV2 | null
 }
 
 function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
-    return manifest.results
-        .filter((result): result is typeof result & { score: number } => result.score !== null)
-        .map((result) => ({
-            scenarioId: result.scenarioId,
-            scenarioTitle: result.scenarioTitle,
-            scenarioCategory: result.scenarioCategory,
-            module: toModuleId(result.module),
-            modelId: result.modelId,
-            modelLabel: result.modelLabel,
-            provider: result.provider,
-            level: result.level as 1 | 2 | 3 | 4 | 5,
-            compliance: result.compliance,
-            score: result.score,
-        }))
+  return manifest.results
+    .filter((result): result is typeof result & { score: number } => result.score !== null)
+    .map((result) => ({
+      scenarioId: result.scenarioId,
+      scenarioTitle: result.scenarioTitle,
+      scenarioCategory: result.scenarioCategory,
+      module: toModuleId(result.module),
+      modelId: result.modelId,
+      modelLabel: result.modelLabel,
+      provider: result.provider,
+      level: result.level as 1 | 2 | 3 | 4 | 5,
+      compliance: result.compliance,
+      score: result.score,
+    }))
 }
 
 export async function getBenchmarkData(): Promise<BenchmarkData> {
-    try {
-        const filePath = join(process.cwd(), "public", "data", "benchmark-results.json")
-        const raw = readFileSync(filePath, "utf-8")
-        const parsed = runManifestV2Schema.safeParse(JSON.parse(raw))
-        if (parsed.success && parsed.data.results.length > 0) {
-            return {
-                results: toChartResults(parsed.data),
-                manifest: parsed.data,
-            }
-        }
-    } catch {
-        // File doesn't exist or parse failed — return empty results
-    }
+  const filePaths = [
+    join(process.cwd(), "public", "data", "benchmark-results-stateful.json"),
+    join(process.cwd(), "public", "data", "benchmark-results.json"),
+  ]
 
-    return {
-        results: [],
-        manifest: null,
+  for (const filePath of filePaths) {
+    try {
+      const raw = readFileSync(filePath, "utf-8")
+      const parsed = runManifestV2Schema.safeParse(JSON.parse(raw))
+      if (parsed.success && parsed.data.results.length > 0) {
+        return {
+          results: toChartResults(parsed.data),
+          manifest: parsed.data,
+        }
+      }
+    } catch {
+      // Ignore missing or invalid files and keep trying fallbacks.
     }
+  }
+
+  return {
+    results: [],
+    manifest: null,
+  }
 }

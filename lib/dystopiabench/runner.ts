@@ -2,7 +2,8 @@
 import { generateText, type ModelMessage } from "ai"
 import { z } from "zod"
 import { ALL_SCENARIOS, SCENARIO_CATALOG_VERSION, getScenariosByModule } from "./scenarios"
-import { DEFAULT_JUDGE_MODEL, getModelById } from "./models"
+import { DEFAULT_JUDGE_MODEL } from "./models"
+import { parseModelIdentifier, resolveJudgeModels, type ResolvedModelSpec } from "./model-selectors"
 import { COMPLIANCE_SCORES, type BenchmarkModuleSelector } from "./types"
 import {
   getLocalOpenAIApiKey,
@@ -78,16 +79,6 @@ export type TransportPolicy = "chat-first-fallback" | "chat-only"
 export type ConversationMode = "stateful" | "stateless"
 export type EndpointUsed = "ai_sdk_chat" | "openrouter_chat_fallback" | "local_chat"
 
-type ModelBackend = "openrouter" | "local"
-
-interface ResolvedModelSpec {
-  id: string
-  label: string
-  provider: string
-  modelString: string
-  backend: ModelBackend
-}
-
 export interface RunBenchmarkOptions {
   runId: string
   module: BenchmarkModuleSelector
@@ -110,93 +101,6 @@ export interface RunBenchmarkOptions {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function parseModelIdentifier(input: string): ResolvedModelSpec {
-  const trimmed = input.trim()
-  if (!trimmed) {
-    throw new Error("Model identifier cannot be empty.")
-  }
-
-  const known = getModelById(trimmed)
-  if (known) {
-    return {
-      id: known.id,
-      label: known.label,
-      provider: known.provider,
-      modelString: known.modelString,
-      backend: "openrouter",
-    }
-  }
-
-  const colonIndex = trimmed.indexOf(":")
-  if (colonIndex >= 0) {
-    const provider = trimmed.slice(0, colonIndex).toLowerCase()
-    const model = trimmed.slice(colonIndex + 1).trim()
-    if (!model) {
-      throw new Error(`Invalid model identifier '${trimmed}': missing model after provider prefix.`)
-    }
-
-    if (provider === "local") {
-      return {
-        id: trimmed,
-        label: `Local ${model}`,
-        provider: "Local",
-        modelString: model,
-        backend: "local",
-      }
-    }
-
-    if (provider === "openrouter") {
-      return {
-        id: trimmed,
-        label: `OpenRouter ${model}`,
-        provider: "OpenRouter",
-        modelString: model,
-        backend: "openrouter",
-      }
-    }
-
-    throw new Error(
-      `Unknown model identifier '${trimmed}'. Use a model ID from AVAILABLE_MODELS, ` +
-      "or a prefix like openrouter:<model-string> or local:<model-string>."
-    )
-  }
-
-  if (trimmed.includes("/")) {
-    return {
-      id: trimmed,
-      label: trimmed,
-      provider: "OpenRouter",
-      modelString: trimmed,
-      backend: "openrouter",
-    }
-  }
-
-  throw new Error(
-    `Unknown model identifier '${trimmed}'. Use a model ID from AVAILABLE_MODELS, ` +
-    "or a prefix like openrouter:<model-string> or local:<model-string>."
-  )
-}
-
-export function resolveJudgeModels(input: string[] | undefined, fallbackModel?: string): string[] {
-  const raw =
-    (input && input.length > 0)
-      ? input
-      : fallbackModel
-        ? [fallbackModel]
-        : [DEFAULT_JUDGE_MODEL]
-
-  const unique = Array.from(new Set(raw.map((value) => value.trim()).filter(Boolean)))
-  if (unique.length === 0) {
-    return [DEFAULT_JUDGE_MODEL]
-  }
-
-  for (const value of unique) {
-    parseModelIdentifier(value)
-  }
-
-  return unique
-}
 
 /**
  * Build the benchmark prompt wrapper.
