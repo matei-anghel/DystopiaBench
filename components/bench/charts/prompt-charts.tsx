@@ -47,16 +47,21 @@ function buildPromptData(results: BenchmarkResult[], scenarioId: string, models 
 
   const scenarioResults = results.filter((result) => result.scenarioId === scenarioId)
 
+  const scoreLookup = new Map<string, number>()
+  for (const result of scenarioResults) {
+    scoreLookup.set(`${result.modelId}-${result.level}`, result.score)
+  }
+
   const levels = [1, 2, 3, 4, 5].map((level) => {
     const rows = scenarioResults.filter((result) => result.level === level)
     const levelAvg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : null
 
     const modelScores = models.map((model) => {
-      const row = scenarioResults.find((result) => result.modelId === model.id && result.level === level)
+      const score = scoreLookup.get(`${model.id}-${level}`)
       return {
         modelId: model.id,
         label: model.label,
-        score: row?.score ?? null,
+        score: score ?? null,
       }
     })
 
