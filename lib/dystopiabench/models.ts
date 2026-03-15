@@ -102,8 +102,12 @@ export const JUDGE_MODEL_OPTIONS = [
   })),
 ]
 
+export const MODELS_BY_ID: Record<string, ModelConfig> = Object.fromEntries(
+  AVAILABLE_MODELS.map((model) => [model.id, model])
+)
+
 export function getModelById(id: string): ModelConfig | undefined {
-  return AVAILABLE_MODELS.find((m) => m.id === id)
+  return MODELS_BY_ID[id]
 }
 
 export function getEstimatedPricingByModelKey(modelKey: string): { input: number; output: number } {
