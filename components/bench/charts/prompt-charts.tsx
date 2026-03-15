@@ -16,7 +16,7 @@ import {
 } from "recharts"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
+import { ALL_SCENARIOS, SCENARIOS_BY_ID } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
 import { getChartShape } from "@/lib/dystopiabench/analytics"
@@ -42,7 +42,7 @@ function renderModuleIcon(module: Module, className: string) {
 }
 
 function buildPromptData(results: BenchmarkResult[], scenarioId: string, models = AVAILABLE_MODELS) {
-  const scenario = ALL_SCENARIOS.find((item) => item.id === scenarioId)
+  const scenario = SCENARIOS_BY_ID.get(scenarioId)
   if (!scenario) return null
 
   const scenarioResults = results.filter((result) => result.scenarioId === scenarioId)
