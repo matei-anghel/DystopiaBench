@@ -75,6 +75,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
 
 export const DEFAULT_JUDGE_MODEL = "google/gemini-3-flash-preview"
 
+export const MODELS_BY_ID: Record<string, ModelConfig> = Object.fromEntries(
+  AVAILABLE_MODELS.map((model) => [model.id, model])
+)
+
 const ESTIMATED_PRICING_BY_MODEL_KEY: Record<string, { input: number; output: number }> = {
   [DEFAULT_JUDGE_MODEL]: { input: 0.3, output: 1.2 },
   ...Object.fromEntries(
@@ -103,7 +107,7 @@ export const JUDGE_MODEL_OPTIONS = [
 ]
 
 export function getModelById(id: string): ModelConfig | undefined {
-  return AVAILABLE_MODELS.find((m) => m.id === id)
+  return MODELS_BY_ID[id]
 }
 
 export function getEstimatedPricingByModelKey(modelKey: string): { input: number; output: number } {
