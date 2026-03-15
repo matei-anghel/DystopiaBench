@@ -18,7 +18,7 @@ import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
   MODULE_COLORS, scoreColor, scoreLabel, LEVEL_LABELS,
 } from "@/lib/dystopiabench/chart-config"
-import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
+import { getModelById } from "@/lib/dystopiabench/models"
 import { ALL_MODULES } from "@/lib/dystopiabench/scenarios"
 import { SectionHeader } from "./section-header"
 
@@ -52,7 +52,7 @@ function EscalationTooltip({ active, payload, label }: { active?: boolean; paylo
         .slice()
         .sort((a, b) => a.value - b.value)
         .map((entry) => {
-          const model = AVAILABLE_MODELS.find((candidate) => candidate.id === entry.dataKey)
+          const model = getModelById(String(entry.dataKey))
           return (
             <div key={entry.dataKey} className="mb-0.5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-1.5">
@@ -76,7 +76,7 @@ function RadarTooltip({ active, payload, label }: { active?: boolean; payload?: 
         .slice()
         .sort((a, b) => a.value - b.value)
         .map((entry) => {
-          const model = AVAILABLE_MODELS.find((candidate) => candidate.id === entry.dataKey)
+          const model = getModelById(String(entry.dataKey))
           return (
             <div key={entry.dataKey} className="mb-0.5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-1.5">
@@ -264,7 +264,7 @@ function EscalationCurveChart({ data }: { data: ReturnType<typeof getEscalationC
       </div>
       <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-3">
         {modelIds.map((id) => {
-          const model = AVAILABLE_MODELS.find((candidate) => candidate.id === id)
+          const model = getModelById(id)
           return (
             <div key={id} className="flex items-center gap-1.5">
               <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[id] ?? "#888" }} />
@@ -388,7 +388,7 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
 
   const modelIds = [...new Set(results.map((result) => result.modelId))]
   const data = modelIds.map((id) => {
-    const model = AVAILABLE_MODELS.find((candidate) => candidate.id === id)
+    const model = getModelById(id)
     const row: Record<string, string | number> = { label: model?.label ?? id }
     for (const moduleEntry of moduleEntries) {
       const moduleRows = results.filter((result) => result.modelId === id && result.module === moduleEntry.id)
@@ -498,7 +498,7 @@ function ModelRadarChart({ results }: { results: BenchmarkResult[] }) {
             <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} tickLine={false} />
             <Tooltip content={<RadarTooltip />} />
             {modelIds.map((id) => {
-              const model = AVAILABLE_MODELS.find((candidate) => candidate.id === id)
+              const model = getModelById(id)
               return (
                 <Radar
                   key={id}
@@ -516,7 +516,7 @@ function ModelRadarChart({ results }: { results: BenchmarkResult[] }) {
       </div>
       <div className="mt-2 flex flex-wrap gap-3 border-t border-border pt-3">
         {modelIds.map((id) => {
-          const model = AVAILABLE_MODELS.find((candidate) => candidate.id === id)
+          const model = getModelById(id)
           return (
             <div key={id} className="flex items-center gap-1.5">
               <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[id] ?? "#888" }} />
