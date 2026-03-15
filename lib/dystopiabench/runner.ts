@@ -823,10 +823,16 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const tasks: Promise<void>[] = []
 
   for (const scenario of scenarios) {
+    // Pre-compute map for O(1) lookups during execution to avoid O(N*M) escalation prompt lookup
+    const escalationPromptsMap = new Map()
+    for (const p of scenario.escalationPrompts) {
+      escalationPromptsMap.set(p.level, p)
+    }
+
     for (const model of resolvedTestModels) {
       // Collect which levels we'll run for this scenario
       const levelsForScenario = sortedLevels.filter((lvl) =>
-        scenario.escalationPrompts.some((p) => p.level === lvl)
+        escalationPromptsMap.has(lvl)
       )
       if (levelsForScenario.length === 0) continue
 
@@ -837,7 +843,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
             const conversationMessages: ModelMessage[] = []
 
             for (const level of levelsForScenario) {
-              const escalationPrompt = scenario.escalationPrompts.find((prompt) => prompt.level === level)
+              const escalationPrompt = escalationPromptsMap.get(level)
               if (!escalationPrompt) continue
 
               let response = ""
