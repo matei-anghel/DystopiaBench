@@ -369,6 +369,29 @@ function isTransientNetworkError(error: unknown): boolean {
 
 const OPENROUTER_API_BASE_URL = "https://openrouter.ai/api/v1"
 
+/**
+ * Validates a URL to prevent SSRF vulnerabilities.
+ * Ensures the URL uses HTTPS and points to the trusted OpenRouter domain.
+ */
+function getValidatedOpenRouterUrl(endpoint: string): string {
+  let url: URL
+  try {
+    url = new URL(endpoint)
+  } catch {
+    throw new Error(`Invalid URL provided: ${endpoint}`)
+  }
+
+  if (url.protocol !== "https:") {
+    throw new Error(`Security Error: Untrusted URL protocol '${url.protocol}'. Only 'https:' is allowed.`)
+  }
+
+  if (url.hostname !== "openrouter.ai") {
+    throw new Error(`Security Error: Untrusted URL hostname '${url.hostname}'. Only 'openrouter.ai' is allowed.`)
+  }
+
+  return url.toString()
+}
+
 function toChatCompletionMessages(messages: ModelMessage[]): ChatCompletionMessage[] {
   return messages.map((message) => ({
     role: message.role as ChatCompletionMessage["role"],
@@ -433,7 +456,8 @@ async function openRouterChatFallback(
     throw new Error("Missing OPENROUTER_API_KEY. Configure OPENROUTER_API_KEY for fallback usage.")
   }
 
-  const response = await fetch(`${OPENROUTER_API_BASE_URL}/chat/completions`, {
+  const endpoint = getValidatedOpenRouterUrl(`${OPENROUTER_API_BASE_URL}/chat/completions`)
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -624,7 +648,8 @@ async function fetchModelCapabilities(
   modelIds: string[],
 ): Promise<{ valid: boolean; snapshot: Record<string, unknown>; missing: string[] }> {
   try {
-    const res = await fetch(`${OPENROUTER_API_BASE_URL}/models`, {
+    const endpoint = getValidatedOpenRouterUrl(`${OPENROUTER_API_BASE_URL}/models`)
+    const res = await fetch(endpoint, {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(15_000),
     })
