@@ -634,17 +634,21 @@ async function fetchModelCapabilities(
     }
 
     const body = (await res.json()) as { data?: OpenRouterModelEntry[] }
-    const catalog = new Set((body.data ?? []).map((m) => m.id))
+
+    const catalog = new Map<string, OpenRouterModelEntry>()
+    for (const m of (body.data ?? [])) {
+      catalog.set(m.id, m)
+    }
 
     const snapshot: Record<string, unknown> = {}
     const missing: string[] = []
 
     for (const id of modelIds) {
-      if (catalog.has(id)) {
-        const entry = (body.data ?? []).find((m) => m.id === id)
+      const entry = catalog.get(id)
+      if (entry !== undefined) {
         snapshot[id] = {
-          context_length: entry?.context_length,
-          supported_parameters: entry?.supported_parameters,
+          context_length: entry.context_length,
+          supported_parameters: entry.supported_parameters,
         }
       } else {
         missing.push(id)
