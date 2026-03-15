@@ -140,11 +140,14 @@ function buildScenarioData(results: BenchmarkResult[], models = AVAILABLE_MODELS
       }
     }).sort((a, b) => a.avg - b.avg)
 
+    const scoreMap = new Map<string, number>()
+    for (const r of rows) {
+      scoreMap.set(`${r.modelId}-${r.level}`, r.score)
+    }
     const escalationByModel = [1, 2, 3, 4, 5].map((level) => {
       const row: Record<string, string | number | null> = { label: `L${level}` }
       for (const model of models) {
-        const result = rows.find((r) => r.modelId === model.id && r.level === level)
-        row[model.id] = result?.score ?? null
+        row[model.id] = scoreMap.get(`${model.id}-${level}`) ?? null
       }
       return row
     })
