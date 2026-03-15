@@ -420,6 +420,17 @@ function ScenarioModelGrid({
   const grandAverage =
     results.length > 0 ? Math.round(results.reduce((sum, row) => sum + row.score, 0) / results.length) : 0
 
+  const modelStats = new Map<string, { sum: number; count: number }>()
+  for (const r of results) {
+    const stat = modelStats.get(r.modelId)
+    if (stat) {
+      stat.sum += r.score
+      stat.count++
+    } else {
+      modelStats.set(r.modelId, { sum: r.score, count: 1 })
+    }
+  }
+
   return (
     <Card className="bg-card border-border p-3 overflow-x-auto">
       <SectionHeader
@@ -461,19 +472,20 @@ function ScenarioModelGrid({
           </div>
         </div>
 
-        {data.map((row) => (
-          <div key={row.scenario.id} className="flex items-center gap-px mb-px">
-            <div className="w-72 shrink-0 pr-3 flex items-start justify-end gap-1.5 py-1 text-right">
-              {renderModuleIcon(row.scenario.module, "h-2.5 w-2.5 shrink-0 mt-0.5 text-muted-foreground")}
-              <span className="font-mono text-[9px] text-muted-foreground leading-tight">
-                {row.scenario.title}
-              </span>
-            </div>
+        {data.map((row) => {
+          const avgByModel = new Map(row.modelAvgs.map(entry => [entry.modelId, entry.avg]))
+          return (
+            <div key={row.scenario.id} className="flex items-center gap-px mb-px">
+              <div className="w-72 shrink-0 pr-3 flex items-start justify-end gap-1.5 py-1 text-right">
+                {renderModuleIcon(row.scenario.module, "h-2.5 w-2.5 shrink-0 mt-0.5 text-muted-foreground")}
+                <span className="font-mono text-[9px] text-muted-foreground leading-tight">
+                  {row.scenario.title}
+                </span>
+              </div>
 
-            {models.map((model) => {
-              const modelData = row.modelAvgs.find((entry) => entry.modelId === model.id)
-              const score = modelData?.avg ?? null
-              if (score === null) {
+              {models.map((model) => {
+                const score = avgByModel.get(model.id) ?? null
+                if (score === null) {
                 return (
                   <div
                     key={model.id}
@@ -498,27 +510,25 @@ function ScenarioModelGrid({
               )
             })}
 
-            <div
-              className="w-16 h-12 flex items-center justify-center rounded-sm"
-              style={{ background: `${scoreColor(row.avgAll)}40` }}
-            >
-              <span className="font-mono text-[10px] font-black" style={{ color: scoreColor(row.avgAll) }}>
-                {row.avgAll}
-              </span>
+              <div
+                className="w-16 h-12 flex items-center justify-center rounded-sm"
+                style={{ background: `${scoreColor(row.avgAll)}40` }}
+              >
+                <span className="font-mono text-[10px] font-black" style={{ color: scoreColor(row.avgAll) }}>
+                  {row.avgAll}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
 
         <div className="flex items-center gap-px mt-1 border-t border-border pt-1">
           <div className="w-72 shrink-0">
             <span className="font-mono text-[9px] text-muted-foreground uppercase">Avg</span>
           </div>
           {models.map((model) => {
-            const modelRows = results.filter((r) => r.modelId === model.id)
-            const avg =
-              modelRows.length > 0
-                ? Math.round(modelRows.reduce((sum, row) => sum + row.score, 0) / modelRows.length)
-                : 0
+            const stat = modelStats.get(model.id)
+            const avg = stat ? Math.round(stat.sum / stat.count) : 0
             return (
               <div key={model.id} className="w-20 h-12 flex items-center justify-center">
                 <span className="font-mono text-[10px] font-bold" style={{ color: scoreColor(avg) }}>
