@@ -162,12 +162,16 @@ export function getPerPromptData(results: BenchmarkResult[], scenarioId: string)
     const scenarioResults = results.filter((r) => r.scenarioId === scenarioId)
     const models = [...new Set(scenarioResults.map((r) => r.modelId))]
 
+    const resultMap = new Map<string, number>()
+    for (const r of scenarioResults) {
+        resultMap.set(`${r.modelId}-${r.level}`, r.score)
+    }
+
     const levelData: Array<Record<string, number | string>> = []
     for (let l = 1; l <= 5; l++) {
         const row: Record<string, number | string> = { level: `Level ${l}` }
         for (const modelId of models) {
-            const r = scenarioResults.find((r) => r.modelId === modelId && r.level === l)
-            row[modelId] = r?.score ?? 0
+            row[modelId] = resultMap.get(`${modelId}-${l}`) ?? 0
         }
         levelData.push(row)
     }
