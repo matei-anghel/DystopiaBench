@@ -47,7 +47,9 @@ function buildPromptData(results: BenchmarkResult[], scenarioId: string, models 
 
   const scenarioResults = results.filter((result) => result.scenarioId === scenarioId)
 
-  const levels = [1, 2, 3, 4, 5].map((level) => {
+  const promptsByLevel = new Map(scenario.escalationPrompts.map((prompt) => [prompt.level, prompt]))
+
+  const levels = ([1, 2, 3, 4, 5] as const).map((level) => {
     const rows = scenarioResults.filter((result) => result.level === level)
     const levelAvg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : null
 
@@ -63,7 +65,7 @@ function buildPromptData(results: BenchmarkResult[], scenarioId: string, models 
     return {
       level,
       levelName: LEVEL_LABELS[level],
-      prompt: scenario.escalationPrompts.find((prompt) => prompt.level === level),
+      prompt: promptsByLevel.get(level),
       levelAvg,
       modelScores,
     }
