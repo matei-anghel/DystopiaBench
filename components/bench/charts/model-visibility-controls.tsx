@@ -1,6 +1,6 @@
 "use client"
 
-import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
+import { getModelById } from "@/lib/dystopiabench/models"
 import { MODEL_COLORS } from "@/lib/dystopiabench/chart-config"
 
 interface ModelVisibilityControlsProps {
@@ -19,6 +19,7 @@ export function ModelVisibilityControls({
   if (modelIds.length === 0) return null
 
   const allSelected = selectedModelIds.length === modelIds.length
+  const selectedModelSet = new Set(selectedModelIds)
 
   return (
     <div className="mb-6 rounded-md border border-border bg-card p-4">
@@ -37,8 +38,8 @@ export function ModelVisibilityControls({
 
       <div className="flex flex-wrap gap-1.5">
         {modelIds.map((modelId) => {
-          const model = AVAILABLE_MODELS.find((entry) => entry.id === modelId)
-          const selected = selectedModelIds.includes(modelId)
+          const model = getModelById(modelId)
+          const selected = selectedModelSet.has(modelId)
           return (
             <button
               key={modelId}
