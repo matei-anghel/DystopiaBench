@@ -18,7 +18,7 @@ import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
   MODULE_COLORS, scoreColor, scoreLabel, LEVEL_LABELS,
 } from "@/lib/dystopiabench/chart-config"
-import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
+import { getModelById } from "@/lib/dystopiabench/models"
 import { ALL_MODULES } from "@/lib/dystopiabench/scenarios"
 import { SectionHeader } from "./section-header"
 
@@ -52,7 +52,7 @@ function EscalationTooltip({ active, payload, label }: { active?: boolean; paylo
         .slice()
         .sort((a, b) => a.value - b.value)
         .map((entry) => {
-          const model = AVAILABLE_MODELS.find((candidate) => candidate.id === entry.dataKey)
+          const model = getModelById(entry.dataKey)
           return (
             <div key={entry.dataKey} className="mb-0.5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-1.5">
@@ -76,7 +76,7 @@ function RadarTooltip({ active, payload, label }: { active?: boolean; payload?: 
         .slice()
         .sort((a, b) => a.value - b.value)
         .map((entry) => {
-          const model = AVAILABLE_MODELS.find((candidate) => candidate.id === entry.dataKey)
+          const model = getModelById(entry.dataKey)
           return (
             <div key={entry.dataKey} className="mb-0.5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-1.5">
@@ -264,7 +264,7 @@ function EscalationCurveChart({ data }: { data: ReturnType<typeof getEscalationC
       </div>
       <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-3">
         {modelIds.map((id) => {
-          const model = AVAILABLE_MODELS.find((candidate) => candidate.id === id)
+          const model = getModelById(id)
           return (
             <div key={id} className="flex items-center gap-1.5">
               <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[id] ?? "#888" }} />
@@ -386,14 +386,31 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
     )
   }
 
-  const modelIds = [...new Set(results.map((result) => result.modelId))]
-  const data = modelIds.map((id) => {
-    const model = AVAILABLE_MODELS.find((candidate) => candidate.id === id)
-    const row: Record<string, string | number> = { label: model?.label ?? id }
+  const stats = new Map<string, Map<string, { sum: number; count: number }>>()
+  for (const result of results) {
+    let modelMap = stats.get(result.modelId)
+    if (!modelMap) {
+      modelMap = new Map()
+      stats.set(result.modelId, modelMap)
+    }
+
+    let modStats = modelMap.get(result.module)
+    if (!modStats) {
+      modStats = { sum: 0, count: 0 }
+      modelMap.set(result.module, modStats)
+    }
+
+    modStats.sum += result.score
+    modStats.count += 1
+  }
+
+  const data = Array.from(stats.entries()).map(([modelId, modelMap]) => {
+    const model = getModelById(modelId)
+    const row: Record<string, string | number> = { label: model?.label ?? modelId }
     for (const moduleEntry of moduleEntries) {
-      const moduleRows = results.filter((result) => result.modelId === id && result.module === moduleEntry.id)
-      row[moduleEntry.id] = moduleRows.length
-        ? Math.round(moduleRows.reduce((sum, result) => sum + result.score, 0) / moduleRows.length)
+      const modStats = modelMap.get(moduleEntry.id)
+      row[moduleEntry.id] = modStats && modStats.count > 0
+        ? Math.round(modStats.sum / modStats.count)
         : 0
     }
     return row
@@ -471,12 +488,38 @@ function ModuleComparisonChart({ results }: { results: BenchmarkResult[] }) {
 }
 
 function ModelRadarChart({ results }: { results: BenchmarkResult[] }) {
-  const modelIds = [...new Set(results.map((result) => result.modelId))]
+  const levelStats = new Map<number, Map<string, { sum: number; count: number }>>()
+  const modelIdsSet = new Set<string>()
+
+  for (const result of results) {
+    modelIdsSet.add(result.modelId)
+
+    let modelMap = levelStats.get(result.level)
+    if (!modelMap) {
+      modelMap = new Map()
+      levelStats.set(result.level, modelMap)
+    }
+
+    let stats = modelMap.get(result.modelId)
+    if (!stats) {
+      stats = { sum: 0, count: 0 }
+      modelMap.set(result.modelId, stats)
+    }
+
+    stats.sum += result.score
+    stats.count += 1
+  }
+
+  const modelIds = Array.from(modelIdsSet)
   const data = [1, 2, 3, 4, 5].map((level) => {
     const row: Record<string, string | number> = { level: `L${level}\n${LEVEL_LABELS[level]}` }
+    const modelMap = levelStats.get(level)
+
     for (const id of modelIds) {
-      const rows = results.filter((result) => result.modelId === id && result.level === level)
-      row[id] = rows.length ? Math.round(rows.reduce((sum, result) => sum + result.score, 0) / rows.length) : 0
+      const stats = modelMap?.get(id)
+      row[id] = stats && stats.count > 0
+        ? Math.round(stats.sum / stats.count)
+        : 0
     }
     return row
   })
@@ -498,7 +541,7 @@ function ModelRadarChart({ results }: { results: BenchmarkResult[] }) {
             <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} tickLine={false} />
             <Tooltip content={<RadarTooltip />} />
             {modelIds.map((id) => {
-              const model = AVAILABLE_MODELS.find((candidate) => candidate.id === id)
+              const model = getModelById(id)
               return (
                 <Radar
                   key={id}
@@ -516,7 +559,7 @@ function ModelRadarChart({ results }: { results: BenchmarkResult[] }) {
       </div>
       <div className="mt-2 flex flex-wrap gap-3 border-t border-border pt-3">
         {modelIds.map((id) => {
-          const model = AVAILABLE_MODELS.find((candidate) => candidate.id === id)
+          const model = getModelById(id)
           return (
             <div key={id} className="flex items-center gap-1.5">
               <div className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[id] ?? "#888" }} />
