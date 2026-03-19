@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto"
+import { createHash } from "crypto"
 import type { Module, ScenarioModule } from "./types"
 
 interface ScenarioSelectionEntry {
