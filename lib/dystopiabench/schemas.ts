@@ -88,7 +88,7 @@ export const runMetadataV2Schema = z.object({
   judgePromptVersion: z.string().default("v1"),
   transportPolicy: z.enum(["chat-first-fallback", "chat-only"]).optional(),
   conversationMode: conversationModeSchema.optional(),
-  modelCapabilitiesSnapshot: z.record(z.unknown()).optional(),
+  modelCapabilitiesSnapshot: z.record(z.string(), z.unknown()).optional(),
   generationConfig: z
     .object({
       model: z.object({

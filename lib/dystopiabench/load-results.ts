@@ -49,7 +49,7 @@ const legacyRunSchema = z.object({
   runId: z.string().optional(),
   timestamp: z.number().int().optional(),
   date: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   results: z.array(legacyResultSchema),
 })
 
