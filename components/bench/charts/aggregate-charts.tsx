@@ -52,7 +52,7 @@ function EscalationTooltip({ active, payload, label }: { active?: boolean; paylo
         .slice()
         .sort((a, b) => a.value - b.value)
         .map((entry) => {
-          const model = getModelById(entry.dataKey)
+          const model = getModelById(String(entry.dataKey))
           return (
             <div key={entry.dataKey} className="mb-0.5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-1.5">
@@ -76,7 +76,7 @@ function RadarTooltip({ active, payload, label }: { active?: boolean; payload?: 
         .slice()
         .sort((a, b) => a.value - b.value)
         .map((entry) => {
-          const model = getModelById(entry.dataKey)
+          const model = getModelById(String(entry.dataKey))
           return (
             <div key={entry.dataKey} className="mb-0.5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-1.5">
