@@ -73,22 +73,26 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
 ]
 
-const MODELS_BY_ID: Partial<Record<string, ModelConfig>> = Object.create(null) as Partial<Record<string, ModelConfig>>
-for (const model of AVAILABLE_MODELS) {
-  MODELS_BY_ID[model.id] = model
-}
+export const MODELS_BY_ID: Record<string, ModelConfig> = Object.fromEntries(
+  AVAILABLE_MODELS.map((model) => [model.id, model])
+)
 
 export const DEFAULT_JUDGE_MODEL = "google/gemini-3-flash-preview"
 
-const ESTIMATED_PRICING_BY_MODEL_KEY: Record<string, { input: number; output: number }> =
-  Object.create(null) as Record<string, { input: number; output: number }>
-
-ESTIMATED_PRICING_BY_MODEL_KEY[DEFAULT_JUDGE_MODEL] = { input: 0.3, output: 1.2 }
-
-for (const model of AVAILABLE_MODELS) {
-  const pricing = model.estimatedPricingUsdPer1M ?? { input: 2, output: 8 }
-  ESTIMATED_PRICING_BY_MODEL_KEY[model.id] = pricing
-  ESTIMATED_PRICING_BY_MODEL_KEY[model.modelString] = pricing
+const ESTIMATED_PRICING_BY_MODEL_KEY: Record<string, { input: number; output: number }> = {
+  [DEFAULT_JUDGE_MODEL]: { input: 0.3, output: 1.2 },
+  ...Object.fromEntries(
+    AVAILABLE_MODELS.map((model) => [
+      model.id,
+      model.estimatedPricingUsdPer1M ?? { input: 2, output: 8 },
+    ])
+  ),
+  ...Object.fromEntries(
+    AVAILABLE_MODELS.map((model) => [
+      model.modelString,
+      model.estimatedPricingUsdPer1M ?? { input: 2, output: 8 },
+    ])
+  ),
 }
 
 export const JUDGE_MODEL_OPTIONS = [
@@ -103,12 +107,9 @@ export const JUDGE_MODEL_OPTIONS = [
 ]
 
 export function getModelById(id: string): ModelConfig | undefined {
-  return Object.prototype.hasOwnProperty.call(MODELS_BY_ID, id) ? MODELS_BY_ID[id] : undefined
+  return MODELS_BY_ID[id]
 }
 
 export function getEstimatedPricingByModelKey(modelKey: string): { input: number; output: number } {
-  if (Object.prototype.hasOwnProperty.call(ESTIMATED_PRICING_BY_MODEL_KEY, modelKey)) {
-    return ESTIMATED_PRICING_BY_MODEL_KEY[modelKey]
-  }
-  return { input: 2, output: 8 }
+  return ESTIMATED_PRICING_BY_MODEL_KEY[modelKey] ?? { input: 2, output: 8 }
 }
