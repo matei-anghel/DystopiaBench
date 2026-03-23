@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
-import { getChartShape } from "@/lib/dystopiabench/analytics"
+import { createResultsIndex, getChartShape, type ResultsIndex } from "@/lib/dystopiabench/analytics"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
 import { Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
 import { SectionHeader } from "./section-header"
@@ -41,18 +41,26 @@ function renderModuleIcon(module: Module, className: string) {
   return <Boxes className={className} />
 }
 
-function buildPromptData(results: BenchmarkResult[], scenarioId: string, models = AVAILABLE_MODELS) {
+function scenarioLevelKey(scenarioId: string, level: number): string {
+  return `${scenarioId}::${level}`
+}
+
+function scenarioModelLevelKey(scenarioId: string, modelId: string, level: number): string {
+  return `${scenarioId}::${modelId}::${level}`
+}
+
+function buildPromptData(resultsIndex: ResultsIndex, scenarioId: string, models = AVAILABLE_MODELS) {
   const scenario = ALL_SCENARIOS.find((item) => item.id === scenarioId)
   if (!scenario) return null
 
-  const scenarioResults = results.filter((result) => result.scenarioId === scenarioId)
-
   const levels = [1, 2, 3, 4, 5].map((level) => {
-    const rows = scenarioResults.filter((result) => result.level === level)
+    const rows = resultsIndex.byScenarioLevel.get(scenarioLevelKey(scenarioId, level)) ?? []
     const levelAvg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : null
 
     const modelScores = models.map((model) => {
-      const row = scenarioResults.find((result) => result.modelId === model.id && result.level === level)
+      const row = resultsIndex.byScenarioModelLevel.get(
+        scenarioModelLevelKey(scenarioId, model.id, level)
+      )
       return {
         modelId: model.id,
         label: model.label,
@@ -85,9 +93,9 @@ function buildPromptData(results: BenchmarkResult[], scenarioId: string, models 
   return { scenario, levels, lineData }
 }
 
-function buildGlobalLevelData(results: BenchmarkResult[], models = AVAILABLE_MODELS) {
+function buildGlobalLevelData(resultsIndex: ResultsIndex, models = AVAILABLE_MODELS) {
   return [1, 2, 3, 4, 5].map((level) => {
-    const rows = results.filter((result) => result.level === level)
+    const rows = Array.from(resultsIndex.byScenario.values()).flat().filter((result) => result.level === level)
     const avg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : null
 
     const row: Record<string, string | number | null> = {
@@ -97,7 +105,7 @@ function buildGlobalLevelData(results: BenchmarkResult[], models = AVAILABLE_MOD
     }
 
     for (const model of models) {
-      const modelRows = rows.filter((result) => result.modelId === model.id)
+      const modelRows = resultsIndex.byModel.get(model.id)?.filter((result) => result.level === level) ?? []
       row[model.id] =
         modelRows.length > 0
           ? Math.round(modelRows.reduce((sum, result) => sum + result.score, 0) / modelRows.length)
@@ -267,18 +275,18 @@ function GlobalLevelBar({
 }
 
 function ScenarioPromptDrillDown({
-  results,
+  resultsIndex,
   models,
   hasMultiModel,
   viewMode,
 }: {
-  results: BenchmarkResult[]
+  resultsIndex: ResultsIndex
   models: typeof AVAILABLE_MODELS
   hasMultiModel: boolean
   viewMode: "stateful" | "stateless"
 }) {
   const [selectedId, setSelectedId] = useState<string>(ALL_SCENARIOS[0].id)
-  const data = useMemo(() => buildPromptData(results, selectedId, models), [models, results, selectedId])
+  const data = useMemo(() => buildPromptData(resultsIndex, selectedId, models), [models, resultsIndex, selectedId])
 
   if (!data) return null
   const { scenario, levels, lineData } = data
@@ -497,7 +505,8 @@ export function PromptCharts({
   selectedModelIds?: string[]
   viewMode?: "stateful" | "stateless"
 }) {
-  const shape = getChartShape(results)
+  const resultsIndex = useMemo(() => createResultsIndex(results), [results])
+  const shape = useMemo(() => getChartShape(results), [results])
   const activeModels = useMemo(
     () =>
       AVAILABLE_MODELS.filter((model) =>
@@ -507,7 +516,7 @@ export function PromptCharts({
       ),
     [results, selectedModelIds],
   )
-  const globalData = useMemo(() => buildGlobalLevelData(results, activeModels), [activeModels, results])
+  const globalData = useMemo(() => buildGlobalLevelData(resultsIndex, activeModels), [activeModels, resultsIndex])
   const promptSectionTitle = viewMode === "stateless" ? "Per-Scenario Prompt Drill Down (No Escalation)" : "Per-Scenario Prompt Drill Down (Escalation)"
 
   return (
@@ -519,7 +528,7 @@ export function PromptCharts({
           {promptSectionTitle}
         </p>
         <ScenarioPromptDrillDown
-          results={results}
+          resultsIndex={resultsIndex}
           models={activeModels}
           hasMultiModel={shape.hasMultiModel}
           viewMode={viewMode}

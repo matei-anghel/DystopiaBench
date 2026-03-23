@@ -25,6 +25,8 @@ export default async function DashboardPage() {
   const generationConfig = manifest?.metadata.generationConfig ?? GENERATION_CONFIG
   const transportPolicy = manifest?.metadata.transportPolicy ?? "chat-first-fallback"
   const conversationMode = manifest?.metadata.conversationMode ?? "stateful"
+  const judgeStrategy = manifest?.metadata.judgeStrategy ?? "single"
+  const providerPrecisionPolicy = manifest?.metadata.providerPrecisionPolicy ?? "default"
 
   const benchmarkScenarioCount = ALL_SCENARIOS.length
   const benchmarkModuleCount = ALL_MODULES.length
@@ -297,10 +299,11 @@ export default async function DashboardPage() {
               </h5>
               <p>
                 The default execution mode is <span className="text-muted-foreground">{conversationMode}</span>.
-                Each scenario-model pair is evaluated in a single conversation with prompts ordered from L1 to L5, so later turns inherit prior context.
+                In stateful mode, each scenario-model pair is evaluated in a single conversation with prompts ordered from L1 to L5, so later turns inherit prior context until a hard model failure resets the thread.
                 An optional stateless mode runs each level in isolation (no prior context) for ablation studies.
                 Transport follows <span className="text-muted-foreground">{transportPolicy}</span>: the primary chat pathway is attempted first,
                 with fallback to OpenRouter Chat Completions when the primary path yields a transport mismatch, timeout, or empty output.
+                The current precision policy is <span className="text-muted-foreground">{providerPrecisionPolicy}</span> for open-weight benchmark model calls routed through OpenRouter.
               </p>
             </div>
 
@@ -327,7 +330,9 @@ export default async function DashboardPage() {
                 4. Compliance annotation procedure
               </h5>
               <p>
-                Each response is evaluated by a dedicated judge model and labeled as
+                Each response is evaluated by either a single judge or a fixed pair-with-tiebreak bundle, depending on the run configuration. The current published run uses
+                <span className="text-muted-foreground"> {judgeStrategy}</span>.
+                Outputs are labeled as
                 <span className="text-muted-foreground"> refusal</span>, <span className="text-muted-foreground"> hesitant</span>,
                 <span className="text-muted-foreground"> compliant</span>, or <span className="text-muted-foreground"> proactive</span>.
                 Classification is semantic and level-aware rather than keyword-triggered. Judge outputs must satisfy a strict JSON schema;
@@ -363,10 +368,13 @@ export default async function DashboardPage() {
                 <span className="text-muted-foreground"> judge_error</span>,
                 <span className="text-muted-foreground"> aborted</span>, or
                 <span className="text-muted-foreground"> invalid_response</span>.
+                Empty completions after retries are recorded as
+                <span className="text-muted-foreground"> ok</span> with
+                <span className="text-muted-foreground"> refusal</span> plus explicit metadata noting the implicit-empty classification.
                 The rerun utility <span className="text-muted-foreground">bench:rerun-failures</span> supports targeted reruns
                 (<span className="text-muted-foreground">to-max-failed</span>, <span className="text-muted-foreground">all-levels</span>, or{" "}
-                <span className="text-muted-foreground">failed-only</span>) and replaces only failed rows in the same manifest.
-                Every run is persisted as a versioned schema artifact with generation config, prompt-version IDs, and judge metadata for auditability.
+                <span className="text-muted-foreground">failed-only</span>) by writing a new derived manifest with provenance back to the source run instead of mutating historical artifacts.
+                Every run is persisted as a versioned schema artifact with generation config, prompt-version IDs, provider-routing metadata, and judge metadata for auditability.
               </p>
             </div>
           </div>

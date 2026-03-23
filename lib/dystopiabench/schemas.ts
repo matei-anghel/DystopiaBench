@@ -16,6 +16,11 @@ export const benchmarkStatusSchema = z.enum([
 ])
 
 export const conversationModeSchema = z.enum(["stateful", "stateless"])
+export const judgeStrategySchema = z.enum(["single", "pair-with-tiebreak"])
+export const providerPrecisionPolicySchema = z.enum(["default", "non-quantized-only"])
+export const conversationContinuitySchema = z.enum(["intact", "reset_after_failure"])
+export const rerunScopeSchema = z.enum(["to-max-failed", "all-levels", "failed-only"])
+export const derivationKindSchema = z.enum(["rerun_failures"])
 
 export const GENERATION_CONFIG = {
   model: {
@@ -36,6 +41,15 @@ export const GENERATION_CONFIG = {
   timeoutMs: 90_000,
 } as const
 
+export const judgeVoteSchema = z.object({
+  judge: z.string(),
+  role: z.enum(["primary", "secondary", "arbiter", "arena"]).optional(),
+  compliance: complianceRatingSchema,
+  reasoning: z.string(),
+  selected: z.boolean().optional(),
+  sidedWith: z.string().optional(),
+})
+
 export const benchmarkResultV2Schema = z.object({
   scenarioId: z.string(),
   scenarioTitle: z.string(),
@@ -52,12 +66,15 @@ export const benchmarkResultV2Schema = z.object({
   score: z.number().int().min(0).max(100).nullable(),
   status: benchmarkStatusSchema,
   judgeReasoning: z.string().optional(),
+  judgeVotes: z.array(judgeVoteSchema).optional(),
   errorCode: z.string().optional(),
   errorMessage: z.string().optional(),
   errorName: z.string().optional(),
   endpointUsed: z.enum(["ai_sdk_chat", "openrouter_chat_fallback", "local_chat"]).optional(),
   transportAttempts: z.number().int().nonnegative().optional(),
   scorable: z.boolean().optional(),
+  conversationContinuity: conversationContinuitySchema.optional(),
+  implicitRefusalFromEmpty: z.boolean().optional(),
   timestamp: z.number().int(),
 })
 
@@ -83,11 +100,19 @@ export const runMetadataV2Schema = z.object({
   selectedScenarioCount: z.number().int().nonnegative().optional(),
   judgeModel: z.string(),
   judgeModels: z.array(z.string()).optional(),
+  judgeStrategy: judgeStrategySchema.optional(),
+  judgeTieBreakerModel: z.string().optional(),
   systemPromptVersion: z.string(),
   benchmarkPromptVersion: z.string().default("v1"),
   judgePromptVersion: z.string().default("v1"),
   transportPolicy: z.enum(["chat-first-fallback", "chat-only"]).optional(),
   conversationMode: conversationModeSchema.optional(),
+  providerPrecisionPolicy: providerPrecisionPolicySchema.optional(),
+  derivedFromRunId: z.string().optional(),
+  derivationKind: derivationKindSchema.optional(),
+  rerunScope: rerunScopeSchema.optional(),
+  rerunPairCount: z.number().int().nonnegative().optional(),
+  replacedTupleCount: z.number().int().nonnegative().optional(),
   modelCapabilitiesSnapshot: z.record(z.string(), z.unknown()).optional(),
   generationConfig: z
     .object({
@@ -114,7 +139,7 @@ export const runMetadataV2Schema = z.object({
 })
 
 export const runManifestV2Schema = z.object({
-  schemaVersion: z.union([z.literal(2), z.literal(3)]),
+  schemaVersion: z.union([z.literal(2), z.literal(3), z.literal(4)]),
   runId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
   timestamp: z.number().int(),
   date: z.string(),
@@ -136,6 +161,12 @@ export const runIndexV2Schema = z.array(runIndexItemV2Schema)
 export type ComplianceRating = z.infer<typeof complianceRatingSchema>
 export type BenchmarkStatus = z.infer<typeof benchmarkStatusSchema>
 export type ConversationMode = z.infer<typeof conversationModeSchema>
+export type JudgeStrategy = z.infer<typeof judgeStrategySchema>
+export type ProviderPrecisionPolicy = z.infer<typeof providerPrecisionPolicySchema>
+export type ConversationContinuity = z.infer<typeof conversationContinuitySchema>
+export type RerunScope = z.infer<typeof rerunScopeSchema>
+export type DerivationKind = z.infer<typeof derivationKindSchema>
+export type JudgeVoteV2 = z.infer<typeof judgeVoteSchema>
 export type BenchmarkResultV2 = z.infer<typeof benchmarkResultV2Schema>
 export type RunSummaryV2 = z.infer<typeof runSummaryV2Schema>
 export type RunMetadataV2 = z.infer<typeof runMetadataV2Schema>

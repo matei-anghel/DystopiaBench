@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -6,7 +7,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs"
-import { join } from "node:path"
+import { basename, dirname, join } from "node:path"
 import type { RunIndexItemV2, RunManifestV2 } from "./schemas"
 import { runIndexV2Schema } from "./schemas"
 
@@ -45,6 +46,17 @@ function ensureDataDir() {
     mkdirSync(dir, { recursive: true })
   }
   return dir
+}
+
+function writeJsonAtomic(filePath: string, value: unknown) {
+  const dir = dirname(filePath)
+  const tempPath = join(
+    dir,
+    `.${basename(filePath)}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`,
+  )
+  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8")
+  chmodSync(tempPath, 0o644)
+  renameSync(tempPath, filePath)
 }
 
 function readRunIndex(indexPath: string): RunIndexItemV2[] {
@@ -101,15 +113,15 @@ function pruneRunFiles(index: RunIndexItemV2[], dataDir: string, options: Retent
 export function writeRunManifest(manifest: RunManifestV2) {
   const dataDir = ensureDataDir()
   const runPath = join(dataDir, `benchmark-${manifest.runId}.json`)
-  writeFileSync(runPath, JSON.stringify(manifest, null, 2), "utf-8")
+  writeJsonAtomic(runPath, manifest)
 }
 
 export function publishLatest(manifest: RunManifestV2, options: RetentionOptions = {}) {
   const dataDir = ensureDataDir()
   const latestPath = join(dataDir, "benchmark-results.json")
-  writeFileSync(latestPath, JSON.stringify(manifest, null, 2), "utf-8")
+  writeJsonAtomic(latestPath, manifest)
   const modeLatestPath = join(dataDir, MODE_LATEST_FILE[resolveConversationMode(manifest)])
-  writeFileSync(modeLatestPath, JSON.stringify(manifest, null, 2), "utf-8")
+  writeJsonAtomic(modeLatestPath, manifest)
 
   const indexPath = join(dataDir, "runs.json")
   const index = readRunIndex(indexPath)
@@ -130,5 +142,5 @@ export function publishLatest(manifest: RunManifestV2, options: RetentionOptions
   }
 
   const prunedIndex = pruneRunFiles(nextIndex, dataDir, options)
-  writeFileSync(indexPath, JSON.stringify(prunedIndex, null, 2), "utf-8")
+  writeJsonAtomic(indexPath, prunedIndex)
 }
