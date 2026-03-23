@@ -44,7 +44,7 @@ Primary summary metrics:
 - `statusCounts`: transport/judge validity outcomes
 - `modelSuccessRate`, `judgeSuccessRate`, `scorableRate`
 
-Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 3`; loaders remain compatible with existing `schemaVersion: 2` manifests).
+Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 4`; loaders remain compatible with existing `schemaVersion: 2` and `schemaVersion: 3` manifests).
 Scenario content lives in JSON module files under `lib/dystopiabench/scenario-data/modules/` and is validated through the TypeScript registry in `lib/dystopiabench/scenario-registry.ts`.
 
 ## Repository layout
@@ -124,6 +124,8 @@ pnpm bench:run --models=local:my-custom-model
 pnpm bench:run --levels=1,2,3 --run-id=my-run-001
 pnpm bench:run --judge-model=google/gemini-3-flash-preview --transport=chat-only
 pnpm bench:run --judge-models=google/gemini-3-flash-preview,claude-opus-4.6
+pnpm bench:run --judge-model=claude-opus-4.6 --judge-strategy=pair-with-tiebreak
+pnpm bench:run --provider-precision=non-quantized-only
 pnpm bench:run --concurrency=6 --per-model-concurrency=1 --timeout-ms=90000
 pnpm bench:run-isolated --module=petrov --models=gpt-5.3-codex --levels=5
 pnpm bench:run --retain=20 --archive-dir=archive
@@ -142,8 +144,11 @@ Main `bench:run` flags:
 - `--scenario-ids=<comma-separated scenario IDs>`
 - `--judge-model=<model-id-or-openrouter-or-local-model-selector>`
 - `--judge-models=<comma-separated judge selectors>` (multi-judge arena mode)
+- `--judge-strategy=single|pair-with-tiebreak`
+- In `pair-with-tiebreak`, the primary judge is `--judge-model`, the secondary judge is fixed to `kimi-k2.5`, and disagreements go to `openai/gpt-5.4-mini`
 - `--transport=chat-first-fallback|chat-only`
 - `--conversation-mode=stateful|stateless`
+- `--provider-precision=default|non-quantized-only`
 - `--timeout-ms=<positive-int>`
 - `--concurrency=<positive-int>`
 - `--per-model-concurrency=<positive-int>`
@@ -169,7 +174,7 @@ Use this profile when you see timeout-heavy or empty-response-heavy runs on spec
 pnpm bench:run-isolated --models=qwen3.5,claude-opus-4.6 --levels=4,5 --timeout-ms=90000 --max-retries=2 --transport=chat-first-fallback --per-model-concurrency=1
 ```
 
-By default, `EMPTY_MODEL_RESPONSE` is recorded as `invalid_response` (unscorable) during benchmark runs. This behavior is unchanged in the reliability profile.
+By default, empty completions after all retries are recorded as implicit refusals (`status=ok`, `compliance=refusal`) with explicit manifest metadata rather than being left unscorable.
 
 ### Rerun failed prompts from a previous run
 
@@ -192,6 +197,8 @@ pnpm bench:rerun-failures --no-publish
 - `to-max-failed` (default): rerun all levels up to highest failed level per scenario-model pair
 - `all-levels`: rerun levels 1-5 for failed pairs
 - `failed-only`: rerun only failed tuples
+
+Reruns never mutate the source manifest. `bench:rerun-failures` writes a new derived `benchmark-rerun-*.json` style run with provenance metadata (`derivedFromRunId`, `derivationKind`, `rerunScope`, `rerunPairCount`, `replacedTupleCount`) and publishes latest aliases from that derived run only.
 
 ### Publish a run as latest
 
@@ -229,6 +236,8 @@ Each result row includes:
 - prompt/response text
 - classification (`compliance`) and `score`
 - status (`ok`, `model_error`, `judge_error`, `aborted`, `invalid_response`)
+- judge metadata (`judgeVotes`, `judgeReasoning`, `implicitRefusalFromEmpty`)
+- stateful continuity metadata (`conversationContinuity`)
 - transport metadata (`endpointUsed`, `transportAttempts`)
 
 ## Dashboard and routes

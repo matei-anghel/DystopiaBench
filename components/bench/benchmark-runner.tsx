@@ -6,10 +6,17 @@ import {
   DEFAULT_JUDGE_MODEL,
   getEstimatedPricingByModelKey,
   JUDGE_MODEL_OPTIONS,
+  PAIR_WITH_TIEBREAK_ARBITER_MODEL,
+  PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
 } from "@/lib/dystopiabench/models"
 import { ALL_MODULES, ALL_SCENARIOS, getScenariosByModule } from "@/lib/dystopiabench/scenarios"
 import type { EscalationLevel, Module } from "@/lib/dystopiabench/types"
-import type { ConversationMode, TransportPolicy } from "@/lib/dystopiabench/runner"
+import type {
+  ConversationMode,
+  JudgeStrategy,
+  ProviderPrecisionPolicy,
+  TransportPolicy,
+} from "@/lib/dystopiabench/runner"
 import { Card } from "@/components/ui/card"
 import { AlertTriangle, Terminal, Info } from "lucide-react"
 
@@ -24,6 +31,14 @@ const ESTIMATED_MODEL_INPUT_TOKENS_BY_LEVEL: Record<EscalationLevel, number> = {
 const ESTIMATED_MODEL_OUTPUT_TOKENS_PER_PROMPT = 900
 const ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT = 2400
 const ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT = 120
+const PAIR_WITH_TIEBREAK_FIXED_JUDGE_MODELS = new Set([
+  PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
+  PAIR_WITH_TIEBREAK_ARBITER_MODEL,
+])
+
+function isFixedPairWithTiebreakJudge(modelId: string): boolean {
+  return PAIR_WITH_TIEBREAK_FIXED_JUDGE_MODELS.has(modelId)
+}
 
 function getModuleDisplayLabel(label: string): string {
   return label.replace(/\s+Module$/i, "")
@@ -34,8 +49,11 @@ export function BenchmarkRunner() {
   const [selectedModule, setSelectedModule] = useState<Module | "both">("both")
   const [selectedLevels, setSelectedLevels] = useState<EscalationLevel[]>([1, 2, 3, 4, 5])
   const [selectedJudgeModel, setSelectedJudgeModel] = useState<string>(DEFAULT_JUDGE_MODEL)
+  const [selectedJudgeStrategy, setSelectedJudgeStrategy] = useState<JudgeStrategy>("single")
   const [selectedTransport, setSelectedTransport] = useState<TransportPolicy>("chat-first-fallback")
   const [selectedConversationMode, setSelectedConversationMode] = useState<ConversationMode>("stateful")
+  const [selectedProviderPrecision, setSelectedProviderPrecision] =
+    useState<ProviderPrecisionPolicy>("default")
 
   const toggleModel = (id: string) => {
     setSelectedModels((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
@@ -96,12 +114,31 @@ export function BenchmarkRunner() {
     }, 0)
 
     const judgePromptCount = promptsPerModel * selectedModels.length
-    const judgeInputTokens = judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT
-    const judgeOutputTokens = judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT
-    const judgePricing = getEstimatedPricingByModelKey(selectedJudgeModel)
+    const primaryJudgePricing = getEstimatedPricingByModelKey(selectedJudgeModel)
+    const secondaryJudgePricing = getEstimatedPricingByModelKey(PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL)
+    const arbiterJudgePricing = getEstimatedPricingByModelKey(PAIR_WITH_TIEBREAK_ARBITER_MODEL)
+    const judgeInputTokens =
+      selectedJudgeStrategy === "pair-with-tiebreak"
+        ? judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT * 3
+        : judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT
+    const judgeOutputTokens =
+      selectedJudgeStrategy === "pair-with-tiebreak"
+        ? judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT * 3
+        : judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT
     const judgeUsd =
-      (judgeInputTokens / 1_000_000) * judgePricing.input +
-      (judgeOutputTokens / 1_000_000) * judgePricing.output
+      selectedJudgeStrategy === "pair-with-tiebreak"
+        ? (
+          (judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT / 1_000_000) * primaryJudgePricing.input +
+          (judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT / 1_000_000) * primaryJudgePricing.output +
+          (judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT / 1_000_000) * secondaryJudgePricing.input +
+          (judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT / 1_000_000) * secondaryJudgePricing.output +
+          (judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT / 1_000_000) * arbiterJudgePricing.input +
+          (judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT / 1_000_000) * arbiterJudgePricing.output
+        )
+        : (
+          (judgeInputTokens / 1_000_000) * primaryJudgePricing.input +
+          (judgeOutputTokens / 1_000_000) * primaryJudgePricing.output
+        )
 
     return {
       totalUsd: modelUsd + judgeUsd,
@@ -112,7 +149,7 @@ export function BenchmarkRunner() {
       judgeInputTokens,
       judgeOutputTokens,
     }
-  }, [scenarioCount, selectedJudgeModel, selectedLevels, selectedModels])
+  }, [scenarioCount, selectedJudgeModel, selectedJudgeStrategy, selectedLevels, selectedModels])
 
   const formatUsd = (value: number) => `$${value.toFixed(2)}`
   const formatTokens = (value: number) => value.toLocaleString("en-US")
@@ -121,12 +158,31 @@ export function BenchmarkRunner() {
     if (selectedModels.length === 0) return "Select at least one model."
     const modelsArg = selectedModels.join(",")
     const levelsArg = selectedLevels.join(",")
-    const commonArgs = `--module=${selectedModule} --models=${modelsArg} --levels=${levelsArg} --judge-model=${selectedJudgeModel} --transport=${selectedTransport}`
+    const judgeArgs =
+      selectedJudgeStrategy === "pair-with-tiebreak"
+        ? `--judge-model=${selectedJudgeModel} --judge-strategy=pair-with-tiebreak`
+        : `--judge-model=${selectedJudgeModel} --judge-strategy=single`
+    const providerPrecisionArg =
+      selectedProviderPrecision === "default"
+        ? ""
+        : ` --provider-precision=${selectedProviderPrecision}`
+    const commonArgs =
+      `--module=${selectedModule} --models=${modelsArg} --levels=${levelsArg} ${judgeArgs} ` +
+      `--transport=${selectedTransport}${providerPrecisionArg}`
     if (selectedConversationMode === "stateless") {
       return `pnpm bench:run-isolated ${commonArgs}`
     }
     return `pnpm bench:run ${commonArgs} --conversation-mode=stateful`
-  }, [selectedConversationMode, selectedJudgeModel, selectedLevels, selectedModels, selectedModule, selectedTransport])
+  }, [
+    selectedConversationMode,
+    selectedJudgeModel,
+    selectedJudgeStrategy,
+    selectedLevels,
+    selectedModels,
+    selectedModule,
+    selectedProviderPrecision,
+    selectedTransport,
+  ])
 
   return (
     <div className="flex flex-col gap-8">
@@ -204,22 +260,90 @@ export function BenchmarkRunner() {
 
         <div className="mb-6">
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
+            Judge Strategy
+          </label>
+          <div className="flex gap-2">
+            {(["single", "pair-with-tiebreak"] as JudgeStrategy[]).map((strategy) => (
+              <button
+                key={strategy}
+                onClick={() => {
+                  setSelectedJudgeStrategy(strategy)
+                  if (
+                    strategy === "pair-with-tiebreak" &&
+                    isFixedPairWithTiebreakJudge(selectedJudgeModel)
+                  ) {
+                    setSelectedJudgeModel(DEFAULT_JUDGE_MODEL)
+                  }
+                }}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${selectedJudgeStrategy === strategy
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                {strategy === "single" ? "Single Judge" : "Pair + Tiebreak"}
+              </button>
+            ))}
+          </div>
+          {selectedJudgeStrategy === "pair-with-tiebreak" && (
+            <p className="mt-3 font-mono text-[10px] text-muted-foreground leading-relaxed">
+              Primary judge: <span className="text-foreground">{selectedJudgeModel}</span>. Secondary judge:{" "}
+              <span className="text-foreground">{PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL}</span>. Arbiter:{" "}
+              <span className="text-foreground">{PAIR_WITH_TIEBREAK_ARBITER_MODEL}</span>.
+            </p>
+          )}
+        </div>
+
+        <div className="mb-6">
+          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
             Judge Model
           </label>
           <div className="flex flex-wrap gap-2">
             {JUDGE_MODEL_OPTIONS.map((judgeOption) => (
               <button
                 key={judgeOption.id}
+                disabled={
+                  selectedJudgeStrategy === "pair-with-tiebreak" &&
+                  isFixedPairWithTiebreakJudge(judgeOption.id)
+                }
                 onClick={() => setSelectedJudgeModel(judgeOption.id)}
                 className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedJudgeModel === judgeOption.id
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                  } ${selectedJudgeStrategy === "pair-with-tiebreak" &&
+                  isFixedPairWithTiebreakJudge(judgeOption.id)
+                    ? "cursor-not-allowed opacity-50"
+                    : ""
                   }`}
               >
                 {judgeOption.label}
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
+            Provider Precision
+          </label>
+          <div className="flex gap-2">
+            {(["default", "non-quantized-only"] as ProviderPrecisionPolicy[]).map((policy) => (
+              <button
+                key={policy}
+                onClick={() => setSelectedProviderPrecision(policy)}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${selectedProviderPrecision === policy
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                {policy}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 font-mono text-[10px] text-muted-foreground leading-relaxed">
+            <span className="text-foreground">{selectedProviderPrecision}</span> only affects open-weight benchmark
+            model calls on OpenRouter. <span className="text-foreground">non-quantized-only</span> prefers providers
+            advertising FP16/BF16/FP32 and fails fast when none exist.
+          </p>
         </div>
 
         <div className="mb-6">
@@ -297,7 +421,8 @@ export function BenchmarkRunner() {
             </p>
           </div>
           <p className="font-mono text-[10px] mt-3 text-muted-foreground">
-            Estimate uses static per-1M token pricing plus level-based token assumptions. Actual billed cost may vary.
+            Estimate uses static per-1M token pricing plus level-based token assumptions. In pair+tiebreak mode it
+            assumes worst-case arbiter usage on every prompt.
           </p>
         </div>
       </Card>

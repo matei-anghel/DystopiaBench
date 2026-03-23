@@ -1,6 +1,12 @@
 import { AVAILABLE_MODELS, getModelById } from "../lib/dystopiabench/models"
 import { ALL_SCENARIOS, getRegisteredModuleIds, getScenariosByModule } from "../lib/dystopiabench/scenarios"
-import { runBenchmark, type RunBenchmarkOptions, type TransportPolicy } from "../lib/dystopiabench/runner"
+import {
+  runBenchmark,
+  type JudgeStrategy,
+  type ProviderPrecisionPolicy,
+  type RunBenchmarkOptions,
+  type TransportPolicy,
+} from "../lib/dystopiabench/runner"
 import {
   makeRunId,
   publishLatest,
@@ -157,6 +163,18 @@ function parseConversationMode(input: string | undefined): "stateful" | "statele
   throw new Error("Invalid --conversation-mode value. Use one of: stateful, stateless.")
 }
 
+function parseJudgeStrategy(input: string | undefined): JudgeStrategy {
+  if (!input || input === "single") return "single"
+  if (input === "pair-with-tiebreak") return "pair-with-tiebreak"
+  throw new Error("Invalid --judge-strategy value. Use one of: single, pair-with-tiebreak.")
+}
+
+function parseProviderPrecision(input: string | undefined): ProviderPrecisionPolicy {
+  if (!input || input === "default") return "default"
+  if (input === "non-quantized-only") return "non-quantized-only"
+  throw new Error("Invalid --provider-precision value. Use one of: default, non-quantized-only.")
+}
+
 function parsePositiveIntFlag(flag: string, input: string | undefined): number | undefined {
   if (!input) return undefined
   const value = Number(input)
@@ -199,13 +217,19 @@ async function main() {
   const levels = parseLevels(parseArg("--levels"))
   const models = parseModels(parseArg("--models"))
   const judgeModel = parseArg("--judge-model")
-  const judgeModels = parseJudgeModels(parseArg("--judge-models"), judgeModel)
+  const judgeStrategy = parseJudgeStrategy(parseArg("--judge-strategy"))
+  const judgeModelsArg = parseArg("--judge-models")
+  if (judgeStrategy === "pair-with-tiebreak" && judgeModelsArg) {
+    throw new Error("--judge-models cannot be combined with --judge-strategy=pair-with-tiebreak.")
+  }
+  const judgeModels = judgeStrategy === "single" ? parseJudgeModels(judgeModelsArg, judgeModel) : undefined
   const scenarioIds = parseScenarioIds(parseArg("--scenario-ids"))
   const runId = sanitizeRunId(parseArg("--run-id") ?? makeRunId())
   const retainRuns = parseRetainRuns(parseArg("--retain"))
   const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
   const transport = parseTransport(parseArg("--transport"))
   const conversationMode = parseConversationMode(parseArg("--conversation-mode"))
+  const providerPrecision = parseProviderPrecision(parseArg("--provider-precision"))
   const publishLatestAliases = !hasFlag("--no-publish-latest")
   const runtimeOverrides = parseRuntimeOverrides()
 
@@ -223,9 +247,17 @@ async function main() {
     const scenarioCount = moduleArg === "both" ? ALL_SCENARIOS.length : getScenariosByModule(moduleArg).length
     console.log(`Scenarios: all (${scenarioCount})`)
   }
-  console.log(`Judge: ${(judgeModels.length > 0 ? judgeModels.join(", ") : "default")}`)
+  console.log(`Judge strategy: ${judgeStrategy}`)
+  console.log(
+    `Judge: ${judgeStrategy === "pair-with-tiebreak"
+      ? `${judgeModel ?? "default"} + kimi-k2.5 + openai/gpt-5.4-mini`
+      : judgeModels && judgeModels.length > 0
+        ? judgeModels.join(", ")
+        : "default"}`
+  )
   console.log(`Transport: ${transport}`)
   console.log(`Conversation mode: ${conversationMode}`)
+  console.log(`Provider precision: ${providerPrecision}`)
   console.log(`Publish latest aliases: ${publishLatestAliases ? "yes" : "no"}`)
   if (runtimeOverrides.timeoutMs !== undefined) console.log(`Timeout override: ${runtimeOverrides.timeoutMs}ms`)
   if (runtimeOverrides.concurrency !== undefined) console.log(`Concurrency override: ${runtimeOverrides.concurrency}`)
@@ -242,8 +274,10 @@ async function main() {
     scenarioIds,
     judgeModel,
     judgeModels,
+    judgeStrategy,
     transportPolicy: transport,
     conversationMode,
+    providerPrecisionPolicy: providerPrecision,
     ...runtimeOverrides,
   })
 

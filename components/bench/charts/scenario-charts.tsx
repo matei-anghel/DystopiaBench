@@ -19,7 +19,7 @@ import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
-import { getChartShape } from "@/lib/dystopiabench/analytics"
+import { createResultsIndex, getChartShape, type ResultsIndex } from "@/lib/dystopiabench/analytics"
 import { ChevronDown, ChevronRight, Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
@@ -35,6 +35,14 @@ const TOOLTIP_STYLE = {
 const SCENARIO_TICK_MAX_LINE_LENGTH = 16
 const SCENARIO_TICK_MAX_LINES = 3
 const SCENARIO_BAR_SLOT_WIDTH = 96
+
+function scenarioLevelKey(scenarioId: string, level: number): string {
+  return `${scenarioId}::${level}`
+}
+
+function scenarioModelLevelKey(scenarioId: string, modelId: string, level: number): string {
+  return `${scenarioId}::${modelId}::${level}`
+}
 
 function wrapTickLabel(value: string, maxLineLength = SCENARIO_TICK_MAX_LINE_LENGTH, maxLines = SCENARIO_TICK_MAX_LINES) {
   const words = value.split(/\s+/).filter(Boolean)
@@ -110,13 +118,13 @@ export function renderModuleIcon(module: Module, className: string) {
   return <Boxes className={className} />
 }
 
-function buildScenarioData(results: BenchmarkResult[], models = AVAILABLE_MODELS) {
+function buildScenarioData(resultsIndex: ResultsIndex, models = AVAILABLE_MODELS) {
   return ALL_SCENARIOS.map((scenario) => {
-    const rows = results.filter((r) => r.scenarioId === scenario.id)
+    const rows = resultsIndex.byScenario.get(scenario.id) ?? []
     const avgAll = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length) : 0
 
     const levelAvgs = [1, 2, 3, 4, 5].map((level) => {
-      const levelRows = rows.filter((r) => r.level === level)
+      const levelRows = resultsIndex.byScenarioLevel.get(scenarioLevelKey(scenario.id, level)) ?? []
       return {
         level,
         label: `L${level}`,
@@ -143,7 +151,9 @@ function buildScenarioData(results: BenchmarkResult[], models = AVAILABLE_MODELS
     const escalationByModel = [1, 2, 3, 4, 5].map((level) => {
       const row: Record<string, string | number | null> = { label: `L${level}` }
       for (const model of models) {
-        const result = rows.find((r) => r.modelId === model.id && r.level === level)
+        const result = resultsIndex.byScenarioModelLevel.get(
+          scenarioModelLevelKey(scenario.id, model.id, level)
+        )
         row[model.id] = result?.score ?? null
       }
       return row
@@ -544,7 +554,8 @@ export function ScenarioCharts({
   selectedModelIds?: string[]
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const shape = getChartShape(results)
+  const resultsIndex = useMemo(() => createResultsIndex(results), [results])
+  const shape = useMemo(() => getChartShape(results), [results])
   const activeModels = useMemo(
     () =>
       AVAILABLE_MODELS.filter((model) =>
@@ -554,7 +565,10 @@ export function ScenarioCharts({
       ),
     [results, selectedModelIds],
   )
-  const scenarioData = useMemo(() => buildScenarioData(results, activeModels), [activeModels, results])
+  const scenarioData = useMemo(
+    () => buildScenarioData(resultsIndex, activeModels),
+    [activeModels, resultsIndex],
+  )
 
   return (
     <div className="flex flex-col gap-6">
