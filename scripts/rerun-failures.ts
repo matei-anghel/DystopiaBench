@@ -13,7 +13,13 @@ import {
   type RunBenchmarkOptions,
   type TransportPolicy,
 } from "../lib/dystopiabench/runner"
-import { getDataDir, publishLatest, sanitizeRunId, writeRunManifest } from "../lib/dystopiabench/storage"
+import {
+  getDataDir,
+  makeRunId,
+  publishLatest,
+  sanitizeRunId,
+  writeRunManifest,
+} from "../lib/dystopiabench/storage"
 import { buildScenarioSelectionMetadata } from "../lib/dystopiabench/scenario-manifest"
 import { SCENARIO_CATALOG_VERSION } from "../lib/dystopiabench/scenarios"
 import { toModuleId, type Module } from "../lib/dystopiabench/types"
@@ -234,27 +240,6 @@ function formatFailureRow(row: BenchmarkResultV2): string {
   ].join(" | ")
 }
 
-function coerceEmptyToRefusal(row: BenchmarkResultV2): BenchmarkResultV2 {
-  if (row.status !== "invalid_response" || row.errorCode !== "EMPTY_MODEL_RESPONSE") {
-    return row
-  }
-
-  return {
-    ...row,
-    response: row.response.trim()
-      ? row.response
-      : "Unable to provide the requested content.",
-    compliance: "refusal",
-    score: 0,
-    status: "ok",
-    scorable: true,
-    judgeReasoning:
-      "Provider returned empty response after all retries; treated as implicit refusal for scoring continuity.",
-    errorCode: "EMPTY_MODEL_RESPONSE_TREATED_AS_REFUSAL",
-    timestamp: Date.now(),
-  }
-}
-
 function resolveConversationMode(
   mode: RunManifestV2["metadata"]["conversationMode"] | undefined,
 ): ConversationMode {
@@ -277,6 +262,45 @@ function buildSelectionMetadataFromResults(results: BenchmarkResultV2[]) {
   )
 }
 
+function cloneManifest(manifest: RunManifestV2): RunManifestV2 {
+  return {
+    ...manifest,
+    metadata: { ...manifest.metadata },
+    summary: {
+      ...manifest.summary,
+      statusCounts: { ...manifest.summary.statusCounts },
+    },
+    results: manifest.results.map((row) => ({ ...row })),
+  }
+}
+
+function createDerivedRerunManifest(
+  baseManifest: RunManifestV2,
+  scope: RerunScope,
+  pairCount: number,
+): RunManifestV2 {
+  const derivedRunId = sanitizeRunId(`rerun-${makeRunId()}`)
+  const cloned = cloneManifest(baseManifest)
+
+  return {
+    ...cloned,
+    schemaVersion: 4,
+    runId: derivedRunId,
+    timestamp: Date.now(),
+    date: new Date().toISOString(),
+    metadata: {
+      ...cloned.metadata,
+      totalPrompts: cloned.results.length,
+      derivedFromRunId: baseManifest.runId,
+      derivationKind: "rerun_failures",
+      rerunScope: scope,
+      rerunPairCount: pairCount,
+      replacedTupleCount: 0,
+    },
+    summary: summarizeResults(cloned.results),
+  }
+}
+
 async function main() {
   const requestedRunId = parseRunId()
   const source = parseSource(requestedRunId)
@@ -284,23 +308,23 @@ async function main() {
   const dryRun = hasFlag("--dry-run")
   const noPublish = hasFlag("--no-publish")
   const debug = hasFlag("--debug")
-  const emptyAsRefusal = hasFlag("--empty-as-refusal")
   const pairConcurrency = parsePositiveIntFlag("--pair-concurrency", parseArg("--pair-concurrency")) ?? 2
   const runtimeOverrides = parseRuntimeOverrides()
 
   const { manifest: baseManifest, sourcePath } = loadBaseManifest(source, requestedRunId)
   const { failedRows, plans, plannedPrompts } = buildPlan(baseManifest, scope)
+  const derivedRunId = sanitizeRunId(`rerun-${makeRunId()}`)
 
   console.log(`Loaded source: ${sourcePath}`)
-  console.log(`Run ID: ${baseManifest.runId}`)
+  console.log(`Source run ID: ${baseManifest.runId}`)
+  console.log(`Derived run ID: ${derivedRunId}`)
   console.log(`Scope: ${scope}`)
   console.log(`Failed tuples: ${failedRows.length}`)
   console.log(`Failed scenario-model pairs: ${plans.length}`)
   console.log(`Planned prompts to rerun: ${plannedPrompts}`)
   console.log(`Pair concurrency: ${pairConcurrency}`)
-  console.log("Checkpoint mode: enabled (run file is updated after each scenario-model pair).")
+  console.log("Checkpoint mode: enabled (derived run file is updated after each scenario-model pair).")
   if (debug) console.log("Debug logging: enabled")
-  if (emptyAsRefusal) console.log("Policy: empty responses will be coerced to refusal.")
 
   if (runtimeOverrides.timeoutMs !== undefined) console.log(`Timeout override: ${runtimeOverrides.timeoutMs}ms`)
   if (runtimeOverrides.concurrency !== undefined) console.log(`Concurrency override: ${runtimeOverrides.concurrency}`)
@@ -325,7 +349,11 @@ async function main() {
     return
   }
 
-  let workingManifest: RunManifestV2 = baseManifest
+  let workingManifest: RunManifestV2 = {
+    ...createDerivedRerunManifest(baseManifest, scope, plans.length),
+    runId: derivedRunId,
+  }
+  writeRunManifest(workingManifest)
   let replacedCount = 0
   let pairRunFailures = 0
   let completedPairs = 0
@@ -347,9 +375,14 @@ async function main() {
           modelIds: [plan.modelId],
           levels: plan.rerunLevels,
           judgeModel: workingManifest.metadata.judgeModel,
-          judgeModels: workingManifest.metadata.judgeModels ?? [workingManifest.metadata.judgeModel],
+          judgeModels:
+            (workingManifest.metadata.judgeStrategy ?? "single") === "single"
+              ? workingManifest.metadata.judgeModels ?? [workingManifest.metadata.judgeModel]
+              : undefined,
+          judgeStrategy: workingManifest.metadata.judgeStrategy,
           transportPolicy: (workingManifest.metadata.transportPolicy ?? "chat-first-fallback") as TransportPolicy,
           conversationMode: resolveConversationMode(workingManifest.metadata.conversationMode),
+          providerPrecisionPolicy: workingManifest.metadata.providerPrecisionPolicy,
           skipModelValidation: true,
           concurrency: runtimeOverrides.concurrency ?? 1,
           perModelConcurrency: runtimeOverrides.perModelConcurrency ?? 1,
@@ -366,11 +399,7 @@ async function main() {
         return
       }
 
-      const normalizedRerunResults = emptyAsRefusal
-        ? rerun.results.map(coerceEmptyToRefusal)
-        : rerun.results
-
-      const rerunFailedRows = normalizedRerunResults.filter(isFailedRow)
+      const rerunFailedRows = rerun.results.filter(isFailedRow)
       if (rerunFailedRows.length > 0) {
         console.warn(`  Pair still has ${rerunFailedRows.length} failed row(s) after rerun.`)
         for (const row of rerunFailedRows) {
@@ -380,20 +409,13 @@ async function main() {
 
       await mergeLimit(async () => {
         const replacementByKey = new Map<string, BenchmarkResultV2>()
-        for (const row of normalizedRerunResults) {
+        for (const row of rerun.results) {
           replacementByKey.set(resultKey(row), row)
         }
-
-        const pairFailedKeys = new Set(
-          workingManifest.results
-            .filter((row) => row.scenarioId === plan.scenarioId && row.modelId === plan.modelId && isFailedRow(row))
-            .map(resultKey)
-        )
 
         let replacedThisPair = 0
         const mergedResults = workingManifest.results.map((row) => {
           const key = resultKey(row)
-          if (!pairFailedKeys.has(key)) return row
           const replacement = replacementByKey.get(key)
           if (!replacement) return row
           replacedThisPair += 1
@@ -413,6 +435,7 @@ async function main() {
             totalPrompts: mergedResults.length,
             scenarioCatalogVersion:
               workingManifest.metadata.scenarioCatalogVersion ?? SCENARIO_CATALOG_VERSION,
+            replacedTupleCount: replacedCount,
             ...buildSelectionMetadataFromResults(mergedResults),
           },
           summary: nextSummary,
@@ -446,7 +469,7 @@ async function main() {
   const beforeSummary = baseManifest.summary
   const afterSummary = workingManifest.summary
 
-  console.log(`Updated run file: public/data/benchmark-${workingManifest.runId}.json`)
+  console.log(`Derived run file: public/data/benchmark-${workingManifest.runId}.json`)
   console.log(
     `Replacement stats: attempted=${initialFailed}, replaced=${replacedCount}, remainingFailed=${finalFailed}, pairRunFailures=${pairRunFailures}`
   )

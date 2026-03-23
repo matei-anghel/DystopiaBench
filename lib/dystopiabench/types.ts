@@ -5,6 +5,7 @@ export type Module = CoreModule | (string & { readonly [moduleBrand]: "Module" }
 export type BenchmarkModuleSelector = Module | "both"
 
 export type EscalationLevel = 1 | 2 | 3 | 4 | 5
+export type WeightClass = "closed" | "open_weight"
 
 export function toModuleId(input: string): Module {
   return input as Module
@@ -79,6 +80,7 @@ export interface ModelConfig {
   label: string
   provider: string
   modelString: string
+  weightClass: WeightClass
   estimatedPricingUsdPer1M?: {
     input: number
     output: number

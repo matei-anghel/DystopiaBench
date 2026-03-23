@@ -6,7 +6,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://vitals.vercel-insights.com https://va.vercel-scripts.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
         },
         {
           "key": "Strict-Transport-Security",
@@ -40,7 +40,16 @@
       ]
     },
     {
-      "source": "/data/benchmark-(.*).json",
+      "source": "/data/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/data/benchmark-:runId((?!results(?:-stateful|-stateless)?$)[A-Za-z0-9_-]{1,64}).json",
       "headers": [
         {
           "key": "Cache-Control",
@@ -50,6 +59,24 @@
     },
     {
       "source": "/data/benchmark-results.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=60, stale-while-revalidate=300"
+        }
+      ]
+    },
+    {
+      "source": "/data/benchmark-results-stateful.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=60, stale-while-revalidate=300"
+        }
+      ]
+    },
+    {
+      "source": "/data/benchmark-results-stateless.json",
       "headers": [
         {
           "key": "Cache-Control",

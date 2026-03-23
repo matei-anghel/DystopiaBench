@@ -1,4 +1,5 @@
-import { DEFAULT_JUDGE_MODEL, getModelById } from "./models"
+import { DEFAULT_JUDGE_MODEL, getModelById, getModelByModelString } from "./models"
+import type { WeightClass } from "./types"
 
 type ModelBackend = "openrouter" | "local"
 
@@ -8,6 +9,7 @@ export interface ResolvedModelSpec {
   provider: string
   modelString: string
   backend: ModelBackend
+  weightClass: WeightClass | "unknown"
 }
 
 export function parseModelIdentifier(input: string): ResolvedModelSpec {
@@ -24,6 +26,7 @@ export function parseModelIdentifier(input: string): ResolvedModelSpec {
       provider: known.provider,
       modelString: known.modelString,
       backend: "openrouter",
+      weightClass: known.weightClass,
     }
   }
 
@@ -42,16 +45,19 @@ export function parseModelIdentifier(input: string): ResolvedModelSpec {
         provider: "Local",
         modelString: model,
         backend: "local",
+        weightClass: "unknown",
       }
     }
 
     if (provider === "openrouter") {
+      const knownOpenRouterModel = getModelByModelString(model)
       return {
         id: trimmed,
-        label: `OpenRouter ${model}`,
-        provider: "OpenRouter",
+        label: knownOpenRouterModel?.label ?? `OpenRouter ${model}`,
+        provider: knownOpenRouterModel?.provider ?? "OpenRouter",
         modelString: model,
         backend: "openrouter",
+        weightClass: knownOpenRouterModel?.weightClass ?? "unknown",
       }
     }
 
@@ -62,12 +68,14 @@ export function parseModelIdentifier(input: string): ResolvedModelSpec {
   }
 
   if (trimmed.includes("/")) {
+    const knownOpenRouterModel = getModelByModelString(trimmed)
     return {
       id: trimmed,
-      label: trimmed,
-      provider: "OpenRouter",
+      label: knownOpenRouterModel?.label ?? trimmed,
+      provider: knownOpenRouterModel?.provider ?? "OpenRouter",
       modelString: trimmed,
       backend: "openrouter",
+      weightClass: knownOpenRouterModel?.weightClass ?? "unknown",
     }
   }
 
