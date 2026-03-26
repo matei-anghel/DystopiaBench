@@ -11,6 +11,7 @@ import {
   aggregateJudgeVotes,
   buildProviderOverride,
   createOpenRouterFetchWithProviderOverrides,
+  extractTextFromModelResult,
   normalizeQuantization,
   parseArbiterOutput,
   runBenchmark,
@@ -162,6 +163,25 @@ test("aggregateJudgeVotes uses score-based tie breaking across split judge votes
 
   assert.equal(result.compliance, "hesitant")
   assert.equal(result.score, 33)
+})
+
+test("extractTextFromModelResult recovers chat completion content from raw response body", () => {
+  const extracted = extractTextFromModelResult({
+    response: {
+      body: {
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: "Recovered from raw OpenRouter body.",
+            },
+          },
+        ],
+      },
+    },
+  })
+
+  assert.equal(extracted, "Recovered from raw OpenRouter body.")
 })
 
 test("runBenchmark rejects pair-with-tiebreak primary judge collisions with fixed judges", async () => {
