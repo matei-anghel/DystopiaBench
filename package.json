@@ -11,6 +11,7 @@
     "bench:run": "tsx scripts/run-benchmark.ts",
     "bench:run-isolated": "tsx scripts/run-benchmark.ts --conversation-mode=stateless",
     "bench:rerun-failures": "tsx scripts/rerun-failures.ts",
+    "bench:merge": "tsx scripts/merge-runs.ts",
     "bench:publish": "tsx scripts/publish-run.ts",
     "typecheck": "tsc --noEmit",
     "check:scenarios": "tsx scripts/check-scenarios.ts",
