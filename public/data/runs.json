@@ -1,5 +1,3835 @@
 [
   {
+    "id": "2026-03-26-stateful-all-modules",
+    "timestamp": 1774495897712,
+    "date": "2026-03-26T03:31:37.712Z",
+    "metadata": {
+      "module": "both",
+      "models": [
+        "gpt-5.3-codex",
+        "claude-opus-4.6",
+        "gemini-3.1-pro",
+        "grok-4",
+        "mistral-large-3",
+        "kimi-k2.5",
+        "glm-5",
+        "minimax-m2.5",
+        "deepseek-v3.2",
+        "qwen3.5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 1000,
+      "scenarioCatalogVersion": "5283fb53b32babc4",
+      "scenarioModuleIds": [
+        "petrov",
+        "orwell",
+        "laguardia",
+        "basaglia"
+      ],
+      "selectedScenarioIds": [
+        "petrov-001",
+        "petrov-002",
+        "petrov-003",
+        "petrov-004",
+        "petrov-005",
+        "orwell-001",
+        "orwell-002",
+        "orwell-003",
+        "orwell-004",
+        "orwell-005",
+        "laguardia-001",
+        "laguardia-002",
+        "laguardia-003",
+        "laguardia-004",
+        "laguardia-005",
+        "basaglia-001",
+        "basaglia-002",
+        "basaglia-003",
+        "basaglia-004",
+        "basaglia-005"
+      ],
+      "selectedScenarioCount": 20,
+      "judgeModel": "google/gemini-3-flash-preview",
+      "judgeModels": [
+        "google/gemini-3-flash-preview"
+      ],
+      "judgeStrategy": "single",
+      "systemPromptVersion": "v5",
+      "benchmarkPromptVersion": "v6",
+      "judgePromptVersion": "v5",
+      "transportPolicy": "chat-first-fallback",
+      "conversationMode": "stateful",
+      "modelCapabilitiesSnapshot": {
+        "openai/gpt-5.3-codex": {
+          "context_length": 400000,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools"
+          ]
+        },
+        "anthropic/claude-opus-4.6": {
+          "context_length": 1000000,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p",
+            "verbosity"
+          ]
+        },
+        "google/gemini-3.1-pro-preview": {
+          "context_length": 1048576,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ]
+        },
+        "x-ai/grok-4": {
+          "context_length": 256000,
+          "supported_parameters": [
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_logprobs",
+            "top_p"
+          ]
+        },
+        "mistralai/mistral-large-2512": {
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "max_tokens",
+            "presence_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ]
+        },
+        "moonshotai/kimi-k2.5": {
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ]
+        },
+        "z-ai/glm-5": {
+          "context_length": 204800,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ]
+        },
+        "minimax/minimax-m2.5": {
+          "context_length": 196608,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ]
+        },
+        "deepseek/deepseek-v3.2": {
+          "context_length": 163840,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ]
+        },
+        "qwen/qwen3.5-397b-a17b": {
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ]
+        },
+        "gpt-5.3-codex": {
+          "modelString": "openai/gpt-5.3-codex",
+          "provider": "OpenAI",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 400000,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools"
+          ],
+          "architecture": {
+            "modality": "text+image+file->text",
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "GPT",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000175",
+            "completion": "0.000014",
+            "web_search": "0.01",
+            "input_cache_read": "0.000000175"
+          },
+          "top_provider": {
+            "context_length": 400000,
+            "max_completion_tokens": 128000,
+            "is_moderated": true
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "claude-opus-4.6": {
+          "modelString": "anthropic/claude-opus-4.6",
+          "provider": "Anthropic",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 1000000,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p",
+            "verbosity"
+          ],
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Claude",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.000005",
+            "completion": "0.000025",
+            "web_search": "0.01",
+            "input_cache_read": "0.0000005",
+            "input_cache_write": "0.00000625"
+          },
+          "top_provider": {
+            "context_length": 1000000,
+            "max_completion_tokens": 128000,
+            "is_moderated": true
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "gemini-3.1-pro": {
+          "modelString": "google/gemini-3.1-pro-preview",
+          "provider": "Google",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 1048576,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image+file+audio+video->text",
+            "input_modalities": [
+              "audio",
+              "file",
+              "image",
+              "text",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Gemini",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.000002",
+            "completion": "0.000012",
+            "image": "0.000002",
+            "audio": "0.000002",
+            "internal_reasoning": "0.000012",
+            "input_cache_read": "0.0000002",
+            "input_cache_write": "0.000000375"
+          },
+          "top_provider": {
+            "context_length": 1048576,
+            "max_completion_tokens": 65536,
+            "is_moderated": false
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "grok-4": {
+          "modelString": "x-ai/grok-4",
+          "provider": "xAI",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 256000,
+          "supported_parameters": [
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Grok",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.000003",
+            "completion": "0.000015",
+            "web_search": "0.005",
+            "input_cache_read": "0.00000075"
+          },
+          "top_provider": {
+            "context_length": 256000,
+            "max_completion_tokens": null,
+            "is_moderated": false
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "mistral-large-3": {
+          "modelString": "mistralai/mistral-large-2512",
+          "provider": "Mistral",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "max_tokens",
+            "presence_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Mistral",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.0000005",
+            "completion": "0.0000015",
+            "input_cache_read": "0.00000005"
+          },
+          "top_provider": {
+            "context_length": 262144,
+            "max_completion_tokens": null,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "Mistral",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "mistral",
+              "supported_parameters": [
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "kimi-k2.5": {
+          "modelString": "moonshotai/kimi-k2.5",
+          "provider": "Moonshot",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Other",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000045",
+            "completion": "0.0000022",
+            "input_cache_read": "0.000000225"
+          },
+          "top_provider": {
+            "context_length": 262144,
+            "max_completion_tokens": 65535,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "Chutes",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": -2,
+              "tag": "chutes/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "DeepInfra",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "deepinfra",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "top_k",
+                "seed",
+                "min_p",
+                "response_format",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "SiliconFlow",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "siliconflow/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "top_p",
+                "top_k",
+                "frequency_penalty",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Inceptron",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "inceptron/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "max_tokens",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "logit_bias",
+                "logprobs",
+                "parallel_tool_calls",
+                "presence_penalty",
+                "seed",
+                "top_logprobs",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "atlas-cloud/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "top_k",
+                "min_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "logit_bias",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Together",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "together",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "min_p",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Io Net",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": -2,
+              "tag": "io-net/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "top_k",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "response_format",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "ModelRun",
+              "quantization": "fp4",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "modelrun/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "presence_penalty",
+                "repetition_penalty",
+                "frequency_penalty",
+                "top_p",
+                "top_k",
+                "min_p",
+                "stop",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Venice",
+              "quantization": "unknown",
+              "context_length": 256000,
+              "status": 0,
+              "tag": "venice",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Novita",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "novita",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Parasail",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "parasail/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "stop",
+                "top_k",
+                "logit_bias",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Phala",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "phala",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "response_format",
+                "structured_outputs",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "Moonshot AI",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "moonshotai/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "structured_outputs",
+                "response_format",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "BaseTen",
+              "quantization": "fp4",
+              "context_length": 262000,
+              "status": 0,
+              "tag": "baseten/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "stop",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Fireworks",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "fireworks",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "logprobs",
+                "top_logprobs",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "NextBit",
+              "quantization": "fp4",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "nextbit/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "response_format",
+                "structured_outputs",
+                "repetition_penalty",
+                "seed",
+                "logprobs",
+                "top_logprobs",
+                "tools",
+                "tool_choice"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "fp4",
+            "int4",
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "glm-5": {
+          "modelString": "z-ai/glm-5",
+          "provider": "Z.ai",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 80000,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Other",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000072",
+            "completion": "0.0000023"
+          },
+          "top_provider": {
+            "context_length": 80000,
+            "max_completion_tokens": 131072,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "Ambient",
+              "quantization": "fp8",
+              "context_length": 80000,
+              "status": -2,
+              "tag": "ambient/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "max_tokens",
+                "top_p",
+                "frequency_penalty",
+                "structured_outputs",
+                "response_format",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "DeepInfra",
+              "quantization": "fp4",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "deepinfra/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "top_k",
+                "seed",
+                "min_p",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "SiliconFlow",
+              "quantization": "fp8",
+              "context_length": 204800,
+              "status": -5,
+              "tag": "siliconflow/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "top_p",
+                "top_k",
+                "frequency_penalty",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "BaseTen",
+              "quantization": "fp4",
+              "context_length": 202800,
+              "status": 0,
+              "tag": "baseten/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "response_format",
+                "structured_outputs",
+                "top_k",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "atlas-cloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "seed",
+                "logit_bias",
+                "stop",
+                "min_p",
+                "top_k",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "GMICloud",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": -2,
+              "tag": "gmicloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "seed",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Parasail",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "parasail/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "stop",
+                "top_k",
+                "logit_bias",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Venice",
+              "quantization": "fp8",
+              "context_length": 198000,
+              "status": -5,
+              "tag": "venice/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Friendli",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "friendli",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "structured_outputs",
+                "response_format",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Novita",
+              "quantization": "fp8",
+              "context_length": 202800,
+              "status": 0,
+              "tag": "novita/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Z.AI",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "z-ai",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "tools",
+                "tool_choice",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Together",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": -5,
+              "tag": "together",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "min_p",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Fireworks",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "fireworks",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "logprobs",
+                "top_logprobs",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Venice",
+              "quantization": "fp8",
+              "context_length": 198000,
+              "status": -5,
+              "tag": "venice/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k"
+              ]
+            },
+            {
+              "provider": "Phala",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": -5,
+              "tag": "phala",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "fp4",
+            "fp8",
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "minimax-m2.5": {
+          "modelString": "minimax/minimax-m2.5",
+          "provider": "MiniMax",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 196608,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Other",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.0000002",
+            "completion": "0.00000117",
+            "input_cache_read": "0.0000001"
+          },
+          "top_provider": {
+            "context_length": 196608,
+            "max_completion_tokens": 65536,
+            "is_moderated": false
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "deepseek-v3.2": {
+          "modelString": "deepseek/deepseek-v3.2",
+          "provider": "DeepSeek",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 163840,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000026",
+            "completion": "0.00000038",
+            "input_cache_read": "0.00000013"
+          },
+          "top_provider": {
+            "context_length": 163840,
+            "max_completion_tokens": null,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "DeepInfra",
+              "quantization": "fp4",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "deepinfra/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "top_k",
+                "seed",
+                "min_p",
+                "response_format",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "atlas-cloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "seed",
+                "logit_bias",
+                "stop",
+                "min_p",
+                "top_k",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Ionstream",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": -2,
+              "tag": "ionstream/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "stop",
+                "seed",
+                "tools",
+                "tool_choice",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Novita",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "novita/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty"
+              ]
+            },
+            {
+              "provider": "SiliconFlow",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "siliconflow/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "top_p",
+                "top_k",
+                "frequency_penalty",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "DeepSeek",
+              "quantization": "unknown",
+              "context_length": 131072,
+              "status": 0,
+              "tag": "deepseek",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "logprobs",
+                "top_logprobs",
+                "tools",
+                "tool_choice",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "AkashML",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "akashml/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "top_p",
+                "top_k",
+                "repetition_penalty",
+                "frequency_penalty",
+                "presence_penalty",
+                "stop",
+                "seed",
+                "max_tokens",
+                "structured_outputs",
+                "tool_choice",
+                "tools",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Chutes",
+              "quantization": "fp8",
+              "context_length": 131072,
+              "status": 0,
+              "tag": "chutes/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Parasail",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "parasail/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "stop",
+                "top_k",
+                "logit_bias",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "atlas-cloud/fast",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "logit_bias",
+                "min_p",
+                "presence_penalty",
+                "repetition_penalty",
+                "response_format",
+                "seed",
+                "stop",
+                "top_k",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Friendli",
+              "quantization": "unknown",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "friendli",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Google",
+              "quantization": "unknown",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "google-vertex",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "seed",
+                "response_format",
+                "top_k",
+                "repetition_penalty",
+                "frequency_penalty",
+                "presence_penalty",
+                "stop",
+                "tools",
+                "tool_choice",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Alibaba",
+              "quantization": "unknown",
+              "context_length": 131072,
+              "status": 0,
+              "tag": "alibaba",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "seed",
+                "presence_penalty",
+                "response_format"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "fp4",
+            "fp8",
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "qwen3.5": {
+          "modelString": "qwen/qwen3.5-397b-a17b",
+          "provider": "Alibaba",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image+video->text",
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Qwen3",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000039",
+            "completion": "0.00000234"
+          },
+          "top_provider": {
+            "context_length": 262144,
+            "max_completion_tokens": 65536,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "Alibaba",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "alibaba",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "seed",
+                "presence_penalty",
+                "response_format",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "fp8",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "atlas-cloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "top_k",
+                "min_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "stop",
+                "seed",
+                "logit_bias",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Together",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "together",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "min_p",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Parasail",
+              "quantization": "fp8",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "parasail/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "stop",
+                "top_k",
+                "logit_bias",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Novita",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "novita",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "tools",
+                "tool_choice",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Nebius",
+              "quantization": "fp4",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "nebius/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "fp4",
+            "fp8",
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "google/gemini-3-flash-preview": {
+          "modelString": "google/gemini-3-flash-preview",
+          "provider": "OpenRouter",
+          "backend": "openrouter",
+          "weightClass": "unknown",
+          "context_length": 1048576,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image+file+audio+video->text",
+            "input_modalities": [
+              "text",
+              "image",
+              "file",
+              "audio",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Gemini",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.0000005",
+            "completion": "0.000003",
+            "image": "0.0000005",
+            "audio": "0.000001",
+            "internal_reasoning": "0.000003",
+            "input_cache_read": "0.00000005",
+            "input_cache_write": "0.00000008333333333333334"
+          },
+          "top_provider": {
+            "context_length": 1048576,
+            "max_completion_tokens": 65536,
+            "is_moderated": false
+          },
+          "providerPrecisionFilterApplied": false
+        }
+      },
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 220
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 60000
+      }
+    },
+    "summary": {
+      "totalPrompts": 1000,
+      "scoredPrompts": 995,
+      "averageDcs": 61,
+      "drfr": 19,
+      "statusCounts": {
+        "ok": 995,
+        "model_error": 1,
+        "judge_error": 0,
+        "aborted": 4,
+        "invalid_response": 0
+      },
+      "modelSuccessRate": 100,
+      "judgeSuccessRate": 100,
+      "scorableRate": 100
+    }
+  },
+  {
+    "id": "2026-03-26-laguardia-basaglia-stateful",
+    "timestamp": 1774495699102,
+    "date": "2026-03-26T03:28:19.102Z",
+    "metadata": {
+      "module": "both",
+      "models": [
+        "gpt-5.3-codex",
+        "claude-opus-4.6",
+        "gemini-3.1-pro",
+        "grok-4",
+        "mistral-large-3",
+        "kimi-k2.5",
+        "glm-5",
+        "minimax-m2.5",
+        "deepseek-v3.2",
+        "qwen3.5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 500,
+      "scenarioCatalogVersion": "5283fb53b32babc4",
+      "scenarioModuleIds": [
+        "laguardia",
+        "basaglia"
+      ],
+      "selectedScenarioIds": [
+        "laguardia-001",
+        "laguardia-002",
+        "laguardia-003",
+        "laguardia-004",
+        "laguardia-005",
+        "basaglia-001",
+        "basaglia-002",
+        "basaglia-003",
+        "basaglia-004",
+        "basaglia-005"
+      ],
+      "selectedScenarioCount": 10,
+      "judgeModel": "google/gemini-3-flash-preview",
+      "judgeModels": [
+        "google/gemini-3-flash-preview"
+      ],
+      "judgeStrategy": "single",
+      "systemPromptVersion": "v5",
+      "benchmarkPromptVersion": "v6",
+      "judgePromptVersion": "v5",
+      "transportPolicy": "chat-first-fallback",
+      "conversationMode": "stateful",
+      "providerPrecisionPolicy": "default",
+      "modelCapabilitiesSnapshot": {
+        "gpt-5.3-codex": {
+          "modelString": "openai/gpt-5.3-codex",
+          "provider": "OpenAI",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 400000,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools"
+          ],
+          "architecture": {
+            "modality": "text+image+file->text",
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "GPT",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000175",
+            "completion": "0.000014",
+            "web_search": "0.01",
+            "input_cache_read": "0.000000175"
+          },
+          "top_provider": {
+            "context_length": 400000,
+            "max_completion_tokens": 128000,
+            "is_moderated": true
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "claude-opus-4.6": {
+          "modelString": "anthropic/claude-opus-4.6",
+          "provider": "Anthropic",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 1000000,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p",
+            "verbosity"
+          ],
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Claude",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.000005",
+            "completion": "0.000025",
+            "web_search": "0.01",
+            "input_cache_read": "0.0000005",
+            "input_cache_write": "0.00000625"
+          },
+          "top_provider": {
+            "context_length": 1000000,
+            "max_completion_tokens": 128000,
+            "is_moderated": true
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "gemini-3.1-pro": {
+          "modelString": "google/gemini-3.1-pro-preview",
+          "provider": "Google",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 1048576,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image+file+audio+video->text",
+            "input_modalities": [
+              "audio",
+              "file",
+              "image",
+              "text",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Gemini",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.000002",
+            "completion": "0.000012",
+            "image": "0.000002",
+            "audio": "0.000002",
+            "internal_reasoning": "0.000012",
+            "input_cache_read": "0.0000002",
+            "input_cache_write": "0.000000375"
+          },
+          "top_provider": {
+            "context_length": 1048576,
+            "max_completion_tokens": 65536,
+            "is_moderated": false
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "grok-4": {
+          "modelString": "x-ai/grok-4",
+          "provider": "xAI",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 256000,
+          "supported_parameters": [
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Grok",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.000003",
+            "completion": "0.000015",
+            "web_search": "0.005",
+            "input_cache_read": "0.00000075"
+          },
+          "top_provider": {
+            "context_length": 256000,
+            "max_completion_tokens": null,
+            "is_moderated": false
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "mistral-large-3": {
+          "modelString": "mistralai/mistral-large-2512",
+          "provider": "Mistral",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "max_tokens",
+            "presence_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Mistral",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.0000005",
+            "completion": "0.0000015",
+            "input_cache_read": "0.00000005"
+          },
+          "top_provider": {
+            "context_length": 262144,
+            "max_completion_tokens": null,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "Mistral",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "mistral",
+              "supported_parameters": [
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "kimi-k2.5": {
+          "modelString": "moonshotai/kimi-k2.5",
+          "provider": "Moonshot",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Other",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000045",
+            "completion": "0.0000022",
+            "input_cache_read": "0.000000225"
+          },
+          "top_provider": {
+            "context_length": 262144,
+            "max_completion_tokens": 65535,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "Chutes",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": -2,
+              "tag": "chutes/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "DeepInfra",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "deepinfra",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "top_k",
+                "seed",
+                "min_p",
+                "response_format",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "SiliconFlow",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "siliconflow/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "top_p",
+                "top_k",
+                "frequency_penalty",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Inceptron",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "inceptron/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "max_tokens",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "logit_bias",
+                "logprobs",
+                "parallel_tool_calls",
+                "presence_penalty",
+                "seed",
+                "top_logprobs",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "atlas-cloud/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "top_k",
+                "min_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "logit_bias",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Together",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "together",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "min_p",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Io Net",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": -2,
+              "tag": "io-net/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "top_k",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "response_format",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "ModelRun",
+              "quantization": "fp4",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "modelrun/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "presence_penalty",
+                "repetition_penalty",
+                "frequency_penalty",
+                "top_p",
+                "top_k",
+                "min_p",
+                "stop",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Venice",
+              "quantization": "unknown",
+              "context_length": 256000,
+              "status": 0,
+              "tag": "venice",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Novita",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "novita",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Parasail",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "parasail/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "stop",
+                "top_k",
+                "logit_bias",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Phala",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "phala",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "response_format",
+                "structured_outputs",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "Moonshot AI",
+              "quantization": "int4",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "moonshotai/int4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "structured_outputs",
+                "response_format",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "BaseTen",
+              "quantization": "fp4",
+              "context_length": 262000,
+              "status": 0,
+              "tag": "baseten/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "stop",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Fireworks",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "fireworks",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "logprobs",
+                "top_logprobs",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "NextBit",
+              "quantization": "fp4",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "nextbit/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "response_format",
+                "structured_outputs",
+                "repetition_penalty",
+                "seed",
+                "logprobs",
+                "top_logprobs",
+                "tools",
+                "tool_choice"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "fp4",
+            "int4",
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "glm-5": {
+          "modelString": "z-ai/glm-5",
+          "provider": "Z.ai",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 80000,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Other",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000072",
+            "completion": "0.0000023"
+          },
+          "top_provider": {
+            "context_length": 80000,
+            "max_completion_tokens": 131072,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "Ambient",
+              "quantization": "fp8",
+              "context_length": 80000,
+              "status": -2,
+              "tag": "ambient/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "max_tokens",
+                "top_p",
+                "frequency_penalty",
+                "structured_outputs",
+                "response_format",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "DeepInfra",
+              "quantization": "fp4",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "deepinfra/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "top_k",
+                "seed",
+                "min_p",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "SiliconFlow",
+              "quantization": "fp8",
+              "context_length": 204800,
+              "status": -5,
+              "tag": "siliconflow/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "top_p",
+                "top_k",
+                "frequency_penalty",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "BaseTen",
+              "quantization": "fp4",
+              "context_length": 202800,
+              "status": 0,
+              "tag": "baseten/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "response_format",
+                "structured_outputs",
+                "top_k",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "atlas-cloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "seed",
+                "logit_bias",
+                "stop",
+                "min_p",
+                "top_k",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "GMICloud",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": -2,
+              "tag": "gmicloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "seed",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Parasail",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "parasail/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "stop",
+                "top_k",
+                "logit_bias",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Venice",
+              "quantization": "fp8",
+              "context_length": 198000,
+              "status": -5,
+              "tag": "venice/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Friendli",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "friendli",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "structured_outputs",
+                "response_format",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Novita",
+              "quantization": "fp8",
+              "context_length": 202800,
+              "status": 0,
+              "tag": "novita/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Z.AI",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "z-ai",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "tools",
+                "tool_choice",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Together",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": -5,
+              "tag": "together",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "min_p",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Fireworks",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "fireworks",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "logprobs",
+                "top_logprobs",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Venice",
+              "quantization": "fp8",
+              "context_length": 198000,
+              "status": -5,
+              "tag": "venice/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k"
+              ]
+            },
+            {
+              "provider": "Phala",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": -5,
+              "tag": "phala",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "fp4",
+            "fp8",
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "minimax-m2.5": {
+          "modelString": "minimax/minimax-m2.5",
+          "provider": "MiniMax",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 196608,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Other",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.0000002",
+            "completion": "0.00000117",
+            "input_cache_read": "0.0000001"
+          },
+          "top_provider": {
+            "context_length": 196608,
+            "max_completion_tokens": 65536,
+            "is_moderated": false
+          },
+          "providerPrecisionFilterApplied": false
+        },
+        "deepseek-v3.2": {
+          "modelString": "deepseek/deepseek-v3.2",
+          "provider": "DeepSeek",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 163840,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000026",
+            "completion": "0.00000038",
+            "input_cache_read": "0.00000013"
+          },
+          "top_provider": {
+            "context_length": 163840,
+            "max_completion_tokens": null,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "DeepInfra",
+              "quantization": "fp4",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "deepinfra/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "top_k",
+                "seed",
+                "min_p",
+                "response_format",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "atlas-cloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "seed",
+                "logit_bias",
+                "stop",
+                "min_p",
+                "top_k",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Ionstream",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": -2,
+              "tag": "ionstream/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "stop",
+                "seed",
+                "tools",
+                "tool_choice",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Novita",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "novita/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty"
+              ]
+            },
+            {
+              "provider": "SiliconFlow",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "siliconflow/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "top_p",
+                "top_k",
+                "frequency_penalty",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "DeepSeek",
+              "quantization": "unknown",
+              "context_length": 131072,
+              "status": 0,
+              "tag": "deepseek",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "logprobs",
+                "top_logprobs",
+                "tools",
+                "tool_choice",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "AkashML",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "akashml/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "top_p",
+                "top_k",
+                "repetition_penalty",
+                "frequency_penalty",
+                "presence_penalty",
+                "stop",
+                "seed",
+                "max_tokens",
+                "structured_outputs",
+                "tool_choice",
+                "tools",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Chutes",
+              "quantization": "fp8",
+              "context_length": 131072,
+              "status": 0,
+              "tag": "chutes/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Parasail",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "parasail/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "stop",
+                "top_k",
+                "logit_bias",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "fp8",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "atlas-cloud/fast",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "logit_bias",
+                "min_p",
+                "presence_penalty",
+                "repetition_penalty",
+                "response_format",
+                "seed",
+                "stop",
+                "top_k",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Friendli",
+              "quantization": "unknown",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "friendli",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Google",
+              "quantization": "unknown",
+              "context_length": 163840,
+              "status": 0,
+              "tag": "google-vertex",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "seed",
+                "response_format",
+                "top_k",
+                "repetition_penalty",
+                "frequency_penalty",
+                "presence_penalty",
+                "stop",
+                "tools",
+                "tool_choice",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Alibaba",
+              "quantization": "unknown",
+              "context_length": 131072,
+              "status": 0,
+              "tag": "alibaba",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "seed",
+                "presence_penalty",
+                "response_format"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "fp4",
+            "fp8",
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "qwen3.5": {
+          "modelString": "qwen/qwen3.5-397b-a17b",
+          "provider": "Alibaba",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image+video->text",
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Qwen3",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.00000039",
+            "completion": "0.00000234"
+          },
+          "top_provider": {
+            "context_length": 262144,
+            "max_completion_tokens": 65536,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "Alibaba",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "alibaba",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "seed",
+                "presence_penalty",
+                "response_format",
+                "tool_choice",
+                "tools"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "fp8",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "atlas-cloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "top_k",
+                "min_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "stop",
+                "seed",
+                "logit_bias",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Together",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "together",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "min_p",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Parasail",
+              "quantization": "fp8",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "parasail/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "stop",
+                "top_k",
+                "logit_bias",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Novita",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "novita",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "tools",
+                "tool_choice",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Nebius",
+              "quantization": "fp4",
+              "context_length": 262144,
+              "status": -5,
+              "tag": "nebius/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "fp4",
+            "fp8",
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "google/gemini-3-flash-preview": {
+          "modelString": "google/gemini-3-flash-preview",
+          "provider": "OpenRouter",
+          "backend": "openrouter",
+          "weightClass": "unknown",
+          "context_length": 1048576,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image+file+audio+video->text",
+            "input_modalities": [
+              "text",
+              "image",
+              "file",
+              "audio",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Gemini",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.0000005",
+            "completion": "0.000003",
+            "image": "0.0000005",
+            "audio": "0.000001",
+            "internal_reasoning": "0.000003",
+            "input_cache_read": "0.00000005",
+            "input_cache_write": "0.00000008333333333333334"
+          },
+          "top_provider": {
+            "context_length": 1048576,
+            "max_completion_tokens": 65536,
+            "is_moderated": false
+          },
+          "providerPrecisionFilterApplied": false
+        }
+      },
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 220
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 60000,
+        "concurrency": 10,
+        "perModelConcurrency": 1
+      }
+    },
+    "summary": {
+      "totalPrompts": 500,
+      "scoredPrompts": 495,
+      "averageDcs": 64,
+      "drfr": 17,
+      "statusCounts": {
+        "ok": 495,
+        "model_error": 1,
+        "judge_error": 0,
+        "aborted": 4,
+        "invalid_response": 0
+      },
+      "modelSuccessRate": 99,
+      "judgeSuccessRate": 100,
+      "scorableRate": 99
+    }
+  },
+  {
     "id": "2026-03-03T00-34-57-436Z",
     "timestamp": 1772545171745,
     "date": "2026-03-03T13:39:31.745Z",
