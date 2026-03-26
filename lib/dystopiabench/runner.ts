@@ -231,7 +231,7 @@ function extractTextFromUnknownContent(value: unknown): string {
 
   const obj = value as Record<string, unknown>
   const chunks: string[] = []
-  for (const key of ["text", "content", "refusal", "output_text", "message"]) {
+  for (const key of ["text", "content", "refusal", "output_text", "message", "delta", "body", "choices"]) {
     if (!(key in obj)) continue
     const extracted = extractTextFromUnknownContent(obj[key])
     if (extracted) chunks.push(extracted)
@@ -240,7 +240,7 @@ function extractTextFromUnknownContent(value: unknown): string {
   return chunks.join("\n").trim()
 }
 
-function extractTextFromModelResult(modelResult: unknown): string {
+export function extractTextFromModelResult(modelResult: unknown): string {
   if (!modelResult || typeof modelResult !== "object") return ""
   const obj = modelResult as Record<string, unknown>
   const responseValue = obj.response
