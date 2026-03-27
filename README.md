@@ -2,6 +2,11 @@
 
 DystopiaBench is a red-team benchmark for evaluating whether LLMs resist or comply with progressively dystopian directives.
 
+It now supports dual-track operation:
+
+- public, reproducible benchmark artifacts for external comparison
+- private, holdout-capable eval infrastructure for internal gating and red-team use
+
 It tests registered scenario modules, including:
 
 - `petrov`: military escalation, autonomous weapons, and safety override scenarios
@@ -44,26 +49,34 @@ Primary summary metrics:
 - `statusCounts`: transport/judge validity outcomes
 - `modelSuccessRate`, `judgeSuccessRate`, `scorableRate`
 
-Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 5`; loaders remain compatible with existing `schemaVersion: 2`, `schemaVersion: 3`, and `schemaVersion: 4` manifests).
+Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 6`; loaders remain compatible with existing `schemaVersion: 2`, `schemaVersion: 3`, `schemaVersion: 4`, and `schemaVersion: 5` manifests).
 Scenario content lives in JSON module files under `lib/dystopiabench/scenario-data/modules/` and is validated through the TypeScript registry in `lib/dystopiabench/scenario-registry.ts`.
 
 ## Lab-facing features
 
 - Stable TypeScript entrypoint in `lib/dystopiabench/index.ts`
 - Benchmark bundles with pin-able IDs such as `dystopiabench-core@1.0.0`
+- Dual-track artifact storage: public-safe dashboard artifacts vs private/internal artifacts
+- Scenario governance metadata: split, review state, citations, contamination, sensitivity, canary tokens
 - Experiment metadata (`experimentId`, `project`, `owner`, `policyVersion`, `gitCommit`, `datasetBundleVersion`)
 - Repeated trials via `--replicates`
 - Programmatic scenario loading from local, URL, and `npm:` JSON scenario sources
-- Export scripts for JSONL prompt rows, CSV summaries, and parquet artifacts
+- Export scripts for JSONL prompt rows, CSV summaries, parquet artifacts, Inspect-style logs, OpenAI-Evals-style JSONL, and eval cards
 - Regression gate script for CI usage
 - Judge calibration script for gold-set evaluation
+- Review-manifest generation and reviewed-label import
 
 See:
 
 - `docs/integration.md`
+- `docs/interoperability.md`
 - `docs/reproducibility.md`
 - `docs/judge-calibration.md`
 - `docs/scenario-authoring.md`
+- `docs/authoring-rubric.md`
+- `docs/human-review-workflow.md`
+- `docs/benchmark-split-policy.md`
+- `docs/contamination-policy.md`
 
 ## Repository layout
 
@@ -249,6 +262,8 @@ Non-public bundles are blocked from `latest` publishing unless you opt in explic
 pnpm bench:publish --run-id=<run-id> --allow-nonpublic-publish
 ```
 
+Even with `--allow-nonpublic-publish`, the artifact must be explicitly marked `publicSafe=true` before public aliases are updated.
+
 ### Validate manifests
 
 ```bash
@@ -277,11 +292,22 @@ This writes:
 - `exports/<run-id>/<run-id>.rows.parquet`
 - `exports/<run-id>/<run-id>.scenario-summaries.parquet`
 - `exports/<run-id>/<run-id>.run-metadata.parquet`
+- `exports/<run-id>/<run-id>.inspect-log.json`
+- `exports/<run-id>/<run-id>.openai-evals.jsonl`
+- `exports/<run-id>/<run-id>.eval-card.json`
 
 Format-specific export:
 
 ```bash
 pnpm bench:export --run-id=<run-id> --format=parquet
+```
+
+Generate eval cards or review manifests directly:
+
+```bash
+pnpm bench:eval-card --run-id=<run-id>
+pnpm bench:review-manifest --bundle=benchmark-bundle.json
+pnpm bench:import-reviews --run-id=<run-id> --input=reviews.jsonl
 ```
 
 ### Evaluate a judge against a gold set
@@ -316,7 +342,7 @@ console.log(catalog.benchmarkBundleId)
 
 ## Run artifacts and data model
 
-Run files are stored in `public/data`:
+Public-safe run files are stored in `public/data`:
 
 - `benchmark-<run-id>.json`: immutable manifest for one run
 - `benchmark-results.json`: currently published latest run
@@ -324,17 +350,25 @@ Run files are stored in `public/data`:
 - `benchmark-results-stateless.json`: latest published run with `conversationMode=stateless`
 - `runs.json`: index of published runs (for UI run selector)
 
+Non-public/default-private artifacts are stored under `artifacts/private`:
+
+- `artifacts/private/runs/benchmark-<run-id>.json`
+- `artifacts/private/eval-cards/eval-card-<run-id>.json`
+
 Each result row includes:
 
 - scenario + module metadata
 - model metadata (`modelId`, `modelString`, provider)
 - prompt/response text
 - classification (`compliance`) and `score`
+- richer structured semantics (`primaryComplianceLabel`, `severity`, `operationalityFlag`, `targetHarmMechanisms`, `safeAlternativeHelpfulnessFlag`, `manipulationOrEvasionFlag`, `confidence`, `adjudicationSource`)
 - status (`ok`, `model_error`, `judge_error`, `aborted`, `invalid_response`)
-- judge metadata (`judgeVotes`, `judgeReasoning`, `implicitRefusalFromEmpty`)
+- judge metadata (`judgeVotes`, `judgePanel`, `judgeReasoning`, `implicitRefusalFromEmpty`)
 - stateful continuity metadata (`conversationContinuity`)
 - transport metadata (`endpointUsed`, `transportAttempts`)
 - replicate and experiment metadata (`replicate`, `experimentId`)
+- trace metadata (`sampleId`, `attemptId`, `promptHash`, `responseHash`, `judgePanelConfigSnapshot`, `artifactLineage`)
+- governance metadata (`scenarioSplit`, `scenarioSensitivityTier`, `canaryTokens`)
 - optional auxiliary labels for richer refusal analysis
 
 Manifest metadata now separates:
@@ -364,6 +398,9 @@ Local checks:
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm test
+pnpm test:exports
+pnpm check:library-surface
 pnpm check:scenarios
 pnpm check:manifests
 pnpm build
@@ -374,8 +411,12 @@ CI (`.github/workflows/ci.yml`) runs:
 - install (pnpm)
 - lint
 - typecheck
+- tests
+- export fixture tests
+- library surface check
+- scenario validation
 - build
-- manifest schema sanity check
+- manifest/eval-card schema validation
 
 ## Responsible use and safety
 

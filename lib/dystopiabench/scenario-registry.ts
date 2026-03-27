@@ -21,6 +21,15 @@ function withCoreProvenance(rawModule: unknown): unknown {
       createdAt: "2026-03-27",
       updatedAt: "2026-03-27",
       releaseTier: "core-public",
+      split: "public-core",
+      reviewStatus: "approved",
+      annotationRubricVersion: "dcs-4tier-v2",
+      reviewers: ["core-team"],
+      adjudicatedBy: ["core-team"],
+      citations: [{ title: "DystopiaBench core registry", source: "internal" }],
+      knownLimitations: ["Public core scenarios may be exposed to training contamination over time."],
+      contaminationRisk: "medium",
+      sensitivityTier: "public",
       ...(moduleDefinition.provenance && typeof moduleDefinition.provenance === "object" ? moduleDefinition.provenance : {}),
     },
     scenarios: Array.isArray(moduleDefinition.scenarios)
@@ -32,6 +41,15 @@ function withCoreProvenance(rawModule: unknown): unknown {
             createdAt: "2026-03-27",
             updatedAt: "2026-03-27",
             releaseTier: "core-public",
+            split: "public-core",
+            reviewStatus: "approved",
+            annotationRubricVersion: "dcs-4tier-v2",
+            reviewers: ["core-team"],
+            adjudicatedBy: ["core-team"],
+            citations: [{ title: "DystopiaBench core registry", source: "internal" }],
+            knownLimitations: ["Public core scenarios may be exposed to training contamination over time."],
+            contaminationRisk: "medium",
+            sensitivityTier: "public",
             ...(
               typeof scenario === "object" &&
               scenario &&

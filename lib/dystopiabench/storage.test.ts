@@ -8,7 +8,7 @@ import { publishLatest, writeRunManifest } from "./storage"
 
 function makeManifest(runId: string, timestamp: number, mode: "stateful" | "stateless"): RunManifestV2 {
   return {
-    schemaVersion: 4,
+    schemaVersion: 6,
     runId,
     timestamp,
     date: new Date(timestamp).toISOString(),
@@ -17,15 +17,34 @@ function makeManifest(runId: string, timestamp: number, mode: "stateful" | "stat
       models: ["gpt-5.3-codex"],
       levels: [1],
       totalPrompts: 1,
+      benchmarkDefinition: {
+        benchmarkId: "dystopiabench-core",
+        benchmarkBundleId: "dystopiabench-core@1.0.0",
+        benchmarkBundleVersion: "1.0.0",
+        datasetBundleVersion: "dystopiabench-core@1.0.0",
+        scenarioCatalogVersion: "catalog",
+        systemPromptVersion: "v5",
+        benchmarkPromptVersion: "v6",
+        judgePromptVersion: "v6",
+        releaseTier: "core-public",
+        splitSummary: { "public-core": 1 },
+        publicSafe: true,
+      },
       judgeModel: "google/gemini-3-flash-preview",
       judgeModels: ["google/gemini-3-flash-preview"],
       judgeStrategy: "single",
       systemPromptVersion: "v5",
       benchmarkPromptVersion: "v6",
-      judgePromptVersion: "v5",
+      judgePromptVersion: "v6",
+      artifactPolicy: {
+        visibility: "public",
+        publicSafe: true,
+        publishTargets: ["public-dashboard", "exports"],
+      },
       transportPolicy: "chat-first-fallback",
       conversationMode: mode,
       providerPrecisionPolicy: "default",
+      splitSummary: { "public-core": 1 },
       generationConfig: {
         model: { temperature: 0, topP: 1, maxOutputTokens: 1500 },
         judge: { temperature: 0, topP: 1, maxOutputTokens: 220 },
@@ -48,6 +67,10 @@ function makeManifest(runId: string, timestamp: number, mode: "stateful" | "stat
       modelSuccessRate: 100,
       judgeSuccessRate: 100,
       scorableRate: 100,
+      judgeAgreement: {
+        judgeCount: 1,
+        exactAgreementRate: 100,
+      },
     },
     results: [
       {
@@ -63,10 +86,29 @@ function makeManifest(runId: string, timestamp: number, mode: "stateful" | "stat
         prompt: "Prompt",
         response: "Refusal",
         compliance: "refusal",
+        primaryComplianceLabel: "refusal",
         score: 0,
         status: "ok",
+        severity: "none",
+        operationalityFlag: false,
+        targetHarmMechanisms: [],
+        safeAlternativeHelpfulnessFlag: false,
+        manipulationOrEvasionFlag: false,
+        confidence: 1,
+        adjudicationSource: "single-judge",
         scorable: true,
         conversationContinuity: "intact",
+        scenarioSplit: "public-core",
+        scenarioSensitivityTier: "public",
+        sampleId: `${runId}-sample`,
+        attemptId: `${runId}-attempt`,
+        promptHash: "a".repeat(64),
+        responseHash: "b".repeat(64),
+        judgePanelConfigSnapshot: {
+          judgeStrategy: "single",
+          judgeModels: ["google/gemini-3-flash-preview"],
+          judgePromptVersion: "v6",
+        },
         timestamp,
       },
     ],
@@ -88,6 +130,7 @@ test("writeRunManifest and publishLatest persist manifests without leaving temp 
     assert.equal(existsSync(join(dataDir, "benchmark-results.json")), true)
     assert.equal(existsSync(join(dataDir, "benchmark-results-stateful.json")), true)
     assert.equal(existsSync(join(dataDir, "runs.json")), true)
+    assert.equal(existsSync(join(dataDir, "eval-cards", "eval-card-run-a.json")), true)
 
     const leftoverTempFiles = readdirSync(dataDir).filter((file) => file.includes(".tmp"))
     assert.deepEqual(leftoverTempFiles, [])
@@ -127,7 +170,7 @@ test("publishLatest updates the latest aliases and run index atomically across m
   }
 })
 
-test("publishLatest blocks non-public benchmark runs unless explicitly allowed", () => {
+test("publishLatest blocks non-public benchmark runs unless explicitly public-safe", () => {
   const originalCwd = process.cwd()
   const tempRoot = mkdtempSync(join(tmpdir(), "dystopiabench-storage-"))
   process.chdir(tempRoot)
@@ -142,14 +185,28 @@ test("publishLatest blocks non-public benchmark runs unless explicitly allowed",
       scenarioCatalogVersion: "catalog",
       systemPromptVersion: "v5",
       benchmarkPromptVersion: "v6",
-      judgePromptVersion: "v5",
+      judgePromptVersion: "v6",
       releaseTier: "holdout",
+      splitSummary: { "private-holdout": 1 },
+      publicSafe: false,
     }
+    manifest.metadata.artifactPolicy = {
+      visibility: "private",
+      publicSafe: false,
+      publishTargets: ["private-artifacts", "exports"],
+      publicPublishBlockedReason: "Artifact contains holdout content.",
+    }
+    manifest.results[0].scenarioSplit = "private-holdout"
+    manifest.results[0].scenarioSensitivityTier = "restricted"
 
     writeRunManifest(manifest)
     assert.throws(() => publishLatest(manifest), /Refusing to publish non-public benchmark content/)
-    publishLatest(manifest, { allowNonPublicPublish: true })
-    assert.equal(existsSync(join(tempRoot, "public", "data", "benchmark-results.json")), true)
+    assert.throws(
+      () => publishLatest(manifest, { allowNonPublicPublish: true }),
+      /not explicitly marked public-safe/
+    )
+    assert.equal(existsSync(join(tempRoot, "public", "data", "benchmark-results.json")), false)
+    assert.equal(existsSync(join(tempRoot, "artifacts", "private", "runs", "benchmark-run-private.json")), true)
   } finally {
     process.chdir(originalCwd)
     rmSync(tempRoot, { recursive: true, force: true })

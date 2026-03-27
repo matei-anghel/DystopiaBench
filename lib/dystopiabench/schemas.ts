@@ -22,6 +22,15 @@ export const conversationContinuitySchema = z.enum(["intact", "reset_after_failu
 export const rerunScopeSchema = z.enum(["to-max-failed", "all-levels", "failed-only"])
 export const derivationKindSchema = z.enum(["rerun_failures"])
 export const auxiliaryOutcomeLabelSchema = z.enum(["none", "weak", "moderate", "strong", "high"])
+export const complianceSeveritySchema = z.enum(["none", "low", "medium", "high", "critical"])
+export const adjudicationSourceSchema = z.enum([
+  "single-judge",
+  "judge-panel",
+  "human-review",
+  "gold-set",
+  "imported-review",
+])
+export const artifactVisibilitySchema = z.enum(["public", "private"])
 
 export const GENERATION_CONFIG = {
   model: {
@@ -49,6 +58,39 @@ export const judgeVoteSchema = z.object({
   reasoning: z.string(),
   selected: z.boolean().optional(),
   sidedWith: z.string().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  adjudicationSource: adjudicationSourceSchema.optional(),
+})
+
+export const judgePanelConfigSnapshotSchema = z.object({
+  judgeStrategy: judgeStrategySchema,
+  judgeModels: z.array(z.string()).min(1),
+  judgeTieBreakerModel: z.string().optional(),
+  judgePromptVersion: z.string().optional(),
+  calibrationSetId: z.string().optional(),
+  calibrationSetVersion: z.string().optional(),
+})
+
+export const judgePanelAgreementSchema = z.object({
+  exactAgreementRate: z.number().min(0).max(100),
+  averagePairwiseAgreementRate: z.number().min(0).max(100).optional(),
+  unanimous: z.boolean().optional(),
+})
+
+export const judgeAdjudicationRecordSchema = z.object({
+  finalCompliance: complianceRatingSchema,
+  finalScore: z.number().int().min(0).max(100),
+  source: adjudicationSourceSchema,
+  confidence: z.number().min(0).max(1).optional(),
+  reasoning: z.string().optional(),
+  selectedJudge: z.string().optional(),
+})
+
+export const judgePanelRecordSchema = z.object({
+  config: judgePanelConfigSnapshotSchema,
+  outputs: z.array(judgeVoteSchema).min(1),
+  adjudication: judgeAdjudicationRecordSchema.optional(),
+  agreement: judgePanelAgreementSchema.optional(),
 })
 
 export const auxiliaryOutcomeLabelsSchema = z.object({
@@ -57,6 +99,13 @@ export const auxiliaryOutcomeLabelsSchema = z.object({
   alternativeSafeHelpfulness: auxiliaryOutcomeLabelSchema.optional(),
   manipulationResistance: auxiliaryOutcomeLabelSchema.optional(),
   proceduralDeferral: auxiliaryOutcomeLabelSchema.optional(),
+})
+
+export const rubricSliceCoverageSchema = z.object({
+  slice: z.string(),
+  exampleCount: z.number().int().nonnegative(),
+  coverageRate: z.number().min(0).max(100),
+  accuracy: z.number().min(0).max(100).optional(),
 })
 
 export const judgeCalibrationSummarySchema = z.object({
@@ -68,6 +117,15 @@ export const judgeCalibrationSummarySchema = z.object({
   exampleCount: z.number().int().nonnegative(),
   promptVersion: z.string(),
   confusionMatrix: z.record(z.string(), z.record(z.string(), z.number().int().nonnegative())),
+  sliceCoverage: z.array(rubricSliceCoverageSchema).default([]),
+}).optional()
+
+export const goldSetValidationSummarySchema = z.object({
+  rubricVersion: z.string(),
+  changedFromRubricVersion: z.string().optional(),
+  minimumExamplesPerSlice: z.number().int().positive(),
+  totalExampleCount: z.number().int().nonnegative(),
+  sliceCoverage: z.array(rubricSliceCoverageSchema).default([]),
 }).optional()
 
 export const judgeAgreementSummarySchema = z.object({
@@ -105,10 +163,19 @@ export const benchmarkResultV2Schema = z.object({
   prompt: z.string(),
   response: z.string(),
   compliance: complianceRatingSchema,
+  primaryComplianceLabel: complianceRatingSchema.optional(),
   score: z.number().int().min(0).max(100).nullable(),
   status: benchmarkStatusSchema,
   judgeReasoning: z.string().optional(),
   judgeVotes: z.array(judgeVoteSchema).optional(),
+  judgePanel: judgePanelRecordSchema.optional(),
+  severity: complianceSeveritySchema.optional(),
+  operationalityFlag: z.boolean().optional(),
+  targetHarmMechanisms: z.array(z.string().trim().min(1)).optional(),
+  safeAlternativeHelpfulnessFlag: z.boolean().optional(),
+  manipulationOrEvasionFlag: z.boolean().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  adjudicationSource: adjudicationSourceSchema.optional(),
   errorCode: z.string().optional(),
   errorMessage: z.string().optional(),
   errorName: z.string().optional(),
@@ -120,6 +187,33 @@ export const benchmarkResultV2Schema = z.object({
   replicate: z.number().int().positive().optional(),
   experimentId: z.string().optional(),
   auxiliaryLabels: auxiliaryOutcomeLabelsSchema.optional(),
+  scenarioSplit: z.enum([
+    "public-core",
+    "public-canary",
+    "private-holdout",
+    "partner-only",
+    "organization-local",
+  ]).optional(),
+  scenarioSensitivityTier: z.enum(["public", "internal", "restricted", "critical"]).optional(),
+  canaryTokens: z.array(
+    z.object({
+      tokenId: z.string(),
+      marker: z.string(),
+      placement: z.enum(["prompt", "context", "metadata"]),
+      notes: z.string().optional(),
+    }),
+  ).optional(),
+  sampleId: z.string().optional(),
+  attemptId: z.string().optional(),
+  promptHash: z.string().length(64).optional(),
+  responseHash: z.string().length(64).optional(),
+  judgePanelConfigSnapshot: judgePanelConfigSnapshotSchema.optional(),
+  artifactLineage: z.object({
+    sourceRunId: z.string().optional(),
+    sourceSampleId: z.string().optional(),
+    derivationKind: derivationKindSchema.optional(),
+    parentAttemptId: z.string().optional(),
+  }).optional(),
   timestamp: z.number().int(),
 })
 
@@ -139,6 +233,7 @@ export const runSummaryV2Schema = z.object({
   auxiliaryLabelCoverage: auxiliaryLabelCoverageSchema.optional(),
   judgeAgreement: judgeAgreementSummarySchema,
   judgeCalibration: judgeCalibrationSummarySchema,
+  goldSetValidation: goldSetValidationSummarySchema,
 })
 
 export const benchmarkDefinitionSchema = z.object({
@@ -156,6 +251,8 @@ export const benchmarkDefinitionSchema = z.object({
   benchmarkPromptVersion: z.string().default("v1"),
   judgePromptVersion: z.string().default("v1"),
   releaseTier: z.enum(["core-public", "holdout", "partner-only", "organization-local"]).optional(),
+  splitSummary: z.record(z.string(), z.number().int().nonnegative()).optional(),
+  publicSafe: z.boolean().optional(),
 })
 
 export const executionConfigSchema = z.object({
@@ -190,6 +287,14 @@ export const analysisConfigSchema = z.object({
   judgeModels: z.array(z.string()).optional(),
   judgeStrategy: judgeStrategySchema.optional(),
   judgeTieBreakerModel: z.string().optional(),
+  goldSetValidation: goldSetValidationSummarySchema,
+})
+
+export const artifactPolicySchema = z.object({
+  visibility: artifactVisibilitySchema,
+  publicSafe: z.boolean(),
+  publishTargets: z.array(z.enum(["public-dashboard", "private-artifacts", "exports"])).default([]),
+  publicPublishBlockedReason: z.string().optional(),
 })
 
 export const runMetadataV2Schema = z.object({
@@ -211,6 +316,7 @@ export const runMetadataV2Schema = z.object({
   systemPromptVersion: z.string(),
   benchmarkPromptVersion: z.string().default("v1"),
   judgePromptVersion: z.string().default("v1"),
+  artifactPolicy: artifactPolicySchema.optional(),
   transportPolicy: z.enum(["chat-first-fallback", "chat-only"]).optional(),
   conversationMode: conversationModeSchema.optional(),
   providerPrecisionPolicy: providerPrecisionPolicySchema.optional(),
@@ -232,6 +338,8 @@ export const runMetadataV2Schema = z.object({
   datasetBundleVersion: z.string().optional(),
   replicates: z.number().int().positive().optional(),
   modelCapabilitiesSnapshot: z.record(z.string(), z.unknown()).optional(),
+  splitSummary: z.record(z.string(), z.number().int().nonnegative()).optional(),
+  evalCardPath: z.string().optional(),
   generationConfig: z
     .object({
       model: z.object({
@@ -257,7 +365,7 @@ export const runMetadataV2Schema = z.object({
 })
 
 export const runManifestV2Schema = z.object({
-  schemaVersion: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+  schemaVersion: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
   runId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
   timestamp: z.number().int(),
   date: z.string(),
@@ -285,6 +393,7 @@ export type ConversationContinuity = z.infer<typeof conversationContinuitySchema
 export type RerunScope = z.infer<typeof rerunScopeSchema>
 export type DerivationKind = z.infer<typeof derivationKindSchema>
 export type JudgeVoteV2 = z.infer<typeof judgeVoteSchema>
+export type JudgePanelRecord = z.infer<typeof judgePanelRecordSchema>
 export type AuxiliaryOutcomeLabels = z.infer<typeof auxiliaryOutcomeLabelsSchema>
 export type BenchmarkResultV2 = z.infer<typeof benchmarkResultV2Schema>
 export type RunSummaryV2 = z.infer<typeof runSummaryV2Schema>
