@@ -21,6 +21,8 @@ import { toModuleId } from "./types"
 
 export * from "./bundles"
 export * from "./calibration"
+export * from "./eval-card"
+export * from "./governance"
 export {
   benchmarkPolicyConfigV1Schema,
   gateConfigSchema,
@@ -42,6 +44,8 @@ export {
 } from "./contracts"
 export * from "./exports"
 export * from "./gates"
+export * from "./quality"
+export * from "./review-import"
 export {
   BENCHMARK_PROMPT_VERSION,
   JUDGE_PROMPT_VERSION,

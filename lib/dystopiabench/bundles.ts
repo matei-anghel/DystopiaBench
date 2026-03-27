@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { assertBundleGovernance, deriveReleaseTierFromSplit } from "./governance"
 import { createScenarioCatalogVersion } from "./scenario-manifest"
 import { CORE_REGISTERED_MODULES } from "./scenario-registry"
 import { scenarioModuleDefinitionSchema, validateScenarioModules } from "./scenario-schema"
@@ -16,6 +17,8 @@ export const benchmarkBundleSchema = z.object({
   recommendedJudgeModel: z.string().min(1),
   recommendedJudgeStrategy: z.enum(["single", "pair-with-tiebreak"]).default("single"),
   releaseTier: z.enum(["core-public", "holdout", "partner-only", "organization-local"]).default("core-public"),
+  splitPolicyVersion: z.string().min(1).default("v1"),
+  publicSafe: z.boolean().default(true),
   createdAt: z.string(),
   modules: z.array(z.unknown()).default([]),
 })
@@ -102,8 +105,9 @@ export function createBenchmarkBundle(options: CreateBenchmarkBundleOptions = {}
   const bundleVersion = options.bundleVersion ?? "1.0.0"
   const datasetBundleVersion = options.datasetBundleVersion ?? `${benchmarkId}@${bundleVersion}`
   const modules = options.modules ?? CORE_REGISTERED_MODULES
-  const scenarioCatalogVersion = createScenarioCatalogVersion(modules)
-  const releaseTier = options.releaseTier ?? deriveBundleReleaseTier(modules)
+  const normalizedModules = normalizeBundleModules(JSON.parse(JSON.stringify(modules)) as unknown[])
+  const scenarioCatalogVersion = createScenarioCatalogVersion(normalizedModules)
+  const releaseTier = options.releaseTier ?? deriveBundleReleaseTier(normalizedModules)
 
   return {
     benchmarkId,
@@ -111,13 +115,15 @@ export function createBenchmarkBundle(options: CreateBenchmarkBundleOptions = {}
     datasetBundleVersion,
     benchmarkBundleId: `${benchmarkId}@${bundleVersion}`,
     scenarioCatalogVersion,
-    scoringRubricVersion: options.scoringRubricVersion ?? "dcs-4tier-v1",
-    promptPackVersion: options.promptPackVersion ?? "dystopiabench-prompts-v1",
+    scoringRubricVersion: options.scoringRubricVersion ?? "dcs-4tier-v2",
+    promptPackVersion: options.promptPackVersion ?? "dystopiabench-prompts-v2",
     recommendedJudgeModel: options.recommendedJudgeModel ?? "google/gemini-3-flash-preview",
     recommendedJudgeStrategy: options.recommendedJudgeStrategy ?? "single",
     releaseTier,
+    splitPolicyVersion: "v1",
+    publicSafe: releaseTier === "core-public",
     createdAt: new Date().toISOString(),
-    modules,
+    modules: normalizedModules,
   }
 }
 
@@ -147,6 +153,7 @@ export function validateBenchmarkBundle(bundle: unknown): BenchmarkBundle {
   }
 
   assertBundleReleaseTierCompatibility(parsed, modules)
+  assertBundleGovernance(modules, parsed.releaseTier)
   return {
     ...parsed,
     modules,
@@ -170,4 +177,12 @@ export function filterBundleModulesByReleaseTier(
       ),
     }))
     .filter((module) => module.scenarios.length > 0)
+}
+
+export function deriveReleaseTierForModule(moduleDefinition: ScenarioModule): ScenarioReleaseTier {
+  return (
+    moduleDefinition.provenance?.releaseTier ??
+    deriveReleaseTierFromSplit(moduleDefinition.provenance?.split) ??
+    "core-public"
+  )
 }

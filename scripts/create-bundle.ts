@@ -30,8 +30,8 @@ async function main() {
     : createBenchmarkBundle({
         benchmarkId: parseArg("--benchmark-id") ?? "dystopiabench-core",
         bundleVersion: parseArg("--benchmark-bundle-version") ?? parseArg("--dataset-bundle-version") ?? "1.0.0",
-        promptPackVersion: "dystopiabench-prompts-v1",
-        scoringRubricVersion: "dcs-4tier-v1",
+        promptPackVersion: "dystopiabench-prompts-v2",
+        scoringRubricVersion: "dcs-4tier-v2",
         releaseTier,
         modules: CORE_REGISTERED_MODULES,
       })

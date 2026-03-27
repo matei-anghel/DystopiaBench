@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import { basename, dirname, join } from "node:path"
+import { createEvalCard } from "./eval-card"
 import type { RunIndexItemV2, RunManifestV2 } from "./schemas"
 import { runIndexV2Schema, runManifestV2Schema } from "./schemas"
 
@@ -37,15 +38,36 @@ export function makeRunId(now = new Date()): string {
 }
 
 export function getDataDir(): string {
+  return getPublicDataDir()
+}
+
+export function getPublicDataDir(): string {
   return join(process.cwd(), "public", "data")
 }
 
-function ensureDataDir() {
-  const dir = getDataDir()
+export function getPrivateArtifactDir(): string {
+  return join(process.cwd(), "artifacts", "private")
+}
+
+function ensureDir(dir: string) {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
   }
   return dir
+}
+
+function ensureDataDir() {
+  return ensureDir(getPublicDataDir())
+}
+
+function ensurePrivateArtifactDir() {
+  return ensureDir(getPrivateArtifactDir())
+}
+
+function getEvalCardDir(visibility: "public" | "private"): string {
+  return visibility === "public"
+    ? join(getPublicDataDir(), "eval-cards")
+    : join(getPrivateArtifactDir(), "eval-cards")
 }
 
 function writeJsonAtomic(filePath: string, value: unknown) {
@@ -78,7 +100,17 @@ export interface RetentionOptions {
 }
 
 export function isPublicBenchmarkRun(manifest: RunManifestV2): boolean {
-  return (manifest.metadata.benchmarkDefinition?.releaseTier ?? "core-public") === "core-public"
+  return (
+    manifest.metadata.artifactPolicy?.visibility === "public" ||
+    (
+      manifest.metadata.artifactPolicy?.visibility === undefined &&
+      (manifest.metadata.benchmarkDefinition?.releaseTier ?? "core-public") === "core-public"
+    )
+  )
+}
+
+function resolveArtifactVisibility(manifest: RunManifestV2): "public" | "private" {
+  return manifest.metadata.artifactPolicy?.visibility ?? (isPublicBenchmarkRun(manifest) ? "public" : "private")
 }
 
 function sortNewestFirst(runs: RunIndexItemV2[]): RunIndexItemV2[] {
@@ -116,13 +148,34 @@ function pruneRunFiles(index: RunIndexItemV2[], dataDir: string, options: Retent
 }
 
 export function writeRunManifest(manifest: RunManifestV2) {
-  const dataDir = ensureDataDir()
+  const visibility = resolveArtifactVisibility(manifest)
+  const dataDir = visibility === "public" ? ensureDataDir() : join(ensurePrivateArtifactDir(), "runs")
+  ensureDir(dataDir)
+  const evalCardDir = ensureDir(getEvalCardDir(visibility))
+  manifest.metadata.artifactPolicy ??= {
+    visibility,
+    publicSafe: visibility === "public",
+    publishTargets: visibility === "public" ? ["public-dashboard", "exports"] : ["private-artifacts", "exports"],
+    publicPublishBlockedReason: visibility === "public" ? undefined : "Artifact contains non-public benchmark content.",
+  }
+  manifest.metadata.evalCardPath ??=
+    visibility === "public"
+      ? join("public", "data", "eval-cards", `eval-card-${manifest.runId}.json`)
+      : join("artifacts", "private", "eval-cards", `eval-card-${manifest.runId}.json`)
   const runPath = join(dataDir, `benchmark-${manifest.runId}.json`)
   writeJsonAtomic(runPath, manifest)
+  writeJsonAtomic(join(evalCardDir, `eval-card-${manifest.runId}.json`), createEvalCard(manifest))
 }
 
 export function resolveRunManifestPath(runId: string): string {
-  return join(getDataDir(), `benchmark-${sanitizeRunId(runId)}.json`)
+  const sanitized = sanitizeRunId(runId)
+  const publicPath = join(getPublicDataDir(), `benchmark-${sanitized}.json`)
+  if (existsSync(publicPath)) {
+    return publicPath
+  }
+
+  const privatePath = join(getPrivateArtifactDir(), "runs", `benchmark-${sanitized}.json`)
+  return privatePath
 }
 
 export function readRunManifest(runId: string): RunManifestV2 {
@@ -139,6 +192,11 @@ export function publishLatest(manifest: RunManifestV2, options: RetentionOptions
   if (!options.allowNonPublicPublish && !isPublicBenchmarkRun(manifest)) {
     throw new Error(
       "Refusing to publish non-public benchmark content. Pass allowNonPublicPublish to override intentionally."
+    )
+  }
+  if (options.allowNonPublicPublish && manifest.metadata.artifactPolicy?.publicSafe !== true) {
+    throw new Error(
+      "Refusing to publish artifact to public aliases because it is not explicitly marked public-safe."
     )
   }
 

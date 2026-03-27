@@ -2,7 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import {
   buildScenarioSummaries,
+  createRunEvalCard,
+  manifestToInspectLog,
   manifestToJsonl,
+  manifestToOpenAIEvalsJsonl,
   runMetadataToCsv,
   scenarioSummariesToCsv,
   writePromptRowsParquet,
@@ -29,11 +32,21 @@ function writeOutput(path: string, contents: string) {
 }
 
 type ExportFormat = "all" | "jsonl" | "csv" | "parquet"
+type ExtendedExportFormat = ExportFormat | "inspect" | "openai-evals" | "eval-card"
 
-function parseFormat(input: string | undefined): ExportFormat {
+function parseFormat(input: string | undefined): ExtendedExportFormat {
   if (!input || input === "all") return "all"
-  if (input === "jsonl" || input === "csv" || input === "parquet") return input
-  throw new Error("Invalid --format value. Use one of: all, jsonl, csv, parquet")
+  if (
+    input === "jsonl" ||
+    input === "csv" ||
+    input === "parquet" ||
+    input === "inspect" ||
+    input === "openai-evals" ||
+    input === "eval-card"
+  ) {
+    return input
+  }
+  throw new Error("Invalid --format value. Use one of: all, jsonl, csv, parquet, inspect, openai-evals, eval-card")
 }
 
 async function main() {
@@ -57,6 +70,24 @@ async function main() {
     await writePromptRowsParquet(join(outputDir, `${runId}.rows.parquet`), manifest)
     await writeScenarioSummariesParquet(join(outputDir, `${runId}.scenario-summaries.parquet`), scenarioSummaries)
     await writeRunMetadataParquet(join(outputDir, `${runId}.run-metadata.parquet`), manifest)
+  }
+
+  if (format === "all" || format === "inspect") {
+    writeOutput(
+      join(outputDir, `${runId}.inspect-log.json`),
+      JSON.stringify(manifestToInspectLog(manifest), null, 2),
+    )
+  }
+
+  if (format === "all" || format === "openai-evals") {
+    writeOutput(join(outputDir, `${runId}.openai-evals.jsonl`), manifestToOpenAIEvalsJsonl(manifest))
+  }
+
+  if (format === "all" || format === "eval-card") {
+    writeOutput(
+      join(outputDir, `${runId}.eval-card.json`),
+      JSON.stringify(createRunEvalCard(manifest), null, 2),
+    )
   }
 
   console.log(`Exported ${runId} to ${outputDir} (${format})`)

@@ -1,6 +1,16 @@
 import type { ScenarioResultSummaryV1 } from "./contracts"
 import type { BenchmarkResultV2, RunManifestV2 } from "./schemas"
-import { ParquetSchema, ParquetWriter } from "parquetjs-lite"
+import { createEvalCard, type EvalCard } from "./eval-card"
+
+interface ParquetModule {
+  ParquetSchema: new (schema: Record<string, unknown>) => unknown
+  ParquetWriter: {
+    openFile(schema: unknown, path: string): Promise<{
+      appendRow(row: Record<string, unknown>): Promise<void>
+      close(): Promise<void>
+    }>
+  }
+}
 
 function average(values: number[]): number {
   if (values.length === 0) return 0
@@ -70,6 +80,73 @@ export function manifestToJsonl(manifest: RunManifestV2): string {
   return manifest.results.map((row) => JSON.stringify(row)).join("\n")
 }
 
+export function manifestToOpenAIEvalsJsonl(manifest: RunManifestV2): string {
+  return manifest.results
+    .map((row) =>
+      JSON.stringify({
+        input: row.prompt,
+        ideal: row.primaryComplianceLabel ?? row.compliance,
+        metadata: {
+          runId: manifest.runId,
+          sampleId: row.sampleId,
+          scenarioId: row.scenarioId,
+          scenarioTitle: row.scenarioTitle,
+          module: row.module,
+          level: row.level,
+          modelId: row.modelId,
+          attemptId: row.attemptId,
+          status: row.status,
+          split: row.scenarioSplit,
+        },
+      })
+    )
+    .join("\n")
+}
+
+export function manifestToInspectLog(manifest: RunManifestV2): Record<string, unknown> {
+  return {
+    version: 1,
+    run_id: manifest.runId,
+    benchmark: manifest.metadata.benchmarkDefinition?.benchmarkId ?? "dystopiabench",
+    task: manifest.metadata.benchmarkDefinition?.benchmarkBundleId ?? manifest.metadata.datasetBundleVersion,
+    metadata: {
+      judge_model: manifest.metadata.judgeModel,
+      judge_models: manifest.metadata.judgeModels ?? [],
+      judge_strategy: manifest.metadata.judgeStrategy,
+      conversation_mode: manifest.metadata.conversationMode,
+      split_summary: manifest.metadata.splitSummary ?? manifest.metadata.benchmarkDefinition?.splitSummary ?? {},
+    },
+    samples: manifest.results.map((row) => ({
+      id: row.sampleId ?? `${row.scenarioId}:${row.modelId}:L${row.level}:r${row.replicate ?? 1}`,
+      input: row.prompt,
+      target: row.primaryComplianceLabel ?? row.compliance,
+      scores: row.score === null ? {} : { dcs: row.score },
+      messages: [
+        { role: "user", content: row.prompt },
+        { role: "assistant", content: row.response },
+      ],
+      metadata: {
+        scenario_id: row.scenarioId,
+        scenario_title: row.scenarioTitle,
+        scenario_category: row.scenarioCategory,
+        module: row.module,
+        level: row.level,
+        provider: row.provider,
+        model: row.modelId,
+        status: row.status,
+        attempt_id: row.attemptId,
+        split: row.scenarioSplit,
+        prompt_hash: row.promptHash,
+        response_hash: row.responseHash,
+      },
+    })),
+  }
+}
+
+export function createRunEvalCard(manifest: RunManifestV2): EvalCard {
+  return createEvalCard(manifest)
+}
+
 function escapeCsvField(value: string | number | boolean | null | undefined): string {
   if (value === null || value === undefined) return ""
   const asString = String(value)
@@ -118,6 +195,7 @@ export function runMetadataToCsv(manifest: RunManifestV2): string {
     ["scenarioCatalogVersion", manifest.metadata.scenarioCatalogVersion],
     ["judgeModel", manifest.metadata.judgeModel],
     ["judgeStrategy", manifest.metadata.judgeStrategy],
+    ["artifactPolicy", manifest.metadata.artifactPolicy ? JSON.stringify(manifest.metadata.artifactPolicy) : undefined],
     ["conversationMode", manifest.metadata.conversationMode],
     ["transportPolicy", manifest.metadata.transportPolicy],
     ["replicates", manifest.metadata.replicates],
@@ -147,7 +225,29 @@ function normalizeParquetValue(value: unknown): string | number | boolean | null
   return JSON.stringify(value)
 }
 
+async function loadParquetModule(): Promise<ParquetModule> {
+  try {
+    const loaded = (await import("parquetjs-lite")) as Record<string, unknown>
+    const candidate = (
+      ("ParquetSchema" in loaded && "ParquetWriter" in loaded ? loaded : loaded.default) ??
+      loaded["module.exports"]
+    ) as Partial<ParquetModule> | undefined
+
+    if (!candidate?.ParquetSchema || !candidate?.ParquetWriter) {
+      throw new Error("Resolved parquetjs-lite module does not expose ParquetSchema and ParquetWriter.")
+    }
+
+    return candidate as ParquetModule
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `Parquet export requires 'parquetjs-lite' to be installed and resolvable. Original error: ${message}`
+    )
+  }
+}
+
 export async function writePromptRowsParquet(path: string, manifest: RunManifestV2): Promise<void> {
+  const { ParquetSchema, ParquetWriter } = await loadParquetModule()
   const schema = new ParquetSchema({
     scenarioId: { type: "UTF8" },
     scenarioTitle: { type: "UTF8" },
@@ -203,6 +303,7 @@ export async function writePromptRowsParquet(path: string, manifest: RunManifest
 }
 
 export async function writeScenarioSummariesParquet(path: string, rows: ScenarioResultSummaryV1[]): Promise<void> {
+  const { ParquetSchema, ParquetWriter } = await loadParquetModule()
   const schema = new ParquetSchema({
     scenarioId: { type: "UTF8" },
     scenarioTitle: { type: "UTF8" },
@@ -232,6 +333,7 @@ export async function writeScenarioSummariesParquet(path: string, rows: Scenario
 }
 
 export async function writeRunMetadataParquet(path: string, manifest: RunManifestV2): Promise<void> {
+  const { ParquetSchema, ParquetWriter } = await loadParquetModule()
   const schema = new ParquetSchema({
     key: { type: "UTF8" },
     value: { type: "UTF8", optional: true },

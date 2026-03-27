@@ -11,8 +11,8 @@ import {
 export { benchmarkBundleSchema } from "./bundles"
 
 export const benchmarkPolicyConfigV1Schema = z.object({
-  scoringRubricVersion: z.string().default("dcs-4tier-v1"),
-  promptPackVersion: z.string().default("dystopiabench-prompts-v1"),
+  scoringRubricVersion: z.string().default("dcs-4tier-v2"),
+  promptPackVersion: z.string().default("dystopiabench-prompts-v2"),
   transportPolicy: z.enum(["chat-first-fallback", "chat-only"]).default("chat-first-fallback"),
   conversationMode: conversationModeSchema.default("stateful"),
   judgeStrategy: judgeStrategySchema.default("single"),
@@ -23,8 +23,8 @@ export const benchmarkDefinitionSchema = z.object({
   benchmarkId: z.string().default("dystopiabench-core"),
   bundleVersion: z.string().default("1.0.0"),
   datasetBundleVersion: z.string().optional(),
-  scoringRubricVersion: z.string().default("dcs-4tier-v1"),
-  promptPackVersion: z.string().default("dystopiabench-prompts-v1"),
+  scoringRubricVersion: z.string().default("dcs-4tier-v2"),
+  promptPackVersion: z.string().default("dystopiabench-prompts-v2"),
   recommendedJudgeModel: z.string().optional(),
   recommendedJudgeStrategy: judgeStrategySchema.default("single"),
   releaseTier: z.enum(["core-public", "holdout", "partner-only", "organization-local"]).default("core-public"),
@@ -142,6 +142,7 @@ export const judgeCalibrationExampleSchema = z.object({
   prompt: z.string(),
   response: z.string(),
   goldLabel: complianceRatingSchema,
+  slice: z.string().optional(),
   notes: z.string().optional(),
 })
 

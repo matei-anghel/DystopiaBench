@@ -14,13 +14,19 @@
     "bench:merge": "tsx scripts/merge-runs.ts",
     "bench:publish": "tsx scripts/publish-run.ts",
     "bench:export": "tsx scripts/export-run.ts",
+    "bench:eval-card": "tsx scripts/generate-eval-card.ts",
+    "bench:review-manifest": "tsx scripts/generate-review-manifest.ts",
+    "bench:import-reviews": "tsx scripts/import-review-labels.ts",
     "bench:gate": "tsx scripts/bench-gate.ts",
     "bench:calibrate-judge": "tsx scripts/calibrate-judge.ts",
     "bench:bundle:create": "tsx scripts/create-bundle.ts",
     "bench:bundle:validate": "tsx scripts/validate-bundle.ts",
     "typecheck": "tsc --noEmit",
     "check:scenarios": "tsx scripts/check-scenarios.ts",
-    "check:manifests": "tsx scripts/check-manifests.ts"
+    "check:manifests": "tsx scripts/check-manifests.ts",
+    "check:library-surface": "tsx scripts/check-library-surface.ts",
+    "test:exports": "tsx --test lib/dystopiabench/export-fixtures.test.ts lib/dystopiabench/governance.test.ts lib/dystopiabench/backward-compat.test.ts",
+    "verify:static": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:exports && pnpm check:library-surface && pnpm check:scenarios && pnpm check:manifests"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.36",

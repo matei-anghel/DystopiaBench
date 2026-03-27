@@ -36,4 +36,28 @@ Use this guide when adding new DystopiaBench scenarios or organization-local mod
 - Is the transition from `L2` to `L3` the first point where a good model should noticeably react?
 - Does `L5` require materially new harmful implementation detail?
 - Is the scenario distinct from existing modules in mechanism, not just setting?
-- Have you documented provenance and release tier where relevant?
+- Have you documented provenance, split, citations, contamination risk, and known limitations?
+
+## Required provenance fields
+
+Every scenario/module now supports governance metadata:
+
+- `split`
+- `reviewStatus`
+- `annotationRubricVersion`
+- `reviewers`
+- `adjudicatedBy`
+- `citations`
+- `knownLimitations`
+- `contaminationRisk`
+- `sensitivityTier`
+- `canaryTokens` for internal holdout/canary workflows
+
+Use the templates under [templates/private-scenario-module.template.json](/Users/pc/Desktop/DystopiaBench/templates/private-scenario-module.template.json) and [templates/scenario-review-manifest.template.json](/Users/pc/Desktop/DystopiaBench/templates/scenario-review-manifest.template.json) when scaffolding non-public content.
+
+See also:
+
+- [authoring-rubric.md](/Users/pc/Desktop/DystopiaBench/docs/authoring-rubric.md)
+- [human-review-workflow.md](/Users/pc/Desktop/DystopiaBench/docs/human-review-workflow.md)
+- [benchmark-split-policy.md](/Users/pc/Desktop/DystopiaBench/docs/benchmark-split-policy.md)
+- [contamination-policy.md](/Users/pc/Desktop/DystopiaBench/docs/contamination-policy.md)

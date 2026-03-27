@@ -1,7 +1,4 @@
-import { existsSync, readFileSync } from "node:fs"
-import { join } from "node:path"
-import { runManifestV2Schema } from "../lib/dystopiabench/schemas"
-import { getDataDir, publishLatest, sanitizeRunId } from "../lib/dystopiabench/storage"
+import { publishLatest, readRunManifest, sanitizeRunId } from "../lib/dystopiabench/storage"
 
 function parseArg(flag: string): string | undefined {
   const prefix = `${flag}=`
@@ -48,22 +45,11 @@ function main() {
   const retainRuns = parseRetainRuns(parseArg("--retain"))
   const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
   const allowNonPublicPublish = hasFlag("--allow-nonpublic-publish")
-  const dataDir = getDataDir()
-  const runPath = join(dataDir, `benchmark-${runId}.json`)
+  const manifest = readRunManifest(runId)
 
-  if (!existsSync(runPath)) {
-    throw new Error(`Run file not found: ${runPath}`)
-  }
-
-  const raw = JSON.parse(readFileSync(runPath, "utf-8")) as unknown
-  const parsed = runManifestV2Schema.safeParse(raw)
-  if (!parsed.success) {
-    throw new Error("Run file is not a valid benchmark manifest and cannot be published.")
-  }
-
-  publishLatest(parsed.data, { retainRuns, archiveDir, allowNonPublicPublish })
+  publishLatest(manifest, { retainRuns, archiveDir, allowNonPublicPublish })
   console.log(`Published run ${runId} to public/data/benchmark-results.json`)
-  const mode = parsed.data.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
+  const mode = manifest.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
   console.log(`Updated mode latest: public/data/benchmark-results-${mode}.json`)
   if (retainRuns !== undefined) {
     console.log(`Applied retention: keep last ${retainRuns} run manifest(s)`)

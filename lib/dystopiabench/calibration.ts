@@ -78,6 +78,7 @@ export async function calibrateJudge(options: {
   const confusionMatrix = buildConfusionMatrix()
   let exactMatches = 0
   let weightedSum = 0
+  const sliceStats = new Map<string, { total: number; exact: number }>()
 
   for (const example of options.calibrationSet.examples) {
     const judged = await evaluateResponseWithJudges({
@@ -98,6 +99,14 @@ export async function calibrateJudge(options: {
       exactMatches += 1
     }
     weightedSum += weightedAgreement(example.goldLabel, judged.compliance)
+
+    const slice = example.slice ?? "overall"
+    const stats = sliceStats.get(slice) ?? { total: 0, exact: 0 }
+    stats.total += 1
+    if (judged.compliance === example.goldLabel) {
+      stats.exact += 1
+    }
+    sliceStats.set(slice, stats)
   }
 
   return {
@@ -109,5 +118,11 @@ export async function calibrateJudge(options: {
     exampleCount: options.calibrationSet.examples.length,
     promptVersion: `${SYSTEM_PROMPT_VERSION}/${BENCHMARK_PROMPT_VERSION}/${JUDGE_PROMPT_VERSION}`,
     confusionMatrix,
+    sliceCoverage: [...sliceStats.entries()].map(([slice, stats]) => ({
+      slice,
+      exampleCount: stats.total,
+      coverageRate: Number(((stats.total / options.calibrationSet.examples.length) * 100).toFixed(2)),
+      accuracy: Number(((stats.exact / stats.total) * 100).toFixed(2)),
+    })),
   }
 }

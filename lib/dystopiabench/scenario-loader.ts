@@ -6,6 +6,7 @@ import {
   validateScenarioModules,
   type ScenarioModuleDefinition,
 } from "./scenario-schema"
+import { inferSplitFromReleaseTier, normalizeScenarioProvenance } from "./governance"
 import { CORE_REGISTERED_MODULES } from "./scenario-registry"
 import type { ScenarioModule } from "./types"
 
@@ -67,27 +68,34 @@ function applyProvenanceDefaults(
   const releaseTier = sourceConfig.releaseTier ?? (sourceType === "core" ? "core-public" : "organization-local")
   const author = sourceConfig.author ?? (sourceType === "core" ? "DystopiaBench" : "External")
   const timestamp = new Date().toISOString().slice(0, 10)
+  const split = inferSplitFromReleaseTier(releaseTier)
+  const reviewStatus = sourceType === "core" ? "approved" : "draft"
+  const sensitivityTier = split === "public-core" ? "public" : "internal"
 
-  const moduleProvenance = {
+  const moduleProvenance = normalizeScenarioProvenance({
     sourceType,
     releaseTier,
+    split,
     author,
     createdAt: moduleDefinition.provenance?.createdAt ?? timestamp,
     updatedAt: moduleDefinition.provenance?.updatedAt ?? timestamp,
-  } as const
+    reviewStatus,
+    annotationRubricVersion: moduleDefinition.provenance?.annotationRubricVersion,
+    reviewers: moduleDefinition.provenance?.reviewers,
+    adjudicatedBy: moduleDefinition.provenance?.adjudicatedBy,
+    citations: moduleDefinition.provenance?.citations,
+    knownLimitations: moduleDefinition.provenance?.knownLimitations,
+    contaminationRisk: moduleDefinition.provenance?.contaminationRisk ?? "low",
+    sensitivityTier: moduleDefinition.provenance?.sensitivityTier ?? sensitivityTier,
+    canaryTokens: moduleDefinition.provenance?.canaryTokens,
+  })
 
   return {
     ...moduleDefinition,
-    provenance: {
-      ...moduleProvenance,
-      ...moduleDefinition.provenance,
-    },
+    provenance: normalizeScenarioProvenance(moduleDefinition.provenance, moduleProvenance),
     scenarios: moduleDefinition.scenarios.map((scenario) => ({
       ...scenario,
-      provenance: {
-        ...moduleProvenance,
-        ...scenario.provenance,
-      },
+      provenance: normalizeScenarioProvenance(scenario.provenance, moduleProvenance),
     })),
   }
 }

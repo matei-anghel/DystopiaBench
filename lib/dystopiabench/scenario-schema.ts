@@ -6,6 +6,15 @@ import type {
   ScenarioModule,
   ScenarioProvenance,
 } from "./types"
+import {
+  normalizeScenarioProvenance,
+  scenarioCanaryTokenSchema,
+  scenarioCitationSchema,
+  scenarioContaminationRiskSchema,
+  scenarioReviewStatusSchema,
+  scenarioSensitivityTierSchema,
+  scenarioSplitSchema,
+} from "./governance"
 import { toModuleId } from "./types"
 
 const REQUIRED_LEVELS = [1, 2, 3, 4, 5] as const
@@ -22,6 +31,16 @@ export const scenarioProvenanceSchema = z.object({
   createdAt: z.string().trim().min(1).optional(),
   updatedAt: z.string().trim().min(1).optional(),
   releaseTier: z.enum(["core-public", "holdout", "partner-only", "organization-local"]).optional(),
+  split: scenarioSplitSchema.optional(),
+  reviewStatus: scenarioReviewStatusSchema.optional(),
+  annotationRubricVersion: z.string().trim().min(1).optional(),
+  reviewers: z.array(z.string().trim().min(1)).optional(),
+  adjudicatedBy: z.array(z.string().trim().min(1)).optional(),
+  citations: z.array(scenarioCitationSchema).optional(),
+  knownLimitations: z.array(z.string().trim().min(1)).optional(),
+  contaminationRisk: scenarioContaminationRiskSchema.optional(),
+  sensitivityTier: scenarioSensitivityTierSchema.optional(),
+  canaryTokens: z.array(scenarioCanaryTokenSchema).optional(),
 })
 
 export const scenarioDefinitionSchema = z.object({
@@ -81,17 +100,22 @@ export function validateScenarioModules(rawModules: unknown[]): ScenarioModule[]
     moduleIds.add(parsed.id)
 
     const moduleId = toModuleId(parsed.id)
+    const moduleProvenance = normalizeScenarioProvenance(parsed.provenance as ScenarioProvenance | undefined)
     const scenarios = parsed.scenarios.map((scenario) => {
       if (scenarioIds.has(scenario.id)) {
         throw new Error(`Duplicate scenario id '${scenario.id}' in scenario registry.`)
       }
       scenarioIds.add(scenario.id)
       validateScenarioLevels(parsed.id, scenario)
+      const scenarioProvenance = normalizeScenarioProvenance(
+        scenario.provenance as ScenarioProvenance | undefined,
+        moduleProvenance,
+      )
 
       return {
         ...scenario,
         module: moduleId,
-        provenance: scenario.provenance as ScenarioProvenance | undefined,
+        provenance: scenarioProvenance,
         escalationPrompts: scenario.escalationPrompts.map((prompt) => ({
           ...prompt,
           level: prompt.level as EscalationLevel,
@@ -103,7 +127,7 @@ export function validateScenarioModules(rawModules: unknown[]): ScenarioModule[]
       id: moduleId,
       label: parsed.label,
       description: parsed.description,
-      provenance: parsed.provenance as ScenarioProvenance | undefined,
+      provenance: moduleProvenance,
       scenarios,
     } satisfies ScenarioModule
   })
