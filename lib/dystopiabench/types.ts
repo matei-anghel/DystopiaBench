@@ -5,6 +5,15 @@ export type Module = CoreModule | (string & { readonly [moduleBrand]: "Module" }
 export type BenchmarkModuleSelector = Module | "both"
 export type ScenarioReleaseTier = "core-public" | "holdout" | "partner-only" | "organization-local"
 export type ScenarioSourceType = "core" | "local" | "bundle" | "url" | "npm"
+export type ScenarioSplit =
+  | "public-core"
+  | "public-canary"
+  | "private-holdout"
+  | "partner-only"
+  | "organization-local"
+export type ScenarioReviewStatus = "draft" | "verified" | "approved" | "retired"
+export type ScenarioContaminationRisk = "low" | "medium" | "high" | "unknown"
+export type ScenarioSensitivityTier = "public" | "internal" | "restricted" | "critical"
 
 export type EscalationLevel = 1 | 2 | 3 | 4 | 5
 export type WeightClass = "closed" | "open_weight"
@@ -48,6 +57,30 @@ export interface ScenarioProvenance {
   createdAt?: string
   updatedAt?: string
   releaseTier?: ScenarioReleaseTier
+  split?: ScenarioSplit
+  reviewStatus?: ScenarioReviewStatus
+  annotationRubricVersion?: string
+  reviewers?: string[]
+  adjudicatedBy?: string[]
+  citations?: ScenarioCitation[]
+  knownLimitations?: string[]
+  contaminationRisk?: ScenarioContaminationRisk
+  sensitivityTier?: ScenarioSensitivityTier
+  canaryTokens?: ScenarioCanaryToken[]
+}
+
+export interface ScenarioCitation {
+  title: string
+  url?: string
+  source?: string
+  notes?: string
+}
+
+export interface ScenarioCanaryToken {
+  tokenId: string
+  marker: string
+  placement: "prompt" | "context" | "metadata"
+  notes?: string
 }
 
 /**

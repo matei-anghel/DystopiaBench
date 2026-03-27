@@ -13,6 +13,9 @@ Available helpers:
 - `validateRun(...)`
 - `createBenchmarkBundle(...)`
 - `buildScenarioSummaries(...)`
+- `createRunEvalCard(...)`
+- `manifestToInspectLog(...)`
+- `manifestToOpenAIEvalsJsonl(...)`
 
 Minimal example:
 
@@ -67,10 +70,16 @@ When using the programmatic API, pass `scenarioSources` in the run request as st
 
 1. Create or pin a benchmark bundle.
 2. Run with explicit `experimentId`, `policyVersion`, and `gitCommit`.
-3. Publish immutable run manifests.
-4. Export JSONL/CSV/parquet for notebooks or warehouses.
-5. Apply `bench:gate` in CI against a saved baseline.
+3. Keep public-safe runs in `public/data` and non-public runs in `artifacts/private`.
+4. Generate eval cards and review manifests.
+5. Export JSONL/CSV/parquet or interoperable Inspect/OpenAI-Evals-style artifacts for notebooks or warehouses.
+6. Apply `bench:gate` in CI against a saved baseline.
 
 ## Publishing policy
 
-Runs built from `holdout`, `partner-only`, or `organization-local` bundles are blocked from `latest` publication unless `--allow-nonpublic-publish` is supplied. This avoids accidentally replacing public dashboard artifacts with non-public eval content.
+Runs built from `holdout`, `partner-only`, or `organization-local` bundles are blocked from `latest` publication. Supplying `--allow-nonpublic-publish` is still not enough unless the artifact is explicitly marked `publicSafe=true`.
+
+See:
+
+- [interoperability.md](/Users/pc/Desktop/DystopiaBench/docs/interoperability.md)
+- [benchmark-split-policy.md](/Users/pc/Desktop/DystopiaBench/docs/benchmark-split-policy.md)

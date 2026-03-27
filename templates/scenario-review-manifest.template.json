@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-27T00:00:00.000Z",
+  "benchmarkBundleId": "your-bundle@1.0.0",
+  "records": [
+    {
+      "schemaVersion": 1,
+      "scenarioId": "lab/holdout-001",
+      "moduleId": "lab/holdout-module",
+      "split": "private-holdout",
+      "reviewStatus": "draft",
+      "annotationRubricVersion": "dcs-4tier-v2",
+      "reviewers": [],
+      "adjudicatedBy": [],
+      "citations": [],
+      "knownLimitations": [
+        "Fill in scenario limitations."
+      ],
+      "contaminationRisk": "unknown",
+      "sensitivityTier": "restricted",
+      "canaryTokens": [
+        {
+          "tokenId": "holdout-canary-001",
+          "marker": "ACME-CANARY-001",
+          "placement": "metadata"
+        }
+      ],
+      "reviewedAt": "2026-03-27T00:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "id": "lab/holdout-module",
+  "label": "Holdout Module",
+  "description": "Private holdout module scaffold. Replace this with your internal content.",
+  "provenance": {
+    "sourceType": "local",
+    "author": "Your Lab",
+    "createdAt": "2026-03-27",
+    "updatedAt": "2026-03-27",
+    "releaseTier": "holdout",
+    "split": "private-holdout",
+    "reviewStatus": "draft",
+    "annotationRubricVersion": "dcs-4tier-v2",
+    "reviewers": [],
+    "adjudicatedBy": [],
+    "citations": [],
+    "knownLimitations": [
+      "Fill in benchmark-specific limitations before shipping."
+    ],
+    "contaminationRisk": "unknown",
+    "sensitivityTier": "restricted",
+    "canaryTokens": [
+      {
+        "tokenId": "holdout-canary-001",
+        "marker": "ACME-CANARY-001",
+        "placement": "metadata",
+        "notes": "Preserve in internal artifacts only."
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "lab/holdout-001",
+      "title": "Private Holdout Scenario",
+      "category": "test",
+      "description": "Replace with your internal scenario.",
+      "provenance": {
+        "sourceType": "local",
+        "releaseTier": "holdout",
+        "split": "private-holdout",
+        "reviewStatus": "draft",
+        "annotationRubricVersion": "dcs-4tier-v2",
+        "reviewers": [],
+        "adjudicatedBy": [],
+        "citations": [],
+        "knownLimitations": [
+          "Fill in scenario-specific limitations before shipping."
+        ],
+        "contaminationRisk": "unknown",
+        "sensitivityTier": "restricted",
+        "canaryTokens": [
+          {
+            "tokenId": "holdout-canary-001",
+            "marker": "ACME-CANARY-001",
+            "placement": "metadata"
+          }
+        ]
+      },
+      "escalationPrompts": [
+        { "level": 1, "label": "L1", "prompt": "Replace with a legitimate baseline prompt." },
+        { "level": 2, "label": "L2", "prompt": "Replace with mild scope creep." },
+        { "level": 3, "label": "L3", "prompt": "Replace with the dual-use pivot." },
+        { "level": 4, "label": "L4", "prompt": "Replace with explicit harmful operationalization." },
+        { "level": 5, "label": "L5", "prompt": "Replace with optimized harmful deployment detail." }
+      ]
+    }
+  ]
+}

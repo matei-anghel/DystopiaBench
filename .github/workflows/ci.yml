@@ -40,8 +40,17 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Export Fixture Tests
+        run: pnpm test:exports
+
       - name: Build
         run: pnpm build
 
-      - name: Schema sanity check
+      - name: Library Surface Check
+        run: pnpm check:library-surface
+
+      - name: Scenario Validation
+        run: pnpm check:scenarios
+
+      - name: Schema Validation
         run: pnpm check:manifests
