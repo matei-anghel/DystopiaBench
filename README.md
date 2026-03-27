@@ -44,8 +44,26 @@ Primary summary metrics:
 - `statusCounts`: transport/judge validity outcomes
 - `modelSuccessRate`, `judgeSuccessRate`, `scorableRate`
 
-Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 4`; loaders remain compatible with existing `schemaVersion: 2` and `schemaVersion: 3` manifests).
+Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 5`; loaders remain compatible with existing `schemaVersion: 2`, `schemaVersion: 3`, and `schemaVersion: 4` manifests).
 Scenario content lives in JSON module files under `lib/dystopiabench/scenario-data/modules/` and is validated through the TypeScript registry in `lib/dystopiabench/scenario-registry.ts`.
+
+## Lab-facing features
+
+- Stable TypeScript entrypoint in `lib/dystopiabench/index.ts`
+- Benchmark bundles with pin-able IDs such as `dystopiabench-core@1.0.0`
+- Experiment metadata (`experimentId`, `project`, `owner`, `policyVersion`, `gitCommit`, `datasetBundleVersion`)
+- Repeated trials via `--replicates`
+- Programmatic scenario loading from local, URL, and `npm:` JSON scenario sources
+- Export scripts for JSONL prompt rows, CSV summaries, and parquet artifacts
+- Regression gate script for CI usage
+- Judge calibration script for gold-set evaluation
+
+See:
+
+- `docs/integration.md`
+- `docs/reproducibility.md`
+- `docs/judge-calibration.md`
+- `docs/scenario-authoring.md`
 
 ## Repository layout
 
@@ -157,6 +175,19 @@ Main `bench:run` flags:
 - `--retry-backoff-jitter-ms=<non-negative-int>`
 - `--retain=<non-negative-int>`
 - `--archive-dir=<relative-folder-under-public/data>`
+- `--replicates=<positive-int>`
+- `--experiment-id=<id>`
+- `--project=<name>`
+- `--owner=<name-or-team>`
+- `--purpose=<free-text>`
+- `--model-snapshot=<deployment-or-checkpoint-id>`
+- `--provider-region=<region>`
+- `--policy-version=<internal-policy-version>`
+- `--git-commit=<sha>`
+- `--dataset-bundle-version=<bundle-id-or-version>`
+- `--benchmark-id=<bundle-family-id>`
+- `--benchmark-bundle-version=<semver>`
+- `--scenario-sources=<comma-separated source paths, URLs, or npm: package paths>`
 
 Isolated mode shortcut:
 
@@ -212,11 +243,75 @@ Optional retention controls:
 pnpm bench:publish --run-id=<run-id> --retain=20 --archive-dir=archive
 ```
 
+Non-public bundles are blocked from `latest` publishing unless you opt in explicitly:
+
+```bash
+pnpm bench:publish --run-id=<run-id> --allow-nonpublic-publish
+```
+
 ### Validate manifests
 
 ```bash
 pnpm check:scenarios
 pnpm check:manifests
+```
+
+### Create or validate a benchmark bundle
+
+```bash
+pnpm bench:bundle:create --out=benchmark-bundle.json
+pnpm bench:bundle:validate --path=benchmark-bundle.json
+```
+
+### Export a run for analysis
+
+```bash
+pnpm bench:export --run-id=<run-id>
+```
+
+This writes:
+
+- `exports/<run-id>/<run-id>.rows.jsonl`
+- `exports/<run-id>/<run-id>.scenario-summaries.csv`
+- `exports/<run-id>/<run-id>.run-metadata.csv`
+- `exports/<run-id>/<run-id>.rows.parquet`
+- `exports/<run-id>/<run-id>.scenario-summaries.parquet`
+- `exports/<run-id>/<run-id>.run-metadata.parquet`
+
+Format-specific export:
+
+```bash
+pnpm bench:export --run-id=<run-id> --format=parquet
+```
+
+### Evaluate a judge against a gold set
+
+```bash
+pnpm bench:calibrate-judge --gold-set=configs/judge-gold-set.example.json
+```
+
+### Gate a run in CI
+
+```bash
+pnpm bench:gate --run-id=<run-id> --config=configs/gates.example.json
+```
+
+## Programmatic usage
+
+Use the stable library entrypoint instead of shelling out to `pnpm` from another orchestrator:
+
+```ts
+import { loadScenarioCatalog, runBenchmarkRequest, validateRun } from "./lib/dystopiabench"
+
+const manifest = await runBenchmarkRequest({
+  modelIds: ["deepseek-v3.2"],
+  replicates: 3,
+  experimentId: "release-eval-2026-03-27",
+})
+
+validateRun(manifest)
+const catalog = loadScenarioCatalog()
+console.log(catalog.benchmarkBundleId)
 ```
 
 ## Run artifacts and data model
@@ -239,6 +334,14 @@ Each result row includes:
 - judge metadata (`judgeVotes`, `judgeReasoning`, `implicitRefusalFromEmpty`)
 - stateful continuity metadata (`conversationContinuity`)
 - transport metadata (`endpointUsed`, `transportAttempts`)
+- replicate and experiment metadata (`replicate`, `experimentId`)
+- optional auxiliary labels for richer refusal analysis
+
+Manifest metadata now separates:
+
+- `benchmarkDefinition`
+- `executionConfig`
+- `analysisConfig`
 
 ## Dashboard and routes
 
