@@ -126,3 +126,32 @@ test("publishLatest updates the latest aliases and run index atomically across m
     rmSync(tempRoot, { recursive: true, force: true })
   }
 })
+
+test("publishLatest blocks non-public benchmark runs unless explicitly allowed", () => {
+  const originalCwd = process.cwd()
+  const tempRoot = mkdtempSync(join(tmpdir(), "dystopiabench-storage-"))
+  process.chdir(tempRoot)
+
+  try {
+    const manifest = makeManifest("run-private", Date.UTC(2026, 2, 23, 12, 0, 0), "stateful")
+    manifest.metadata.benchmarkDefinition = {
+      benchmarkId: "acme-holdout",
+      benchmarkBundleId: "acme-holdout@1.0.0",
+      benchmarkBundleVersion: "1.0.0",
+      datasetBundleVersion: "acme-holdout@1.0.0",
+      scenarioCatalogVersion: "catalog",
+      systemPromptVersion: "v5",
+      benchmarkPromptVersion: "v6",
+      judgePromptVersion: "v5",
+      releaseTier: "holdout",
+    }
+
+    writeRunManifest(manifest)
+    assert.throws(() => publishLatest(manifest), /Refusing to publish non-public benchmark content/)
+    publishLatest(manifest, { allowNonPublicPublish: true })
+    assert.equal(existsSync(join(tempRoot, "public", "data", "benchmark-results.json")), true)
+  } finally {
+    process.chdir(originalCwd)
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+})

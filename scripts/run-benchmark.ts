@@ -1,5 +1,7 @@
 import { AVAILABLE_MODELS, getModelById } from "../lib/dystopiabench/models"
-import { ALL_SCENARIOS, getRegisteredModuleIds, getScenariosByModule } from "../lib/dystopiabench/scenarios"
+import { ALL_MODULES, ALL_SCENARIOS, getRegisteredModuleIds, getScenariosByModule } from "../lib/dystopiabench/scenarios"
+import { createBenchmarkBundle } from "../lib/dystopiabench/bundles"
+import { loadScenarioModulesFromSources } from "../lib/dystopiabench/scenario-loader"
 import {
   runBenchmark,
   type JudgeStrategy,
@@ -212,6 +214,11 @@ function parseRuntimeOverrides(): Pick<
   }
 }
 
+function parseScenarioSources(input: string | undefined): string[] | undefined {
+  const values = normalizeModelInputList(input)
+  return values.length > 0 ? values : undefined
+}
+
 async function main() {
   const moduleArg = parseModule(parseArg("--module"))
   const levels = parseLevels(parseArg("--levels"))
@@ -230,6 +237,20 @@ async function main() {
   const transport = parseTransport(parseArg("--transport"))
   const conversationMode = parseConversationMode(parseArg("--conversation-mode"))
   const providerPrecision = parseProviderPrecision(parseArg("--provider-precision"))
+  const replicates = parsePositiveIntFlag("--replicates", parseArg("--replicates")) ?? 1
+  const experimentId = parseArg("--experiment-id")
+  const project = parseArg("--project")
+  const owner = parseArg("--owner")
+  const purpose = parseArg("--purpose")
+  const modelSnapshot = parseArg("--model-snapshot")
+  const providerRegion = parseArg("--provider-region")
+  const policyVersion = parseArg("--policy-version")
+  const gitCommit = parseArg("--git-commit")
+  const datasetBundleVersion = parseArg("--dataset-bundle-version")
+  const benchmarkId = parseArg("--benchmark-id")
+  const benchmarkBundleVersion = parseArg("--benchmark-bundle-version")
+  const scenarioSources = parseScenarioSources(parseArg("--scenario-sources"))
+  const allowNonPublicPublish = hasFlag("--allow-nonpublic-publish")
   const publishLatestAliases = !hasFlag("--no-publish-latest")
   const runtimeOverrides = parseRuntimeOverrides()
 
@@ -258,6 +279,8 @@ async function main() {
   console.log(`Transport: ${transport}`)
   console.log(`Conversation mode: ${conversationMode}`)
   console.log(`Provider precision: ${providerPrecision}`)
+  console.log(`Replicates: ${replicates}`)
+  if (experimentId) console.log(`Experiment ID: ${experimentId}`)
   console.log(`Publish latest aliases: ${publishLatestAliases ? "yes" : "no"}`)
   if (runtimeOverrides.timeoutMs !== undefined) console.log(`Timeout override: ${runtimeOverrides.timeoutMs}ms`)
   if (runtimeOverrides.concurrency !== undefined) console.log(`Concurrency override: ${runtimeOverrides.concurrency}`)
@@ -265,6 +288,16 @@ async function main() {
   if (runtimeOverrides.maxRetries !== undefined) console.log(`Retry override: maxRetries=${runtimeOverrides.maxRetries}`)
   if (runtimeOverrides.retryBackoffBaseMs !== undefined) console.log(`Retry backoff base override: ${runtimeOverrides.retryBackoffBaseMs}ms`)
   if (runtimeOverrides.retryBackoffJitterMs !== undefined) console.log(`Retry backoff jitter override: ${runtimeOverrides.retryBackoffJitterMs}ms`)
+
+  const scenarioModules = scenarioSources
+    ? await loadScenarioModulesFromSources(scenarioSources)
+    : undefined
+  const benchmarkBundle = createBenchmarkBundle({
+    benchmarkId: benchmarkId ?? undefined,
+    bundleVersion: benchmarkBundleVersion ?? undefined,
+    datasetBundleVersion: datasetBundleVersion ?? undefined,
+    modules: scenarioModules ?? ALL_MODULES,
+  })
 
   const manifest = await runBenchmark({
     runId,
@@ -278,12 +311,26 @@ async function main() {
     transportPolicy: transport,
     conversationMode,
     providerPrecisionPolicy: providerPrecision,
+    replicates,
+    experimentId: experimentId ?? undefined,
+    project: project ?? undefined,
+    owner: owner ?? undefined,
+    purpose: purpose ?? undefined,
+    modelSnapshot: modelSnapshot ?? undefined,
+    providerRegion: providerRegion ?? undefined,
+    policyVersion: policyVersion ?? undefined,
+    systemPromptOverrideUsed: hasFlag("--system-prompt-override-used"),
+    customPrepromptUsed: hasFlag("--custom-preprompt-used"),
+    gitCommit: gitCommit ?? undefined,
+    datasetBundleVersion: datasetBundleVersion ?? undefined,
+    scenarioModules: scenarioModules ?? undefined,
+    benchmarkBundle,
     ...runtimeOverrides,
   })
 
   writeRunManifest(manifest)
   if (publishLatestAliases) {
-    publishLatest(manifest, { retainRuns, archiveDir })
+    publishLatest(manifest, { retainRuns, archiveDir, allowNonPublicPublish })
   }
   const mode = manifest.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
 
@@ -296,6 +343,7 @@ async function main() {
     console.log(`To publish later: pnpm bench:publish --run-id=${runId}`)
   }
   console.log(`Judge (resolved): ${manifest.metadata.judgeModel}`)
+  console.log(`Benchmark bundle: ${manifest.metadata.benchmarkDefinition?.benchmarkBundleId ?? "unknown"}`)
   if (publishLatestAliases && retainRuns !== undefined) {
     console.log(`Applied retention: keep last ${retainRuns} run manifest(s)`)
     if (archiveDir) {

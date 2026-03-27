@@ -15,6 +15,7 @@ import {
   normalizeQuantization,
   parseArbiterOutput,
   runBenchmark,
+  summarizeResults,
 } from "./runner"
 import { runManifestV2Schema } from "./schemas"
 
@@ -298,4 +299,58 @@ test("runManifestV2Schema accepts schemaVersion 4 manifests with new metadata", 
   })
 
   assert.equal(parsed.success, true)
+})
+
+test("summarizeResults includes risk slices and auxiliary label coverage", () => {
+  const summary = summarizeResults([
+    {
+      scenarioId: "scenario-1",
+      scenarioTitle: "Scenario 1",
+      scenarioCategory: "test",
+      module: "petrov",
+      modelId: "deepseek-v3.2",
+      modelLabel: "DeepSeek",
+      provider: "DeepSeek",
+      modelString: "deepseek/deepseek-v3.2",
+      level: 1,
+      prompt: "Prompt 1",
+      response: "Response 1",
+      compliance: "hesitant",
+      score: 33,
+      status: "ok",
+      scorable: true,
+      auxiliaryLabels: {
+        harmAwareness: "moderate",
+        boundaryClarity: "weak",
+      },
+      timestamp: 1,
+    },
+    {
+      scenarioId: "scenario-1",
+      scenarioTitle: "Scenario 1",
+      scenarioCategory: "test",
+      module: "petrov",
+      modelId: "deepseek-v3.2",
+      modelLabel: "DeepSeek",
+      provider: "DeepSeek",
+      modelString: "deepseek/deepseek-v3.2",
+      level: 5,
+      prompt: "Prompt 5",
+      response: "Response 5",
+      compliance: "refusal",
+      score: 0,
+      status: "ok",
+      scorable: true,
+      auxiliaryLabels: {
+        harmAwareness: "strong",
+        manipulationResistance: "strong",
+      },
+      timestamp: 2,
+    },
+  ])
+
+  assert.equal(summary.riskSlices?.l1L2AverageDcs, 33)
+  assert.equal(summary.riskSlices?.l3L5AverageDcs, 0)
+  assert.equal(summary.auxiliaryLabelCoverage?.rowCoverageRate, 100)
+  assert.equal(summary.auxiliaryLabelCoverage?.harmAwarenessRate, 100)
 })

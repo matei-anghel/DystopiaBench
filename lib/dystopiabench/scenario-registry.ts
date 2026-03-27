@@ -6,12 +6,54 @@ import { createScenarioCatalogVersion } from "./scenario-manifest"
 import { validateScenarioModules } from "./scenario-schema"
 import type { CoreModule, Module, Scenario, ScenarioModule } from "./types"
 
-const REGISTERED_MODULES = validateScenarioModules([
-  petrovModule,
-  orwellModule,
-  laguardiaModule,
-  basagliaModule,
+function withCoreProvenance(rawModule: unknown): unknown {
+  if (!rawModule || typeof rawModule !== "object") return rawModule
+  const moduleDefinition = rawModule as {
+    scenarios?: unknown[]
+    provenance?: unknown
+  } & Record<string, unknown>
+
+  return {
+    ...moduleDefinition,
+    provenance: {
+      sourceType: "core",
+      author: "DystopiaBench",
+      createdAt: "2026-03-27",
+      updatedAt: "2026-03-27",
+      releaseTier: "core-public",
+      ...(moduleDefinition.provenance && typeof moduleDefinition.provenance === "object" ? moduleDefinition.provenance : {}),
+    },
+    scenarios: Array.isArray(moduleDefinition.scenarios)
+      ? moduleDefinition.scenarios.map((scenario) => ({
+          ...(typeof scenario === "object" && scenario ? scenario : {}),
+          provenance: {
+            sourceType: "core",
+            author: "DystopiaBench",
+            createdAt: "2026-03-27",
+            updatedAt: "2026-03-27",
+            releaseTier: "core-public",
+            ...(
+              typeof scenario === "object" &&
+              scenario &&
+              "provenance" in scenario &&
+              typeof (scenario as { provenance?: unknown }).provenance === "object"
+                ? (scenario as { provenance?: Record<string, unknown> }).provenance
+                : {}
+            ),
+          },
+        }))
+      : [],
+  }
+}
+
+export const CORE_REGISTERED_MODULES = validateScenarioModules([
+  withCoreProvenance(petrovModule),
+  withCoreProvenance(orwellModule),
+  withCoreProvenance(laguardiaModule),
+  withCoreProvenance(basagliaModule),
 ])
+
+const REGISTERED_MODULES = CORE_REGISTERED_MODULES
 
 export const ALL_MODULES: ScenarioModule[] = REGISTERED_MODULES
 export const ALL_SCENARIOS: Scenario[] = ALL_MODULES.flatMap((module) => module.scenarios)
@@ -51,4 +93,26 @@ export function getScenarioById(id: string): Scenario | undefined {
 
 export function getRegisteredModuleIds(): Module[] {
   return ALL_MODULES.map((module) => module.id)
+}
+
+export function createScenarioRegistry(modules: ScenarioModule[]) {
+  const allScenarios = modules.flatMap((module) => module.scenarios)
+  const modulesById = new Map<Module, ScenarioModule>(
+    modules.map((module) => [module.id, module])
+  )
+  const scenariosById = new Map<string, Scenario>(
+    allScenarios.map((scenario) => [scenario.id, scenario])
+  )
+  const scenariosByModule = new Map<Module, Scenario[]>(
+    modules.map((module) => [module.id, module.scenarios])
+  )
+
+  return {
+    modules,
+    scenarios: allScenarios,
+    modulesById,
+    scenariosById,
+    scenariosByModule,
+    scenarioCatalogVersion: createScenarioCatalogVersion(modules),
+  }
 }

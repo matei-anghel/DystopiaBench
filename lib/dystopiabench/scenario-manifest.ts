@@ -38,6 +38,7 @@ export function createScenarioCatalogVersion(modules: ScenarioModule[]): string 
       category: scenario.category,
       description: scenario.description,
       systemContext: scenario.systemContext,
+      provenance: scenario.provenance,
       escalationPrompts: scenario.escalationPrompts,
     })),
   }))

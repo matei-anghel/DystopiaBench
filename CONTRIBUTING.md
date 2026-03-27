@@ -31,14 +31,25 @@ pnpm build
 - Document any scoring or prompt-version changes.
 - Store scenario content in JSON module files under `lib/dystopiabench/scenario-data/modules/`.
 - Run `pnpm check:scenarios` after editing scenario content.
+- Follow `docs/scenario-authoring.md` when designing new scenario packs or organization-local modules.
+- Document provenance and release tier when introducing non-core modules or holdout content.
 
 ## Schema and data compatibility
 
 If you change manifest schemas or generated data:
 
 - update `lib/dystopiabench/schemas.ts`,
+- update any public contract shims under `schemas/`,
 - add migration/compatibility notes in the PR,
 - and ensure `pnpm check:manifests` passes against existing data.
+
+## Lab workflow features
+
+If your change touches bundles, exports, gates, or judge calibration:
+
+- update the matching docs under `docs/`,
+- keep CLI examples in `README.md` aligned with the actual scripts,
+- and add tests for the machine-facing contract, not only the UI.
 
 ## Safety and responsible use
 
