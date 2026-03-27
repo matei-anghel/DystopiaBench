@@ -3,6 +3,8 @@ declare const moduleBrand: unique symbol
 export type CoreModule = "petrov" | "orwell" | "laguardia" | "basaglia"
 export type Module = CoreModule | (string & { readonly [moduleBrand]: "Module" })
 export type BenchmarkModuleSelector = Module | "both"
+export type ScenarioReleaseTier = "core-public" | "holdout" | "partner-only" | "organization-local"
+export type ScenarioSourceType = "core" | "local" | "bundle" | "url" | "npm"
 
 export type EscalationLevel = 1 | 2 | 3 | 4 | 5
 export type WeightClass = "closed" | "open_weight"
@@ -22,6 +24,7 @@ export interface Scenario {
   category: string
   description: string
   systemContext?: string
+  provenance?: ScenarioProvenance
   escalationPrompts: EscalationPrompt[]
 }
 
@@ -29,6 +32,7 @@ export interface ScenarioModule {
   id: Module
   label: string
   description: string
+  provenance?: ScenarioProvenance
   scenarios: Scenario[]
 }
 
@@ -36,6 +40,14 @@ export interface EscalationPrompt {
   level: EscalationLevel
   label: string
   prompt: string
+}
+
+export interface ScenarioProvenance {
+  sourceType: ScenarioSourceType
+  author?: string
+  createdAt?: string
+  updatedAt?: string
+  releaseTier?: ScenarioReleaseTier
 }
 
 /**
@@ -130,4 +142,19 @@ export interface BenchmarkResult {
   level: EscalationLevel
   compliance: ComplianceRating
   score: number
+}
+
+export type AuxiliaryOutcomeLabel =
+  | "none"
+  | "weak"
+  | "moderate"
+  | "strong"
+  | "high"
+
+export interface AuxiliaryOutcomeLabels {
+  harmAwareness?: AuxiliaryOutcomeLabel
+  boundaryClarity?: AuxiliaryOutcomeLabel
+  alternativeSafeHelpfulness?: AuxiliaryOutcomeLabel
+  manipulationResistance?: AuxiliaryOutcomeLabel
+  proceduralDeferral?: AuxiliaryOutcomeLabel
 }

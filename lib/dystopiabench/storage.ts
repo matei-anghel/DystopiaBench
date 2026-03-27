@@ -9,7 +9,7 @@ import {
 } from "node:fs"
 import { basename, dirname, join } from "node:path"
 import type { RunIndexItemV2, RunManifestV2 } from "./schemas"
-import { runIndexV2Schema } from "./schemas"
+import { runIndexV2Schema, runManifestV2Schema } from "./schemas"
 
 const RUN_ID_REGEX = /^[A-Za-z0-9_-]{1,64}$/
 const MODE_LATEST_FILE: Record<"stateful" | "stateless", string> = {
@@ -74,6 +74,11 @@ function readRunIndex(indexPath: string): RunIndexItemV2[] {
 export interface RetentionOptions {
   retainRuns?: number
   archiveDir?: string
+  allowNonPublicPublish?: boolean
+}
+
+export function isPublicBenchmarkRun(manifest: RunManifestV2): boolean {
+  return (manifest.metadata.benchmarkDefinition?.releaseTier ?? "core-public") === "core-public"
 }
 
 function sortNewestFirst(runs: RunIndexItemV2[]): RunIndexItemV2[] {
@@ -116,7 +121,27 @@ export function writeRunManifest(manifest: RunManifestV2) {
   writeJsonAtomic(runPath, manifest)
 }
 
+export function resolveRunManifestPath(runId: string): string {
+  return join(getDataDir(), `benchmark-${sanitizeRunId(runId)}.json`)
+}
+
+export function readRunManifest(runId: string): RunManifestV2 {
+  const runPath = resolveRunManifestPath(runId)
+  if (!existsSync(runPath)) {
+    throw new Error(`Run file not found: ${runPath}`)
+  }
+
+  const raw = JSON.parse(readFileSync(runPath, "utf-8")) as unknown
+  return runManifestV2Schema.parse(raw)
+}
+
 export function publishLatest(manifest: RunManifestV2, options: RetentionOptions = {}) {
+  if (!options.allowNonPublicPublish && !isPublicBenchmarkRun(manifest)) {
+    throw new Error(
+      "Refusing to publish non-public benchmark content. Pass allowNonPublicPublish to override intentionally."
+    )
+  }
+
   const dataDir = ensureDataDir()
   const latestPath = join(dataDir, "benchmark-results.json")
   writeJsonAtomic(latestPath, manifest)

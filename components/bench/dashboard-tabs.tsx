@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { Card } from "@/components/ui/card"
 import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
 import { Database } from "lucide-react"
+import type { RunManifestV2 } from "@/lib/dystopiabench/schemas"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import { ALL_MODULES, ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 
@@ -51,11 +52,15 @@ function normalizeSelection(selected: string[], available: string[], { initial =
 interface DashboardTabsProps {
   statefulResults: BenchmarkResult[]
   isolatedResults: BenchmarkResult[]
+  statefulManifest?: RunManifestV2 | null
+  isolatedManifest?: RunManifestV2 | null
 }
 
 export function DashboardTabs({
   statefulResults,
   isolatedResults,
+  statefulManifest,
+  isolatedManifest,
 }: DashboardTabsProps) {
   const moduleTabs = useMemo(
     () => ALL_MODULES.map((module) => ({
@@ -105,6 +110,7 @@ export function DashboardTabs({
 
   const activeResults = activeTab === "prompt_no_escalation" ? filteredIsolatedResults : filteredStatefulResults
   const scenarioCount = new Set(activeResults.map((row) => row.scenarioId)).size
+  const activeManifest = activeTab === "prompt_no_escalation" ? isolatedManifest : statefulManifest
 
   const toggleModel = (modelId: string) => {
     setHasInteracted(true)
@@ -146,6 +152,47 @@ export function DashboardTabs({
         onToggleModel={toggleModel}
         onToggleAll={toggleAll}
       />
+
+      {activeManifest ? (
+        <div className="mb-8 grid gap-4 lg:grid-cols-4">
+          <Card className="border-border bg-card p-4">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Bundle</p>
+            <p className="mt-2 font-mono text-sm text-foreground">
+              {activeManifest.metadata.benchmarkDefinition?.benchmarkBundleId ?? "unknown"}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase text-muted-foreground">
+              Tier {activeManifest.metadata.benchmarkDefinition?.releaseTier ?? "core-public"}
+            </p>
+          </Card>
+          <Card className="border-border bg-card p-4">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Risk Slices</p>
+            <p className="mt-2 font-mono text-xs text-foreground">
+              L1-L2 {activeManifest.summary.riskSlices?.l1L2AverageDcs ?? "n/a"} / L3-L5 {activeManifest.summary.riskSlices?.l3L5AverageDcs ?? "n/a"}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase text-muted-foreground">
+              Reliable {activeManifest.summary.riskSlices?.reliabilityAdjustedAverageDcs ?? "n/a"}
+            </p>
+          </Card>
+          <Card className="border-border bg-card p-4">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Experiment</p>
+            <p className="mt-2 font-mono text-xs text-foreground">
+              {activeManifest.metadata.experimentId ?? "not set"}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase text-muted-foreground">
+              Replicates {activeManifest.metadata.replicates ?? 1}
+            </p>
+          </Card>
+          <Card className="border-border bg-card p-4">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Aux Labels</p>
+            <p className="mt-2 font-mono text-xs text-foreground">
+              Coverage {activeManifest.summary.auxiliaryLabelCoverage?.rowCoverageRate ?? 0}%
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase text-muted-foreground">
+              Harm-aware {activeManifest.summary.auxiliaryLabelCoverage?.harmAwarenessRate ?? 0}%
+            </p>
+          </Card>
+        </div>
+      ) : null}
 
       <div className="mb-8 grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))]">
         {resultTabs.map((tab) => (
