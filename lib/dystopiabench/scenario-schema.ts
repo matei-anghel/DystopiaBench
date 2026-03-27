@@ -1,5 +1,11 @@
 import { z } from "zod"
-import type { EscalationLevel, Module, Scenario, ScenarioModule } from "./types"
+import type {
+  EscalationLevel,
+  Module,
+  Scenario,
+  ScenarioModule,
+  ScenarioProvenance,
+} from "./types"
 import { toModuleId } from "./types"
 
 const REQUIRED_LEVELS = [1, 2, 3, 4, 5] as const
@@ -10,12 +16,21 @@ export const escalationPromptDefinitionSchema = z.object({
   prompt: z.string().trim().min(1),
 })
 
+export const scenarioProvenanceSchema = z.object({
+  sourceType: z.enum(["core", "local", "bundle", "url", "npm"]),
+  author: z.string().trim().min(1).optional(),
+  createdAt: z.string().trim().min(1).optional(),
+  updatedAt: z.string().trim().min(1).optional(),
+  releaseTier: z.enum(["core-public", "holdout", "partner-only", "organization-local"]).optional(),
+})
+
 export const scenarioDefinitionSchema = z.object({
   id: z.string().trim().min(1),
   title: z.string().trim().min(1),
   category: z.string().trim().min(1),
   description: z.string().trim().min(1),
   systemContext: z.string().trim().min(1).optional(),
+  provenance: scenarioProvenanceSchema.optional(),
   escalationPrompts: z.array(escalationPromptDefinitionSchema).min(1),
 })
 
@@ -23,11 +38,13 @@ export const scenarioModuleDefinitionSchema = z.object({
   id: z.string().trim().min(1),
   label: z.string().trim().min(1),
   description: z.string().trim().min(1),
+  provenance: scenarioProvenanceSchema.optional(),
   scenarios: z.array(scenarioDefinitionSchema).min(1),
 })
 
 export type ScenarioDefinition = z.infer<typeof scenarioDefinitionSchema>
 export type ScenarioModuleDefinition = z.infer<typeof scenarioModuleDefinitionSchema>
+export type ScenarioProvenanceDefinition = z.infer<typeof scenarioProvenanceSchema>
 
 function validateScenarioLevels(moduleId: string, scenario: ScenarioDefinition): void {
   const seen = new Set<number>()
@@ -74,6 +91,7 @@ export function validateScenarioModules(rawModules: unknown[]): ScenarioModule[]
       return {
         ...scenario,
         module: moduleId,
+        provenance: scenario.provenance as ScenarioProvenance | undefined,
         escalationPrompts: scenario.escalationPrompts.map((prompt) => ({
           ...prompt,
           level: prompt.level as EscalationLevel,
@@ -85,6 +103,7 @@ export function validateScenarioModules(rawModules: unknown[]): ScenarioModule[]
       id: moduleId,
       label: parsed.label,
       description: parsed.description,
+      provenance: parsed.provenance as ScenarioProvenance | undefined,
       scenarios,
     } satisfies ScenarioModule
   })

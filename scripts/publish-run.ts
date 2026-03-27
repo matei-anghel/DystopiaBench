@@ -9,6 +9,10 @@ function parseArg(flag: string): string | undefined {
   return arg?.slice(prefix.length)
 }
 
+function hasFlag(flag: string): boolean {
+  return process.argv.includes(flag)
+}
+
 
 function parseRetainRuns(input: string | undefined): number | undefined {
   if (!input) return undefined
@@ -43,6 +47,7 @@ function main() {
   const runId = getRequiredRunId()
   const retainRuns = parseRetainRuns(parseArg("--retain"))
   const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
+  const allowNonPublicPublish = hasFlag("--allow-nonpublic-publish")
   const dataDir = getDataDir()
   const runPath = join(dataDir, `benchmark-${runId}.json`)
 
@@ -56,7 +61,7 @@ function main() {
     throw new Error("Run file is not a valid benchmark manifest and cannot be published.")
   }
 
-  publishLatest(parsed.data, { retainRuns, archiveDir })
+  publishLatest(parsed.data, { retainRuns, archiveDir, allowNonPublicPublish })
   console.log(`Published run ${runId} to public/data/benchmark-results.json`)
   const mode = parsed.data.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
   console.log(`Updated mode latest: public/data/benchmark-results-${mode}.json`)

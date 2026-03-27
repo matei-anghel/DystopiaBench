@@ -9,8 +9,10 @@ export default function ResultsPage() {
   const {
     loading,
     statefulResults,
+    statefulManifest,
     statefulLoadError,
     isolatedLatestResults,
+    isolatedLatestManifest,
   } = useBenchmarkData()
 
   return (
@@ -36,6 +38,8 @@ export default function ResultsPage() {
         <DashboardTabs
           statefulResults={statefulResults}
           isolatedResults={isolatedLatestResults}
+          statefulManifest={statefulManifest}
+          isolatedManifest={isolatedLatestManifest}
         />
 
         <footer className="border-t border-border pt-6 pb-6">
