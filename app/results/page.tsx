@@ -49,7 +49,7 @@ export default function ResultsPage() {
             </p>
             <div className="flex gap-8">
               {[
-                { label: "Methodology", href: "/#methodology" },
+                { label: "Methodology", href: "/methodology" },
                 { label: "Results", href: "/#results" },
               ].map((link) => (
                 <a

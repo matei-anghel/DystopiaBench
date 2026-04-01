@@ -18,9 +18,9 @@ import { Badge } from "@/components/ui/badge"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
-import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
-import { createResultsIndex, getChartShape, type ResultsIndex } from "@/lib/dystopiabench/analytics"
-import { ChevronDown, ChevronRight, Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
+import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS, getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
+import { createResultsIndex, type ResultsIndex } from "@/lib/dystopiabench/analytics"
+import { Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
 const TOOLTIP_STYLE = {
@@ -34,8 +34,6 @@ const TOOLTIP_STYLE = {
 
 const SCENARIO_TICK_MAX_LINE_LENGTH = 16
 const SCENARIO_TICK_MAX_LINES = 3
-const SCENARIO_BAR_SLOT_WIDTH = 96
-
 function scenarioLevelKey(scenarioId: string, level: number): string {
   return `${scenarioId}::${level}`
 }
@@ -174,24 +172,29 @@ type ScenarioDataRow = ReturnType<typeof buildScenarioData>[number]
 function ScenarioDetailPanel({
   data,
   models,
-  hasMultiModel,
 }: {
   data: ScenarioDataRow
   models: typeof AVAILABLE_MODELS
-  hasMultiModel: boolean
 }) {
   const { levelAvgs, modelAvgs, escalationByModel } = data
+  const levelBarLayout = getResponsiveBarChartLayout({ categoryCount: levelAvgs.length })
+  const modelBarLayout = getResponsiveBarChartLayout({ categoryCount: modelAvgs.length })
 
   return (
     <div className="flex flex-col gap-5 pt-4 border-t border-border mt-1">
-      <div className={`grid gap-5 ${hasMultiModel ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
+      <div className="grid gap-5 lg:grid-cols-2">
         <div>
           <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
             Avg Compliance Score (DCS) by Escalation Level — Lower is better
           </p>
           <div className="h-[170px] md:h-[190px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={levelAvgs} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+              <BarChart
+                data={levelAvgs}
+                margin={{ left: 0, right: 8, top: 4, bottom: 4 }}
+                barGap={levelBarLayout.barGap}
+                barCategoryGap={levelBarLayout.barCategoryGap}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis
                   dataKey="label"
@@ -221,7 +224,7 @@ function ScenarioDetailPanel({
                     )
                   }}
                 />
-                <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={36}>
+                <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={levelBarLayout.maxBarSize}>
                   {levelAvgs.map((entry) => (
                     <Cell key={entry.level} fill={scoreColor(entry.avg)} />
                   ))}
@@ -231,120 +234,117 @@ function ScenarioDetailPanel({
           </div>
         </div>
 
-        {hasMultiModel ? (
-          <div>
-            <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
-              Avg Compliance Score (DCS) by Model (all levels) — Lower is better
-            </p>
-            <div className="h-[240px] md:h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={modelAvgs} margin={{ left: 4, right: 4, top: 4, bottom: 52 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis
-                    type="category"
-                    dataKey="label"
-                    tick={(props) => {
-                      const { x, y, payload } = props as { x: number; y: number; payload: { value: string } }
-                      const words = payload.value.split(' ')
-                      const mid = Math.ceil(words.length / 2)
-                      const line1 = words.slice(0, mid).join(' ')
-                      const line2 = words.slice(mid).join(' ')
-                      return (
-                        <g transform={`translate(${x},${y})`}>
-                          <text x={0} y={0} dy={12} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">{line1}</text>
-                          {line2 && <text x={0} y={0} dy={22} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">{line2}</text>}
-                        </g>
-                      )
-                    }}
-                    axisLine={{ stroke: "hsl(var(--border))" }}
-                    tickLine={false}
-                    interval={0}
-                  />
-                  <YAxis
-                    type="number"
-                    domain={[0, 100]}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={28}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
-                    content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null
-                      const d = payload[0].payload as { modelId: string; label: string; avg: number }
-                      return (
-                        <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
-                          <p className="font-mono text-xs font-bold text-foreground">{d.label}</p>
-                          <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
-                            {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
-                          </p>
-                        </div>
-                      )
-                    }}
-                  />
-                  <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={32}>
-                    {modelAvgs.map((entry) => (
-                      <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? scoreColor(entry.avg)} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      {hasMultiModel ? (
         <div>
           <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
-            Per-Model Escalation Curve (this scenario)
+            Avg Compliance Score (DCS) by Model (all levels) — Lower is better
           </p>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={escalationByModel} margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                axisLine={{ stroke: "hsl(var(--border))" }}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                axisLine={false}
-                tickLine={false}
-                width={28}
-              />
-              <Tooltip
-                formatter={(val: number, name: string) => [`${val} (${scoreLabel(val)})`, `${name} DCS`]}
-                labelFormatter={(label) => {
-                  const levelNum = parseInt(String(label).replace("L", ""), 10)
-                  return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
-                }}
-                contentStyle={TOOLTIP_STYLE}
-              />
-              {models.map((model) => (
-                <Line
-                  key={model.id}
-                  type="linear"
-                  dataKey={model.id}
-                  stroke={MODEL_COLORS[model.id] ?? "#888"}
-                  strokeWidth={1.5}
-                  dot={{ r: 2.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
-                  activeDot={{ r: 4 }}
-                  name={model.label}
-                  connectNulls
+          <div className="h-[240px] md:h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={modelAvgs}
+                margin={{ left: 4, right: 4, top: 4, bottom: 52 }}
+                barGap={modelBarLayout.barGap}
+                barCategoryGap={modelBarLayout.barCategoryGap}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis
+                  type="category"
+                  dataKey="label"
+                  tick={(props) => {
+                    const { x, y, payload } = props as { x: number; y: number; payload: { value: string } }
+                    const words = payload.value.split(' ')
+                    const mid = Math.ceil(words.length / 2)
+                    const line1 = words.slice(0, mid).join(' ')
+                    const line2 = words.slice(mid).join(' ')
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <text x={0} y={0} dy={12} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">{line1}</text>
+                        {line2 && <text x={0} y={0} dy={22} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">{line2}</text>}
+                      </g>
+                    )
+                  }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  tickLine={false}
+                  interval={0}
                 />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+                <YAxis
+                  type="number"
+                  domain={[0, 100]}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
+                <Tooltip
+                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null
+                    const d = payload[0].payload as { modelId: string; label: string; avg: number }
+                    return (
+                      <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+                        <p className="font-mono text-xs font-bold text-foreground">{d.label}</p>
+                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
+                          {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                        </p>
+                      </div>
+                    )
+                  }}
+                />
+                <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={modelBarLayout.maxBarSize}>
+                  {modelAvgs.map((entry) => (
+                    <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? scoreColor(entry.avg)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      ) : (
-        <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-wide">
-          Single model mode: per-model comparison charts are hidden.
+      </div>
+
+      <div>
+        <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
+          Per-Model Escalation Curve (this scenario)
         </p>
-      )}
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={escalationByModel} margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
+              tickLine={false}
+            />
+            <YAxis
+              domain={[0, 100]}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+              axisLine={false}
+              tickLine={false}
+              width={28}
+            />
+            <Tooltip
+              formatter={(val: number, name: string) => [`${val} (${scoreLabel(val)})`, `${name} DCS`]}
+              labelFormatter={(label) => {
+                const levelNum = parseInt(String(label).replace("L", ""), 10)
+                return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
+              }}
+              contentStyle={TOOLTIP_STYLE}
+            />
+            {models.map((model) => (
+              <Line
+                key={model.id}
+                type="linear"
+                dataKey={model.id}
+                stroke={MODEL_COLORS[model.id] ?? "#888"}
+                strokeWidth={1.5}
+                dot={{ r: 2.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
+                activeDot={{ r: 4 }}
+                name={model.label}
+                connectNulls
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }
@@ -355,7 +355,11 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
     title: row.scenario.title,
     avg: row.avgAll,
   }))
-  const minChartWidth = Math.max(chartData.length * SCENARIO_BAR_SLOT_WIDTH, 960)
+  const barLayout = getResponsiveBarChartLayout({
+    categoryCount: chartData.length,
+    scrollable: true,
+  })
+  const minChartWidth = barLayout.minChartWidth ?? 960
 
   return (
     <Card className="bg-card border-border p-5">
@@ -366,7 +370,12 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
       <div className="overflow-x-auto pb-2">
         <div style={{ minWidth: minChartWidth }}>
           <ResponsiveContainer width="100%" height={440}>
-            <BarChart data={chartData} margin={{ left: 4, right: 20, top: 4, bottom: 92 }} barCategoryGap="28%">
+            <BarChart
+              data={chartData}
+              margin={{ left: 4, right: 20, top: 4, bottom: 92 }}
+              barGap={barLayout.barGap}
+              barCategoryGap={barLayout.barCategoryGap}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
                 type="category"
@@ -403,7 +412,7 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
                   )
                 }}
               />
-              <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={26}>
+              <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={barLayout.maxBarSize}>
                 {chartData.map((entry) => (
                   <Cell key={entry.id} fill={scoreColor(entry.avg)} />
                 ))}
@@ -420,12 +429,10 @@ function ScenarioModelGrid({
   data,
   results,
   models,
-  hasSingleModel,
 }: {
   data: ScenarioDataRow[]
   results: BenchmarkResult[]
   models: typeof AVAILABLE_MODELS
-  hasSingleModel: boolean
 }) {
   const grandAverage =
     results.length > 0 ? Math.round(results.reduce((sum, row) => sum + row.score, 0) / results.length) : 0
@@ -434,9 +441,7 @@ function ScenarioModelGrid({
     <Card className="bg-card border-border p-3 overflow-x-auto">
       <SectionHeader
         label="Compliance Score Grid — Model × Scenario"
-        sub={hasSingleModel
-          ? "Dystopian Compliance Score (DCS) for the active model on each scenario (Lower is better)"
-          : "Dystopian Compliance Score (DCS) per model per scenario. Color = compliance tier (Lower is better)"}
+        sub="Dystopian Compliance Score (DCS) per model per scenario. Color = compliance tier (Lower is better)"
       />
       <div className="min-w-max">
         <div className="flex items-end gap-px mb-px">
@@ -553,9 +558,7 @@ export function ScenarioCharts({
   results: BenchmarkResult[]
   selectedModelIds?: string[]
 }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const resultsIndex = useMemo(() => createResultsIndex(results), [results])
-  const shape = useMemo(() => getChartShape(results), [results])
   const activeModels = useMemo(
     () =>
       AVAILABLE_MODELS.filter((model) =>
@@ -569,6 +572,11 @@ export function ScenarioCharts({
     () => buildScenarioData(resultsIndex, activeModels),
     [activeModels, resultsIndex],
   )
+  const [selectedId, setSelectedId] = useState<string>(ALL_SCENARIOS[0].id)
+  const selectedScenario = useMemo(
+    () => scenarioData.find((row) => row.scenario.id === selectedId) ?? scenarioData[0] ?? null,
+    [scenarioData, selectedId],
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -577,69 +585,68 @@ export function ScenarioCharts({
         data={scenarioData}
         results={results}
         models={activeModels}
-        hasSingleModel={shape.hasSingleModel}
       />
 
       <div>
         <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase mb-4">
           Drill Down by Scenario
         </p>
-        <div className="flex flex-col gap-2">
-          {scenarioData.map((row) => {
-            const isOpen = expandedId === row.scenario.id
-            return (
-              <Card
+        <div className="mb-5">
+          <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2">
+            Select Scenario
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {scenarioData.map((row) => (
+              <button
                 key={row.scenario.id}
-                className={`bg-card border-border overflow-hidden transition-colors ${isOpen ? "border-primary/40" : "hover:border-muted-foreground/30"
-                  }`}
+                onClick={() => setSelectedId(row.scenario.id)}
+                className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
+                  selectedScenario?.scenario.id === row.scenario.id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <button
-                  onClick={() => setExpandedId(isOpen ? null : row.scenario.id)}
-                  className="w-full flex items-start justify-between gap-4 p-4 text-left"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {renderModuleIcon(row.scenario.module, "h-4 w-4 shrink-0 text-muted-foreground mt-0.5")}
-                    <div className="min-w-0">
-                      <p className="font-mono text-xs font-bold text-foreground truncate">
-                        {row.scenario.title}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant="outline" className="font-mono text-[9px] uppercase py-0">
-                          {row.scenario.category}
-                        </Badge>
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {row.scenario.id}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="text-right w-10">
-                      <span className="font-mono text-lg font-black" style={{ color: scoreColor(row.avgAll) }}>
-                        {row.avgAll}
-                      </span>
-                      <p className="font-mono text-[9px] text-muted-foreground">
-                        {scoreLabel(row.avgAll)}
-                      </p>
-                    </div>
-                    <div className="w-4">
-                      {isOpen ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-                {isOpen ? (
-                  <div className="px-4 pb-5">
-                    <ScenarioDetailPanel data={row} models={activeModels} hasMultiModel={shape.hasMultiModel} />
-                  </div>
-                ) : null}
-              </Card>
-            )
-          })}
+                {renderModuleIcon(row.scenario.module, "h-3 w-3")}
+                {row.scenario.id}
+              </button>
+            ))}
+          </div>
         </div>
+        {selectedScenario ? (
+          <Card className="bg-card border-border overflow-hidden border-primary/40">
+            <div className="p-4 pb-0">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  {renderModuleIcon(selectedScenario.scenario.module, "h-4 w-4 shrink-0 text-muted-foreground mt-0.5")}
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs font-bold text-foreground truncate">
+                      {selectedScenario.scenario.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge variant="outline" className="font-mono text-[9px] uppercase py-0">
+                        {selectedScenario.scenario.category}
+                      </Badge>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {selectedScenario.scenario.id}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right w-10 shrink-0">
+                  <span className="font-mono text-lg font-black" style={{ color: scoreColor(selectedScenario.avgAll) }}>
+                    {selectedScenario.avgAll}
+                  </span>
+                  <p className="font-mono text-[9px] text-muted-foreground">
+                    {scoreLabel(selectedScenario.avgAll)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="px-4 pb-5">
+              <ScenarioDetailPanel data={selectedScenario} models={activeModels} />
+            </div>
+          </Card>
+        ) : null}
       </div>
     </div>
   )

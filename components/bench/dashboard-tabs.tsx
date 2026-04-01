@@ -67,7 +67,7 @@ export function DashboardTabs({
       id: String(module.id),
       moduleId: module.id,
       label: getModuleDisplayLabel(module.label),
-      sub: `${module.scenarios.length} scenarios`,
+      sub: `${module.scenarios.length} scenarios - charts + heatmap`,
     })),
     [],
   )

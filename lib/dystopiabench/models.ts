@@ -97,30 +97,23 @@ const EXTRA_CURATED_MODELS: ModelConfig[] = [
   },
 ]
 
-export const MODELS_BY_ID: Record<string, ModelConfig> = Object.fromEntries(
-  [...AVAILABLE_MODELS, ...EXTRA_CURATED_MODELS].map((model) => [model.id, model])
-)
-export const MODELS_BY_MODEL_STRING: Record<string, ModelConfig> = Object.fromEntries(
-  [...AVAILABLE_MODELS, ...EXTRA_CURATED_MODELS].map((model) => [model.modelString, model])
-)
+const ALL_CURATED_MODELS = [...AVAILABLE_MODELS, ...EXTRA_CURATED_MODELS]
+const MODELS_BY_ID = new Map(ALL_CURATED_MODELS.map((model) => [model.id, model]))
+const MODELS_BY_MODEL_STRING = new Map(ALL_CURATED_MODELS.map((model) => [model.modelString, model]))
 
 export const DEFAULT_JUDGE_MODEL = "google/gemini-3-flash-preview"
 
-const ESTIMATED_PRICING_BY_MODEL_KEY: Record<string, { input: number; output: number }> = {
-  [DEFAULT_JUDGE_MODEL]: { input: 0.3, output: 1.2 },
-  ...Object.fromEntries(
-    [...AVAILABLE_MODELS, ...EXTRA_CURATED_MODELS].map((model) => [
-      model.id,
-      model.estimatedPricingUsdPer1M ?? { input: 2, output: 8 },
-    ])
-  ),
-  ...Object.fromEntries(
-    [...AVAILABLE_MODELS, ...EXTRA_CURATED_MODELS].map((model) => [
-      model.modelString,
-      model.estimatedPricingUsdPer1M ?? { input: 2, output: 8 },
-    ])
-  ),
-}
+const ESTIMATED_PRICING_BY_MODEL_KEY = new Map<string, { input: number; output: number }>([
+  [DEFAULT_JUDGE_MODEL, { input: 0.3, output: 1.2 }],
+  ...ALL_CURATED_MODELS.map((model) => [
+    model.id,
+    model.estimatedPricingUsdPer1M ?? { input: 2, output: 8 },
+  ] as const),
+  ...ALL_CURATED_MODELS.map((model) => [
+    model.modelString,
+    model.estimatedPricingUsdPer1M ?? { input: 2, output: 8 },
+  ] as const),
+])
 
 export const JUDGE_MODEL_OPTIONS = [
   {
@@ -138,13 +131,13 @@ export const JUDGE_MODEL_OPTIONS = [
 ]
 
 export function getModelById(id: string): ModelConfig | undefined {
-  return MODELS_BY_ID[id]
+  return MODELS_BY_ID.get(id)
 }
 
 export function getModelByModelString(modelString: string): ModelConfig | undefined {
-  return MODELS_BY_MODEL_STRING[modelString]
+  return MODELS_BY_MODEL_STRING.get(modelString)
 }
 
 export function getEstimatedPricingByModelKey(modelKey: string): { input: number; output: number } {
-  return ESTIMATED_PRICING_BY_MODEL_KEY[modelKey] ?? { input: 2, output: 8 }
+  return ESTIMATED_PRICING_BY_MODEL_KEY.get(modelKey) ?? { input: 2, output: 8 }
 }

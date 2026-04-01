@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
+import { ZodError } from "zod"
 import { applyReviewedAdjudications, reviewedAdjudicationImportSchema } from "../lib/dystopiabench/review-import"
 import { readRunManifest, sanitizeRunId } from "../lib/dystopiabench/storage"
 
@@ -27,6 +28,19 @@ function readImportFile(path: string): unknown {
   return JSON.parse(contents) as unknown
 }
 
+function formatCliError(error: unknown): string {
+  if (error instanceof ZodError) {
+    return error.issues
+      .map((issue) => {
+        const path = issue.path.length > 0 ? issue.path.join(".") : "root"
+        return `${path}: ${issue.message}`
+      })
+      .join("\n")
+  }
+
+  return error instanceof Error ? error.message : String(error)
+}
+
 function main() {
   const runId = sanitizeRunId(requiredArg("--run-id"))
   const inputPath = requiredArg("--input")
@@ -42,6 +56,6 @@ function main() {
 try {
   main()
 } catch (error) {
-  console.error(error instanceof Error ? error.message : error)
+  console.error(formatCliError(error))
   process.exitCode = 1
 }

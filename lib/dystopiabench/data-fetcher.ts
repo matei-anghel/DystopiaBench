@@ -4,6 +4,7 @@ import { runManifestV2Schema } from "./schemas"
 import type { RunManifestV2 } from "./schemas"
 import type { BenchmarkResult } from "./types"
 import { toModuleId } from "./types"
+import { isChartableManifestResult } from "./chart-results"
 
 export interface BenchmarkData {
   results: BenchmarkResult[]
@@ -12,7 +13,7 @@ export interface BenchmarkData {
 
 function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
   return manifest.results
-    .filter((result): result is typeof result & { score: number } => result.score !== null)
+    .filter(isChartableManifestResult)
     .map((result) => ({
       scenarioId: result.scenarioId,
       scenarioTitle: result.scenarioTitle,

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { createOpenAI } from "@ai-sdk/openai"
 import {
   DEFAULT_JUDGE_MODEL,
   PAIR_WITH_TIEBREAK_ARBITER_MODEL,
@@ -9,8 +10,10 @@ import { parseModelIdentifier, resolveJudgeModels } from "./model-selectors"
 import {
   NON_QUANTIZED_PROVIDER_QUANTIZATIONS,
   aggregateJudgeVotes,
+  buildFirstSeenIdMap,
   buildProviderOverride,
   createOpenRouterFetchWithProviderOverrides,
+  evaluateResponseWithJudges,
   extractTextFromModelResult,
   normalizeQuantization,
   parseArbiterOutput,
@@ -18,6 +21,84 @@ import {
   summarizeResults,
 } from "./runner"
 import { runManifestV2Schema } from "./schemas"
+
+interface PendingJudgeFetch {
+  model: string
+  resolve: (content: string) => void
+}
+
+function createJudgeTestApiClients() {
+  return {
+    openrouter: createOpenAI({
+      apiKey: "test-key",
+      baseURL: "https://judges.test/v1",
+    }),
+  }
+}
+
+function installMockJudgeFetch() {
+  const originalFetch = globalThis.fetch
+  const started: string[] = []
+  const pending: PendingJudgeFetch[] = []
+
+  globalThis.fetch = (async (_input, init) => {
+    const body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as { model?: string }
+    const model = body.model ?? "unknown"
+    started.push(model)
+
+    return await new Promise<Response>((resolve) => {
+      pending.push({
+        model,
+        resolve: (content: string) =>
+          resolve(
+            new Response(
+              JSON.stringify({
+                id: "chatcmpl-test",
+                object: "chat.completion",
+                choices: [
+                  {
+                    index: 0,
+                    message: {
+                      role: "assistant",
+                      content,
+                    },
+                    finish_reason: "stop",
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { "content-type": "application/json" },
+              },
+            ),
+          ),
+      })
+    })
+  }) as typeof fetch
+
+  return {
+    started,
+    pending,
+    restore() {
+      globalThis.fetch = originalFetch
+    },
+  }
+}
+
+async function waitFor(condition: () => boolean, message: string): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (condition()) return
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
+
+  assert.fail(message)
+}
+
+function resolvePendingJudgeCall(pending: PendingJudgeFetch[], model: string, content: string) {
+  const index = pending.findIndex((request) => request.model === model)
+  assert.notEqual(index, -1, `Expected a pending judge request for ${model}`)
+  pending.splice(index, 1)[0].resolve(content)
+}
 
 test("resolveJudgeModels returns the default judge model when input is undefined", () => {
   const result = resolveJudgeModels(undefined)
@@ -101,6 +182,17 @@ test("normalizeQuantization coerces empty values to unknown", () => {
   assert.equal(normalizeQuantization(" FP16 "), "fp16")
 })
 
+test("buildFirstSeenIdMap preserves the first value for duplicate ids", () => {
+  const catalogById = buildFirstSeenIdMap([
+    { id: "duplicate", rank: 1 },
+    { id: "unique", rank: 2 },
+    { id: "duplicate", rank: 3 },
+  ])
+
+  assert.deepEqual(catalogById.get("duplicate"), { id: "duplicate", rank: 1 })
+  assert.deepEqual(catalogById.get("unique"), { id: "unique", rank: 2 })
+})
+
 test("createOpenRouterFetchWithProviderOverrides injects provider filters for matching model requests", async () => {
   const originalFetch = globalThis.fetch
   let seenBody: string | undefined
@@ -164,6 +256,110 @@ test("aggregateJudgeVotes uses score-based tie breaking across split judge votes
 
   assert.equal(result.compliance, "hesitant")
   assert.equal(result.score, 33)
+})
+
+test("evaluateResponseWithJudges starts pair judges before awaiting either result", async () => {
+  const fetchMock = installMockJudgeFetch()
+  const primaryJudge = parseModelIdentifier("gpt-5.3-codex")
+  const secondaryJudge = parseModelIdentifier("claude-opus-4.6")
+  const arbiterJudge = parseModelIdentifier("openai/gpt-5.4-mini")
+
+  try {
+    const evaluationPromise = evaluateResponseWithJudges({
+      apiClients: createJudgeTestApiClients(),
+      openRouterApiKey: "test-key",
+      judgeStrategy: "pair-with-tiebreak",
+      judgeModels: [primaryJudge, secondaryJudge, arbiterJudge],
+      benchmarkPrompt: "Benchmark prompt",
+      modelResponse: "Model response",
+      scenarioId: "fixture-scenario",
+      transportPolicy: "chat-only",
+      timeoutMs: 1_000,
+      providerOverridesByModelString: new Map(),
+    })
+
+    await waitFor(
+      () => fetchMock.started.length === 2,
+      "Expected the primary and secondary judge calls to start.",
+    )
+    assert.ok(fetchMock.started.includes(primaryJudge.modelString))
+    assert.ok(fetchMock.started.includes(secondaryJudge.modelString))
+    assert.equal(fetchMock.started.includes(arbiterJudge.modelString), false)
+
+    resolvePendingJudgeCall(
+      fetchMock.pending,
+      primaryJudge.modelString,
+      JSON.stringify({ compliance: "refusal", reasoning: "Primary judge refused." }),
+    )
+    resolvePendingJudgeCall(
+      fetchMock.pending,
+      secondaryJudge.modelString,
+      JSON.stringify({ compliance: "refusal", reasoning: "Secondary judge refused." }),
+    )
+
+    const result = await evaluationPromise
+    assert.equal(result.compliance, "refusal")
+    assert.deepEqual(result.judgeVotes.map((vote) => vote.judge), [primaryJudge.id, secondaryJudge.id])
+  } finally {
+    fetchMock.restore()
+  }
+})
+
+test("evaluateResponseWithJudges preserves vote ordering while launching arena judges together", async () => {
+  const fetchMock = installMockJudgeFetch()
+  const firstJudge = parseModelIdentifier("gpt-5.3-codex")
+  const secondJudge = parseModelIdentifier("claude-opus-4.6")
+  const thirdJudge = parseModelIdentifier("openai/gpt-5.4-mini")
+
+  try {
+    const evaluationPromise = evaluateResponseWithJudges({
+      apiClients: createJudgeTestApiClients(),
+      openRouterApiKey: "test-key",
+      judgeStrategy: "single",
+      judgeModels: [firstJudge, secondJudge, thirdJudge],
+      benchmarkPrompt: "Benchmark prompt",
+      modelResponse: "Model response",
+      scenarioId: "fixture-scenario",
+      transportPolicy: "chat-only",
+      timeoutMs: 1_000,
+      providerOverridesByModelString: new Map(),
+    })
+
+    await waitFor(
+      () => fetchMock.started.length === 3,
+      "Expected all arena judge calls to start.",
+    )
+    assert.ok(fetchMock.started.includes(firstJudge.modelString))
+    assert.ok(fetchMock.started.includes(secondJudge.modelString))
+    assert.ok(fetchMock.started.includes(thirdJudge.modelString))
+
+    resolvePendingJudgeCall(
+      fetchMock.pending,
+      thirdJudge.modelString,
+      JSON.stringify({ compliance: "compliant", reasoning: "Third judge complied." }),
+    )
+    resolvePendingJudgeCall(
+      fetchMock.pending,
+      secondJudge.modelString,
+      JSON.stringify({ compliance: "compliant", reasoning: "Second judge complied." }),
+    )
+    resolvePendingJudgeCall(
+      fetchMock.pending,
+      firstJudge.modelString,
+      JSON.stringify({ compliance: "refusal", reasoning: "First judge refused." }),
+    )
+
+    const result = await evaluationPromise
+    assert.equal(result.compliance, "compliant")
+    assert.deepEqual(result.judgeVotes.map((vote) => vote.judge), [
+      firstJudge.id,
+      secondJudge.id,
+      thirdJudge.id,
+    ])
+    assert.deepEqual(result.judgeVotes.map((vote) => vote.selected), [false, true, true])
+  } finally {
+    fetchMock.restore()
+  }
 })
 
 test("extractTextFromModelResult recovers chat completion content from raw response body", () => {

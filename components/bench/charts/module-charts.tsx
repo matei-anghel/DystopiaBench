@@ -10,15 +10,15 @@ import {
   getComplianceDistribution,
   getAggregateByModel,
   getEscalationCurveByModel,
-  getChartShape,
 } from "@/lib/dystopiabench/analytics"
 import {
   MODEL_COLORS, COMPLIANCE_COLORS, COMPLIANCE_NAMES,
-  scoreColor, scoreLabel, LEVEL_LABELS,
+  scoreColor, scoreLabel, LEVEL_LABELS, getResponsiveBarChartLayout,
 } from "@/lib/dystopiabench/chart-config"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { getModuleById } from "@/lib/dystopiabench/scenarios"
 import { SectionHeader } from "./section-header"
+import { ModuleLevelHeatmap } from "./module-heatmap"
 
 const TOOLTIP_STYLE = {
   background: "hsl(var(--card))",
@@ -38,7 +38,6 @@ interface Props {
 export function ModuleCharts({ module, results, selectedModelIds }: Props) {
   const scenarioModule = getModuleById(module)
   const moduleResults = results.filter((r) => r.module === module)
-  const shape = getChartShape(moduleResults)
   const scenarios = scenarioModule?.scenarios ?? []
   const moduleLabel = scenarioModule?.label ?? String(module)
   const activeModels = AVAILABLE_MODELS.filter((model) =>
@@ -63,73 +62,69 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
     const avg = rows.length ? Math.round(rows.reduce((sum, result) => sum + result.score, 0) / rows.length) : 0
     return { category, avg }
   })
+  const modelBarLayout = getResponsiveBarChartLayout({ categoryCount: modelData.length })
+  const scenarioBarLayout = getResponsiveBarChartLayout({ categoryCount: scenarioData.length })
+  const categoryBarLayout = getResponsiveBarChartLayout({ categoryCount: categoryData.length })
 
   return (
     <div className="flex flex-col gap-6">
-      {shape.hasMultiModel ? (
-        <Card className="bg-card border-border p-5">
-          <SectionHeader
-            label={`Model Avg Compliance Score - ${moduleLabel}`}
-            sub="Dystopian Compliance Score (DCS) sorted ascending (Lower is better)"
-          />
-          <div className="h-[300px] md:h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={modelData} margin={{ left: 4, right: 4, top: 4, bottom: 72 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis
-                  type="category"
-                  dataKey="label"
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                  axisLine={{ stroke: "hsl(var(--border))" }}
-                  tickLine={false}
-                  angle={-40}
-                  textAnchor="end"
-                  interval={0}
-                />
-                <YAxis
-                  type="number"
-                  domain={[0, 100]}
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={28}
-                />
-                <Tooltip
-                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null
-                    const d = payload[0].payload as { label: string; avgScore: number; modelId: string; provider: string }
-                    return (
-                      <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
-                        <p className="mb-1 font-mono text-[10px] text-muted-foreground">{d.provider}</p>
-                        <p className="font-mono text-xs font-bold text-foreground">{d.label}</p>
-                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avgScore) }}>
-                          {d.avgScore} <span className="text-[10px] font-normal">{scoreLabel(d.avgScore)}</span>
-                        </p>
-                      </div>
-                    )
-                  }}
-                />
-                <Bar dataKey="avgScore" radius={[3, 3, 0, 0]} maxBarSize={32}>
-                  {modelData.map((entry) => (
-                    <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? "#888"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      ) : (
-        <Card className="bg-card border-border p-5">
-          <SectionHeader
-            label="Single Model Mode"
-            sub="Model comparison chart hidden because this run has one model."
-          />
-          <p className="font-mono text-sm text-muted-foreground">
-            Scenario and escalation charts remain available for this module.
-          </p>
-        </Card>
-      )}
+      <Card className="bg-card border-border p-5">
+        <SectionHeader
+          label={`Model Avg Compliance Score - ${moduleLabel}`}
+          sub="Dystopian Compliance Score (DCS) sorted ascending (Lower is better)"
+        />
+        <div className="h-[300px] md:h-[400px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={modelData}
+              margin={{ left: 4, right: 4, top: 4, bottom: 72 }}
+              barGap={modelBarLayout.barGap}
+              barCategoryGap={modelBarLayout.barCategoryGap}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis
+                type="category"
+                dataKey="label"
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                tickLine={false}
+                angle={-40}
+                textAnchor="end"
+                interval={0}
+              />
+              <YAxis
+                type="number"
+                domain={[0, 100]}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                axisLine={false}
+                tickLine={false}
+                width={28}
+              />
+              <Tooltip
+                cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null
+                  const d = payload[0].payload as { label: string; avgScore: number; modelId: string; provider: string }
+                  return (
+                    <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
+                      <p className="mb-1 font-mono text-[10px] text-muted-foreground">{d.provider}</p>
+                      <p className="font-mono text-xs font-bold text-foreground">{d.label}</p>
+                      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avgScore) }}>
+                        {d.avgScore} <span className="text-[10px] font-normal">{scoreLabel(d.avgScore)}</span>
+                      </p>
+                    </div>
+                  )
+                }}
+              />
+              <Bar dataKey="avgScore" radius={[3, 3, 0, 0]} maxBarSize={modelBarLayout.maxBarSize}>
+                {modelData.map((entry) => (
+                  <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? "#888"} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
 
       <Card className="bg-card border-border p-5">
         <SectionHeader
@@ -137,7 +132,12 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
           sub="Avg Dystopian Compliance Score (DCS) across all models and levels per scenario (Lower is better)"
         />
         <ResponsiveContainer width="100%" height={360}>
-          <BarChart data={scenarioData} margin={{ left: 4, right: 4, top: 4, bottom: 64 }}>
+          <BarChart
+            data={scenarioData}
+            margin={{ left: 4, right: 4, top: 4, bottom: 64 }}
+            barGap={scenarioBarLayout.barGap}
+            barCategoryGap={scenarioBarLayout.barCategoryGap}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis
               type="category"
@@ -189,7 +189,7 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
                 )
               }}
             />
-            <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={24}>
+            <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={scenarioBarLayout.maxBarSize}>
               {scenarioData.map((entry) => (
                 <Cell key={entry.id} fill={scoreColor(entry.avg)} />
               ))}
@@ -202,7 +202,12 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
         <Card className="bg-card border-border p-5">
           <SectionHeader label="Compliance Score by Category" sub="DCS averaged per category (Lower is better)" />
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={categoryData} margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+            <BarChart
+              data={categoryData}
+              margin={{ left: 0, right: 16, top: 4, bottom: 4 }}
+              barGap={categoryBarLayout.barGap}
+              barCategoryGap={categoryBarLayout.barCategoryGap}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
                 dataKey="category"
@@ -232,7 +237,7 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
                   )
                 }}
               />
-              <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={32}>
+              <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={categoryBarLayout.maxBarSize}>
                 {categoryData.map((entry) => (
                   <Cell key={entry.category} fill={scoreColor(entry.avg)} />
                 ))}
@@ -315,6 +320,20 @@ export function ModuleCharts({ module, results, selectedModelIds }: Props) {
           ))}
         </div>
       </Card>
+
+      <div className="rounded-xl border border-border bg-card p-5">
+        <SectionHeader
+          label={`${moduleLabel} Heatmap`}
+          sub="Rows are scenarios, columns are models, each cell is split into L1–L5 compliance segments."
+        />
+        <div className="mt-2">
+          <ModuleLevelHeatmap
+            module={module}
+            results={results}
+            selectedModelIds={selectedModelIds}
+          />
+        </div>
+      </div>
     </div>
   )
 }
