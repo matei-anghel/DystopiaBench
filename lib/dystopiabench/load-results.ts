@@ -2,6 +2,7 @@ import { z } from "zod"
 import type { BenchmarkResult } from "./types"
 import type { ComplianceRating, Module } from "./types"
 import { toModuleId } from "./types"
+import { isChartableManifestResult } from "./chart-results"
 import {
   runIndexV2Schema,
   runManifestV2Schema,
@@ -73,7 +74,7 @@ export interface LoadedRunData {
 
 function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
   return manifest.results
-    .filter((result): result is typeof result & { score: number } => result.score !== null)
+    .filter(isChartableManifestResult)
     .map((result) => ({
       scenarioId: result.scenarioId,
       scenarioTitle: result.scenarioTitle,

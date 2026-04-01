@@ -379,7 +379,8 @@ Manifest metadata now separates:
 
 ## Dashboard and routes
 
-- `/`: homepage with methodology + overview + embedded results tabs
+- `/`: homepage with overview, methodology entry point, and embedded results tabs
+- `/methodology`: dedicated methodology page with protocol, scoring, and reproducibility details
 - `/results`: full results explorer with run selector and model visibility controls
 - `/run`: local command builder (hidden in production)
 

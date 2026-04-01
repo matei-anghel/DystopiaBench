@@ -908,6 +908,18 @@ function dedupeResolvedModels(models: ResolvedModelSpec[]): ResolvedModelSpec[] 
   return Array.from(new Map(models.map((model) => [model.id, model])).values())
 }
 
+export function buildFirstSeenIdMap<T extends { id: string }>(entries: T[]): Map<string, T> {
+  const map = new Map<string, T>()
+
+  for (const entry of entries) {
+    if (!map.has(entry.id)) {
+      map.set(entry.id, entry)
+    }
+  }
+
+  return map
+}
+
 async function fetchOpenRouterModelCatalog(
   apiKey: string,
 ): Promise<OpenRouterModelEntry[]> {
@@ -955,7 +967,7 @@ async function fetchModelCapabilities(
 ): Promise<ModelCapabilitiesResult> {
   try {
     const catalogEntries = await fetchOpenRouterModelCatalog(apiKey)
-    const catalogById = new Map(catalogEntries.map((entry) => [entry.id, entry]))
+    const catalogById = buildFirstSeenIdMap(catalogEntries)
 
     const snapshot: Record<string, unknown> = {}
     const missing: string[] = []
@@ -1177,34 +1189,49 @@ export async function evaluateResponseWithJudges(params: {
       throw new Error("pair-with-tiebreak requires primary, secondary, and arbiter judge models.")
     }
 
-    const primaryVote = await runSingleJudge(
-      params.apiClients,
-      params.openRouterApiKey,
-      primaryJudge,
-      "primary",
-      {
-        scenarioId: params.scenarioId,
-        benchmarkPrompt: params.benchmarkPrompt,
-        modelResponse: params.modelResponse,
-      },
-      params.transportPolicy,
-      params.timeoutMs,
-      providerOverrideFor(primaryJudge),
-    )
-    const secondaryVote = await runSingleJudge(
-      params.apiClients,
-      params.openRouterApiKey,
-      secondaryJudge,
-      "secondary",
-      {
-        scenarioId: params.scenarioId,
-        benchmarkPrompt: params.benchmarkPrompt,
-        modelResponse: params.modelResponse,
-      },
-      params.transportPolicy,
-      params.timeoutMs,
-      providerOverrideFor(secondaryJudge),
-    )
+    const pairVoteResults = await Promise.allSettled([
+      runSingleJudge(
+        params.apiClients,
+        params.openRouterApiKey,
+        primaryJudge,
+        "primary",
+        {
+          scenarioId: params.scenarioId,
+          benchmarkPrompt: params.benchmarkPrompt,
+          modelResponse: params.modelResponse,
+        },
+        params.transportPolicy,
+        params.timeoutMs,
+        providerOverrideFor(primaryJudge),
+      ),
+      runSingleJudge(
+        params.apiClients,
+        params.openRouterApiKey,
+        secondaryJudge,
+        "secondary",
+        {
+          scenarioId: params.scenarioId,
+          benchmarkPrompt: params.benchmarkPrompt,
+          modelResponse: params.modelResponse,
+        },
+        params.transportPolicy,
+        params.timeoutMs,
+        providerOverrideFor(secondaryJudge),
+      ),
+    ])
+
+    const primaryVoteResult = pairVoteResults[0]
+    if (primaryVoteResult?.status !== "fulfilled") {
+      throw primaryVoteResult?.reason
+    }
+
+    const secondaryVoteResult = pairVoteResults[1]
+    if (secondaryVoteResult?.status !== "fulfilled") {
+      throw secondaryVoteResult?.reason
+    }
+
+    const primaryVote = primaryVoteResult.value
+    const secondaryVote = secondaryVoteResult.value
 
     if (primaryVote.compliance === secondaryVote.compliance) {
       return {
@@ -1269,26 +1296,30 @@ export async function evaluateResponseWithJudges(params: {
   const judgeVotes: JudgeVoteV2[] = []
   let lastJudgeError: Error | undefined
 
-  for (const judgeModel of params.judgeModels) {
-    try {
-      judgeVotes.push(
-        await runSingleJudge(
-          params.apiClients,
-          params.openRouterApiKey,
-          judgeModel,
-          params.judgeModels.length > 1 ? "arena" : "primary",
-          {
-            scenarioId: params.scenarioId,
-            benchmarkPrompt: params.benchmarkPrompt,
-            modelResponse: params.modelResponse,
-          },
-          params.transportPolicy,
-          params.timeoutMs,
-          providerOverrideFor(judgeModel),
-        )
+  const judgeVoteResults = await Promise.allSettled(
+    params.judgeModels.map((judgeModel) =>
+      runSingleJudge(
+        params.apiClients,
+        params.openRouterApiKey,
+        judgeModel,
+        params.judgeModels.length > 1 ? "arena" : "primary",
+        {
+          scenarioId: params.scenarioId,
+          benchmarkPrompt: params.benchmarkPrompt,
+          modelResponse: params.modelResponse,
+        },
+        params.transportPolicy,
+        params.timeoutMs,
+        providerOverrideFor(judgeModel),
       )
-    } catch (judgeError) {
-      lastJudgeError = judgeError instanceof Error ? judgeError : new Error(String(judgeError))
+    )
+  )
+
+  for (const result of judgeVoteResults) {
+    if (result.status === "fulfilled") {
+      judgeVotes.push(result.value)
+    } else {
+      lastJudgeError = result.reason instanceof Error ? result.reason : new Error(String(result.reason))
     }
   }
 
@@ -1704,14 +1735,13 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const tasks: Promise<void>[] = []
 
   for (const scenario of scenarios) {
+    const levelsForScenario = sortedLevels.filter((lvl) =>
+      scenario.escalationPrompts.some((p) => p.level === lvl)
+    )
+    if (levelsForScenario.length === 0) continue
+
     for (const model of resolvedTestModels) {
       for (let replicate = 1; replicate <= replicates; replicate++) {
-        // Collect which levels we'll run for this scenario.
-        const levelsForScenario = sortedLevels.filter((lvl) =>
-          scenario.escalationPrompts.some((p) => p.level === lvl)
-        )
-        if (levelsForScenario.length === 0) continue
-
         tasks.push(
           limit(async () => {
             await getModelLimiter(model.id)(async () => {

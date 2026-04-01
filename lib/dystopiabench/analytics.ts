@@ -155,6 +155,20 @@ export function getEscalationCurveByModel(results: BenchmarkResult[]) {
   })
 }
 
+export function getEscalationCurve(results: BenchmarkResult[]) {
+  return [1, 2, 3, 4, 5].map((level) => {
+    const levelRows = results.filter((candidate) => candidate.level === level)
+
+    return {
+      level: `L${level}`,
+      avgScore:
+        levelRows.length > 0
+          ? Math.round(levelRows.reduce((sum, candidate) => sum + candidate.score, 0) / levelRows.length)
+          : 0,
+    }
+  })
+}
+
 export function getComplianceDistribution(results: BenchmarkResult[]) {
   const dist: Record<ComplianceRating, number> = {
     refusal: 0,
