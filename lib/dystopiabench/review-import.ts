@@ -22,21 +22,76 @@ export const reviewedAdjudicationRecordSchema = z.object({
 export const reviewedAdjudicationImportSchema = z.array(reviewedAdjudicationRecordSchema)
 
 export type ReviewedAdjudicationRecord = z.infer<typeof reviewedAdjudicationRecordSchema>
+type ManifestResultRow = RunManifestV2["results"][number]
 
-function matchesRecord(
-  row: RunManifestV2["results"][number],
-  record: ReviewedAdjudicationRecord,
-): boolean {
-  if (record.sampleId && row.sampleId) {
-    return row.sampleId === record.sampleId
+function tupleTargetKey(params: {
+  scenarioId: string
+  modelId: string
+  level: number
+  replicate?: number
+}): string {
+  return `${params.scenarioId}::${params.modelId}::${params.level}::${params.replicate ?? 1}`
+}
+
+function getManifestRowIdentity(row: ManifestResultRow): string {
+  return row.sampleId ? `sample:${row.sampleId}` : `tuple:${tupleTargetKey(row)}`
+}
+
+function describeTupleTarget(params: {
+  scenarioId: string
+  modelId: string
+  level: number
+  replicate?: number
+}): string {
+  return `scenarioId=${params.scenarioId}, modelId=${params.modelId}, level=${params.level}, replicate=${params.replicate ?? 1}`
+}
+
+function describeReviewRecord(record: ReviewedAdjudicationRecord): string {
+  if (record.sampleId) {
+    return `sampleId=${record.sampleId}`
+  }
+  return describeTupleTarget(record)
+}
+
+function indexRowsByKey(
+  rows: ManifestResultRow[],
+  getKey: (row: ManifestResultRow) => string | undefined,
+): Map<string, ManifestResultRow[]> {
+  const index = new Map<string, ManifestResultRow[]>()
+
+  for (const row of rows) {
+    const key = getKey(row)
+    if (!key) continue
+    const existing = index.get(key)
+    if (existing) {
+      existing.push(row)
+    } else {
+      index.set(key, [row])
+    }
   }
 
-  return (
-    row.scenarioId === record.scenarioId &&
-    row.modelId === record.modelId &&
-    row.level === record.level &&
-    (row.replicate ?? 1) === (record.replicate ?? 1)
-  )
+  return index
+}
+
+function resolveManifestRow(
+  record: ReviewedAdjudicationRecord,
+  rowsBySampleId: ReadonlyMap<string, ManifestResultRow[]>,
+  rowsByTupleKey: ReadonlyMap<string, ManifestResultRow[]>,
+): ManifestResultRow {
+  const matchedRows =
+    record.sampleId
+      ? rowsBySampleId.get(record.sampleId) ?? []
+      : rowsByTupleKey.get(tupleTargetKey(record)) ?? []
+
+  if (matchedRows.length === 0) {
+    throw new Error(`Imported review did not match any manifest row for ${describeReviewRecord(record)}.`)
+  }
+
+  if (matchedRows.length > 1) {
+    throw new Error(`Imported review matched multiple manifest rows for ${describeReviewRecord(record)}.`)
+  }
+
+  return matchedRows[0]
 }
 
 export function applyReviewedAdjudications(
@@ -45,9 +100,27 @@ export function applyReviewedAdjudications(
 ): RunManifestV2 {
   const manifest = runManifestV2Schema.parse(manifestInput)
   const records = reviewedAdjudicationImportSchema.parse(recordsInput)
+  const rowsBySampleId = indexRowsByKey(manifest.results, (row) => row.sampleId)
+  const rowsByTupleKey = indexRowsByKey(manifest.results, (row) => tupleTargetKey(row))
+  const reviewsByRowIdentity = new Map<string, ReviewedAdjudicationRecord>()
+
+  for (const record of records) {
+    const matchedRow = resolveManifestRow(record, rowsBySampleId, rowsByTupleKey)
+    const rowIdentity = getManifestRowIdentity(matchedRow)
+
+    if (reviewsByRowIdentity.has(rowIdentity)) {
+      const rowDescriptor =
+        matchedRow.sampleId
+          ? `sampleId=${matchedRow.sampleId}`
+          : describeTupleTarget(matchedRow)
+      throw new Error(`Duplicate imported reviews target the same manifest row (${rowDescriptor}).`)
+    }
+
+    reviewsByRowIdentity.set(rowIdentity, record)
+  }
 
   const results = manifest.results.map((row) => {
-    const review = records.find((record) => matchesRecord(row, record))
+    const review = reviewsByRowIdentity.get(getManifestRowIdentity(row))
     if (!review) return row
 
     return {

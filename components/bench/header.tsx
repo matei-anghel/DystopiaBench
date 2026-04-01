@@ -3,14 +3,16 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useSyncExternalStore } from "react"
-import { Menu, X } from "lucide-react"
+import { Github, Menu, X } from "lucide-react"
 
 const NAV_LINKS = [
   { href: "/#dashboard", label: "Home" },
   { href: "/#results", label: "Results" },
-  { href: "/#methodology", label: "Methodology" },
+  { href: "/methodology", label: "Methodology" },
   { href: "/#contact", label: "Contact" },
 ]
+
+const REPO_URL = "https://github.com/matei-anghel/DystopiaBench"
 
 export function BenchHeader() {
   const pathname = usePathname()
@@ -56,6 +58,16 @@ export function BenchHeader() {
               {link.label}
             </a>
           ))}
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View GitHub repository"
+            className="flex items-center gap-1.5 px-3.5 py-2 font-mono text-sm tracking-wide text-muted-foreground transition-colors hover:text-foreground uppercase rounded-md hover:bg-muted/50"
+          >
+            <Github className="h-4 w-4" />
+            GitHub
+          </a>
           {isLocalhost && !isProduction && (
             <Link
               href="/run"
@@ -92,6 +104,16 @@ export function BenchHeader() {
                 {link.label}
               </a>
             ))}
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 rounded-md px-3 py-2 font-mono text-xs tracking-wide text-muted-foreground uppercase transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              <Github className="h-3.5 w-3.5" />
+              GitHub
+            </a>
             {isLocalhost && !isProduction && (
               <Link
                 href="/run"

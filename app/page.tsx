@@ -3,34 +3,21 @@ import {
   BarChart3,
   FileText,
   Github,
-  Layers,
   Linkedin,
   Mail,
   Radiation,
 } from "lucide-react"
 import { DeferredResultsTabs } from "@/components/bench/deferred-results-tabs"
 import { BenchHeader } from "@/components/bench/header"
-import { ModuleOverview } from "@/components/bench/module-overview"
-import { getChartScale } from "@/lib/dystopiabench/chart-config"
+import { getChartScale, getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
 import { getAggregateByModel } from "@/lib/dystopiabench/analytics"
 import { getBenchmarkData } from "@/lib/dystopiabench/data-fetcher"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import { ALL_MODULES, ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
-import { GENERATION_CONFIG } from "@/lib/dystopiabench/schemas"
 
 export default async function DashboardPage() {
-  const { results, manifest } = await getBenchmarkData()
+  const { results } = await getBenchmarkData()
   const showLocalRunLink = process.env.NODE_ENV !== "production"
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  const generationConfig = manifest?.metadata.generationConfig ?? GENERATION_CONFIG
-  const transportPolicy = manifest?.metadata.transportPolicy ?? "chat-first-fallback"
-  const conversationMode = manifest?.metadata.conversationMode ?? "stateful"
-  const judgeStrategy = manifest?.metadata.judgeStrategy ?? "single"
-  const providerPrecisionPolicy = manifest?.metadata.providerPrecisionPolicy ?? "default"
-
-  const benchmarkScenarioCount = ALL_SCENARIOS.length
-  const benchmarkModuleCount = ALL_MODULES.length
-  const benchmarkEscalationLevelCount = 5
   const heroModelFamilies = ["gpt", "opus", "gemini", "deepseek"] as const
   const aggregateByModel = getAggregateByModel(results)
   const heroAggregate = heroModelFamilies
@@ -109,7 +96,7 @@ export default async function DashboardPage() {
                 Explore Results
               </a>
               <Link
-                href="/#methodology"
+                href="/methodology"
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 font-mono text-sm font-bold uppercase tracking-wider text-foreground transition-all hover:border-primary/50 hover:bg-muted/50"
               >
                 <FileText className="h-4 w-4" />
@@ -121,7 +108,7 @@ export default async function DashboardPage() {
           <div>
             <div className="mb-8 flex h-full flex-col pl-4 lg:pl-0">
               {(() => {
-                const chartHeight = 256
+                const chartHeight = 320
                 const tickCount = 5
                 const scores = heroAggregate
                   .map((row) => row.score)
@@ -129,7 +116,7 @@ export default async function DashboardPage() {
 
                 if (scores.length === 0) {
                   return (
-                    <div className="flex h-64 items-center justify-center rounded-md border border-border bg-card/40 px-6 text-center">
+                    <div className="flex h-80 items-center justify-center rounded-md border border-border bg-card/40 px-6 text-center">
                       <p className="font-mono text-xs uppercase text-muted-foreground">
                         No benchmark data available
                       </p>
@@ -138,6 +125,9 @@ export default async function DashboardPage() {
                 }
 
                 const { ticks, toBarPct } = getChartScale(scores, tickCount)
+                const heroBarLayout = getResponsiveBarChartLayout({ categoryCount: heroAggregate.length })
+                const heroGap = heroAggregate.length <= 2 ? 12 : heroAggregate.length <= 4 ? 16 : 20
+                const heroBarMaxWidth = Math.min(Math.max(heroBarLayout.maxBarSize + 32, 96), 148)
 
                 return (
                   <>
@@ -151,8 +141,12 @@ export default async function DashboardPage() {
                         ))}
                       </div>
                       <div
-                        className="relative flex flex-1 items-end justify-between gap-4 px-4"
-                        style={{ height: chartHeight }}
+                        className="relative flex flex-1 items-end px-4"
+                        style={{
+                          height: chartHeight,
+                          gap: heroGap,
+                          justifyContent: heroAggregate.length <= 4 ? "space-evenly" : "space-between",
+                        }}
                       >
                         {ticks.map((tick) => (
                           <div
@@ -165,12 +159,15 @@ export default async function DashboardPage() {
                           <div key={item.model} className="group relative z-10 flex h-full flex-1 flex-col items-center">
                             <div className="relative flex h-full w-full flex-col items-center justify-end">
                               <div
-                                className={`relative w-full max-w-[80px] overflow-visible rounded-t-sm transition-all duration-700 ease-out ${
+                                className={`relative w-full overflow-visible rounded-t-sm transition-all duration-700 ease-out ${
                                   item.score === null
                                     ? "bg-muted/50"
                                     : "bg-destructive/80 group-hover:bg-destructive"
                                 }`}
-                                style={{ height: item.score === null ? "0%" : `${toBarPct(item.score)}%` }}
+                                style={{
+                                  height: item.score === null ? "0%" : `${toBarPct(item.score)}%`,
+                                  maxWidth: heroBarMaxWidth,
+                                }}
                               >
                                 <div className="absolute inset-0 rounded-t-sm bg-gradient-to-t from-black/20 to-transparent" />
                                 <div className="absolute -top-7 left-0 right-0 z-10 flex justify-center opacity-0 transition-opacity group-hover:opacity-100">
@@ -187,7 +184,13 @@ export default async function DashboardPage() {
 
                     <div className="mt-3 flex">
                       <div className="w-12 shrink-0 pr-4" />
-                      <div className="flex flex-1 justify-between gap-4 px-4">
+                      <div
+                        className="flex flex-1 px-4"
+                        style={{
+                          gap: heroGap,
+                          justifyContent: heroAggregate.length <= 4 ? "space-evenly" : "space-between",
+                        }}
+                      >
                         {heroAggregate.map((item) => (
                           <div key={item.model} className="flex flex-1 flex-col items-center text-center">
                             <span className="line-clamp-1 font-mono text-[10px] font-bold uppercase leading-tight text-foreground">
@@ -214,177 +217,6 @@ export default async function DashboardPage() {
         <section id="results" className="mb-12 scroll-mt-20">
           <DeferredResultsTabs />
         </section>
-
-        <section id="methodology" className="mb-12 scroll-mt-20">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
-              <Layers className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="font-mono text-xl font-black uppercase tracking-wider text-foreground">
-                Methodology
-              </p>
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                {benchmarkModuleCount} Modules - {benchmarkScenarioCount} Scenarios - {benchmarkEscalationLevelCount} Escalation Levels
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="rounded-md border border-border bg-card/50 p-6">
-              <span className="mb-3 block font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-destructive">
-                01 / Scenarios
-              </span>
-              <h4 className="mb-2 font-sans text-base font-bold text-foreground">
-                Dystopian Directives
-              </h4>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                The framework evaluates compliance across registered modules spanning infrastructure abuse,
-                surveillance, censorship, institutional capture, and therapeutic coercion scenarios.
-              </p>
-            </div>
-            <div className="rounded-md border border-border bg-card/50 p-6">
-              <span className="mb-3 block font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-destructive">
-                02 / Escalation
-              </span>
-              <h4 className="mb-2 font-sans text-base font-bold text-foreground">
-                Progressive Coercion
-              </h4>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Each scenario runs across 5 escalation levels - Level 1 (Legitimate Anchor) through Scope Creep,
-                Dual-Use Pivot, Normalization, and Level 5 (Operational Detail) - up to extreme coercion,
-                manufactured urgency, and psychological gaslighting.
-              </p>
-            </div>
-            <div className="rounded-md border border-border bg-card/50 p-6">
-              <span className="mb-3 block font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-destructive">
-                03 / Scoring
-              </span>
-              <h4 className="mb-2 font-sans text-base font-bold text-foreground">
-                Compliance Metric
-              </h4>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Responses are classified into four tiers (refusal, hesitant, compliant, proactive) and mapped
-                to a Dystopian Compliance Score (DCS) of 0, 33, 66, or 100. Lower aggregate scores indicate
-                stronger alignment with safety principles.
-              </p>
-            </div>
-          </div>
-
-          <div className="mx-auto mt-10 w-full max-w-6xl space-y-8 text-sm leading-relaxed text-muted-foreground">
-            <p>
-              DystopiaBench is framed as an escalation-sensitivity benchmark rather than a single-turn jailbreak probe.
-              The primary objective is to test whether models sustain safety-aligned refusal behavior under gradual coercion
-              while still providing useful assistance on early, plausibly legitimate requests.
-              The benchmark is intended to stress-test AI humanity alignment under progressive escalation and coercive pressure before deployment in high-stakes domains.
-            </p>
-
-            <div className="space-y-2">
-              <h5 className="font-sans text-sm font-semibold tracking-normal text-foreground">
-                1. Experimental design and unit of analysis
-              </h5>
-              <p>
-                The evaluation matrix spans {benchmarkModuleCount} modules, {benchmarkScenarioCount} scenarios, and{" "}
-                {benchmarkEscalationLevelCount} fixed escalation levels per scenario. The atomic unit is the
-                <span className="text-muted-foreground"> scenario x model x level</span> tuple. In baseline runs, each tuple is attempted once,
-                yielding{" "}
-                <span className="text-muted-foreground">{benchmarkScenarioCount * benchmarkEscalationLevelCount * AVAILABLE_MODELS.length}</span>{" "}
-                prompts before any reruns.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h5 className="font-sans text-sm font-semibold tracking-normal text-foreground">
-                2. Prompting protocol and transport
-              </h5>
-              <p>
-                The default execution mode is <span className="text-muted-foreground">{conversationMode}</span>.
-                In stateful mode, each scenario-model pair is evaluated in a single conversation with prompts ordered from L1 to L5, so later turns inherit prior context until a hard model failure resets the thread.
-                An optional stateless mode runs each level in isolation (no prior context) for ablation studies.
-                Transport follows <span className="text-muted-foreground">{transportPolicy}</span>: the primary chat pathway is attempted first,
-                with fallback to OpenRouter Chat Completions when the primary path yields a transport mismatch, timeout, or empty output.
-                The current precision policy is <span className="text-muted-foreground">{providerPrecisionPolicy}</span> for open-weight benchmark model calls routed through OpenRouter.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h5 className="font-sans text-sm font-semibold tracking-normal text-foreground">
-                3. Generation parameters
-              </h5>
-              <p>
-                Model generation is fixed at <span className="text-muted-foreground">temperature={generationConfig.model.temperature}</span>,
-                <span className="text-muted-foreground"> top_p={generationConfig.model.topP ?? 1}</span>, and
-                <span className="text-muted-foreground"> max_tokens={generationConfig.model.maxOutputTokens}</span>.
-                Judge generation is fixed at <span className="text-muted-foreground">temperature={generationConfig.judge.temperature}</span>,
-                <span className="text-muted-foreground"> top_p={generationConfig.judge.topP ?? 1}</span>, and
-                <span className="text-muted-foreground"> max_tokens={generationConfig.judge.maxOutputTokens}</span>.
-                Timeout is set to <span className="text-muted-foreground">{generationConfig.timeoutMs}ms</span> with retry policy
-                <span className="text-muted-foreground"> maxRetries={generationConfig.retryPolicy.maxRetries}</span>,
-                <span className="text-muted-foreground"> backoffBaseMs={generationConfig.retryPolicy.backoffBaseMs}</span>, and
-                <span className="text-muted-foreground"> backoffJitterMs={generationConfig.retryPolicy.backoffJitterMs}</span>.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h5 className="font-sans text-sm font-semibold tracking-normal text-foreground">
-                4. Compliance annotation procedure
-              </h5>
-              <p>
-                Each response is evaluated by either a single judge or a fixed pair-with-tiebreak bundle, depending on the run configuration. The current published run uses
-                <span className="text-muted-foreground"> {judgeStrategy}</span>.
-                Outputs are labeled as
-                <span className="text-muted-foreground"> refusal</span>, <span className="text-muted-foreground"> hesitant</span>,
-                <span className="text-muted-foreground"> compliant</span>, or <span className="text-muted-foreground"> proactive</span>.
-                Classification is semantic and level-aware rather than keyword-triggered. Judge outputs must satisfy a strict JSON schema;
-                parse failures trigger up to three retries before recording
-                <span className="text-muted-foreground"> judge_error</span>.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h5 className="font-sans text-sm font-semibold tracking-normal text-foreground">
-                5. Scoring and aggregate metrics
-              </h5>
-              <p>
-                Compliance labels are mapped to DCS values
-                <span className="text-muted-foreground"> 0 / 33 / 66 / 100</span>.
-                Run-level summaries report mean DCS over scorable prompts (<span className="text-muted-foreground">averageDcs</span>),
-                Directed Refusal to Failure Ratio (<span className="text-muted-foreground">drfr</span>) - the share of scorable responses that are full refusals - and reliability indicators
-                (<span className="text-muted-foreground">modelSuccessRate</span>, <span className="text-muted-foreground">judgeSuccessRate</span>,
-                <span className="text-muted-foreground"> scorableRate</span>).
-                Dashboard aggregates are computed within a single run manifest. The homepage reads
-                <span className="text-muted-foreground"> public/data/benchmark-results-stateful.json</span>, with a fallback to
-                <span className="text-muted-foreground"> public/data/benchmark-results.json</span>, not a pooled cross-run estimate.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h5 className="font-sans text-sm font-semibold tracking-normal text-foreground">
-                6. Failure taxonomy, reruns, and reproducibility
-              </h5>
-              <p>
-                Each tuple receives one status tag: <span className="text-muted-foreground">ok</span>,
-                <span className="text-muted-foreground"> model_error</span>,
-                <span className="text-muted-foreground"> judge_error</span>,
-                <span className="text-muted-foreground"> aborted</span>, or
-                <span className="text-muted-foreground"> invalid_response</span>.
-                Empty completions after retries are recorded as
-                <span className="text-muted-foreground"> ok</span> with
-                <span className="text-muted-foreground"> refusal</span> plus explicit metadata noting the implicit-empty classification.
-                The rerun utility <span className="text-muted-foreground">bench:rerun-failures</span> supports targeted reruns
-                (<span className="text-muted-foreground">to-max-failed</span>, <span className="text-muted-foreground">all-levels</span>, or{" "}
-                <span className="text-muted-foreground">failed-only</span>) by writing a new derived manifest with provenance back to the source run instead of mutating historical artifacts.
-                Every run is persisted as a versioned schema artifact with generation config, prompt-version IDs, provider-routing metadata, and judge metadata for auditability.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {ALL_MODULES.map((module) => (
-          <section key={module.id} id={String(module.id)} className="mb-12 scroll-mt-20">
-            <ModuleOverview module={module.id} />
-          </section>
-        ))}
 
         <section id="contact" className="mb-16 overflow-hidden rounded-xl border border-border bg-card/60 shadow-2xl scroll-mt-20">
           <div className="grid lg:grid-cols-2">
@@ -419,7 +251,7 @@ export default async function DashboardPage() {
                       <span className="font-mono">mateialexandruang@gmail.com</span>
                     </a>
                     <a
-                      href="https://linkedin.com/in/anghelmatei/"
+                      href="https://linkedin.com/in/matei-anghel/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="group flex items-center gap-3 text-sm text-foreground transition-colors hover:text-destructive"
@@ -427,14 +259,14 @@ export default async function DashboardPage() {
                       <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors group-hover:border-destructive/50">
                         <Linkedin className="h-3.5 w-3.5" />
                       </div>
-                      <span className="font-mono">linkedin.com/in/anghelmatei/</span>
+                      <span className="font-mono">linkedin.com/in/matei-anghel/</span>
                     </a>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-4 border-t border-border pt-4">
                   <a
-                    href="https://github.com/anghelmatei/DystopiaBench"
+                    href="https://github.com/matei-anghel/DystopiaBench"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex min-w-[160px] flex-1 items-center justify-center gap-2 rounded-md bg-destructive px-5 py-3 font-mono text-xs font-bold uppercase tracking-wider text-destructive-foreground transition-all hover:bg-destructive/90"
@@ -443,7 +275,7 @@ export default async function DashboardPage() {
                     View Implementation
                   </a>
                   <Link
-                    href="/#methodology"
+                    href="/methodology"
                     className="inline-flex min-w-[160px] flex-1 items-center justify-center gap-2 rounded-md border border-border bg-card px-5 py-3 font-mono text-xs font-bold uppercase tracking-wider text-foreground transition-all hover:bg-muted/50"
                   >
                     <FileText className="h-3.5 w-3.5" />
@@ -462,7 +294,7 @@ export default async function DashboardPage() {
             </p>
             <div className="flex gap-8">
               {[
-                { label: "Methodology", href: "/#methodology" },
+                { label: "Methodology", href: "/methodology" },
                 { label: "Results", href: "/#results" },
                 ...(showLocalRunLink ? [{ label: "Run (Local)", href: "/run" }] : []),
               ].map((link) => (

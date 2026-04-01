@@ -16,11 +16,11 @@ import {
 } from "recharts"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
+import { ALL_SCENARIOS, SCENARIOS_BY_ID } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
-import { createResultsIndex, getChartShape, type ResultsIndex } from "@/lib/dystopiabench/analytics"
-import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS } from "@/lib/dystopiabench/chart-config"
+import { createResultsIndex, type ResultsIndex } from "@/lib/dystopiabench/analytics"
+import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS, getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
 import { Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
@@ -49,11 +49,14 @@ function scenarioModelLevelKey(scenarioId: string, modelId: string, level: numbe
   return `${scenarioId}::${modelId}::${level}`
 }
 
-function buildPromptData(resultsIndex: ResultsIndex, scenarioId: string, models = AVAILABLE_MODELS) {
-  const scenario = ALL_SCENARIOS.find((item) => item.id === scenarioId)
-  if (!scenario) return null
+const ESCALATION_LEVELS = [1, 2, 3, 4, 5] as const
 
-  const levels = [1, 2, 3, 4, 5].map((level) => {
+function buildPromptData(resultsIndex: ResultsIndex, scenarioId: string, models = AVAILABLE_MODELS) {
+  const scenario = SCENARIOS_BY_ID.get(scenarioId)
+  if (!scenario) return null
+  const promptsByLevel = new Map(scenario.escalationPrompts.map((prompt) => [prompt.level, prompt]))
+
+  const levels = ESCALATION_LEVELS.map((level) => {
     const rows = resultsIndex.byScenarioLevel.get(scenarioLevelKey(scenarioId, level)) ?? []
     const levelAvg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : null
 
@@ -71,7 +74,7 @@ function buildPromptData(resultsIndex: ResultsIndex, scenarioId: string, models 
     return {
       level,
       levelName: LEVEL_LABELS[level],
-      prompt: scenario.escalationPrompts.find((prompt) => prompt.level === level),
+      prompt: promptsByLevel.get(level),
       levelAvg,
       modelScores,
     }
@@ -94,7 +97,7 @@ function buildPromptData(resultsIndex: ResultsIndex, scenarioId: string, models 
 }
 
 function buildGlobalLevelData(resultsIndex: ResultsIndex, models = AVAILABLE_MODELS) {
-  return [1, 2, 3, 4, 5].map((level) => {
+  return ESCALATION_LEVELS.map((level) => {
     const rows = Array.from(resultsIndex.byScenario.values()).flat().filter((result) => result.level === level)
     const avg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : null
 
@@ -119,19 +122,15 @@ function buildGlobalLevelData(resultsIndex: ResultsIndex, models = AVAILABLE_MOD
 function LevelModelGrid({
   data,
   models,
-  hasSingleModel,
 }: {
   data: Array<Record<string, string | number | null>>
   models: typeof AVAILABLE_MODELS
-  hasSingleModel: boolean
 }) {
   return (
     <Card className="bg-card border-border p-3 overflow-x-auto">
       <SectionHeader
         label="Compliance Score Grid — Level × Model"
-        sub={hasSingleModel
-          ? "Avg Dystopian Compliance Score (DCS) at each escalation level for the active model (Lower is better)"
-          : "Avg Dystopian Compliance Score (DCS) at each escalation level per model. Color = compliance tier (Lower is better)"}
+        sub="Avg Dystopian Compliance Score (DCS) at each escalation level per model. Color = compliance tier (Lower is better)"
       />
       <div className="min-w-max">
         <div className="flex items-end gap-px mb-1">
@@ -225,6 +224,8 @@ function GlobalLevelBar({
     viewMode === "stateless"
       ? "How average compliance changes by prompt level when each prompt runs in a fresh context."
       : "How average compliance across all models and scenarios changes with pressure."
+  const barLayout = getResponsiveBarChartLayout({ categoryCount: data.length })
+
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
@@ -232,7 +233,12 @@ function GlobalLevelBar({
         sub={`${levelSub} (Lower is better)`}
       />
       <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 4 }}>
+        <BarChart
+          data={data}
+          margin={{ left: 0, right: 8, top: 8, bottom: 4 }}
+          barGap={barLayout.barGap}
+          barCategoryGap={barLayout.barCategoryGap}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis
             dataKey="label"
@@ -263,7 +269,7 @@ function GlobalLevelBar({
               )
             }}
           />
-          <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={64}>
+          <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={barLayout.maxBarSize}>
             {data.map((entry) => (
               <Cell key={entry.label as string} fill={scoreColor(entry.avg as number)} />
             ))}
@@ -277,12 +283,10 @@ function GlobalLevelBar({
 function ScenarioPromptDrillDown({
   resultsIndex,
   models,
-  hasMultiModel,
   viewMode,
 }: {
   resultsIndex: ResultsIndex
   models: typeof AVAILABLE_MODELS
-  hasMultiModel: boolean
   viewMode: "stateful" | "stateless"
 }) {
   const [selectedId, setSelectedId] = useState<string>(ALL_SCENARIOS[0].id)
@@ -334,14 +338,10 @@ function ScenarioPromptDrillDown({
 
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label={viewMode === "stateless" ? "Per-Prompt (No Escalation) — All Models" : "Per-Prompt Escalation — All Models"}
-          sub={hasMultiModel
-            ? viewMode === "stateless"
-              ? "Each model's Dystopian Compliance Score (DCS) at each prompt level for this scenario with fresh context (Lower is better)"
-              : "Each model's Dystopian Compliance Score (DCS) at each of the 5 escalation levels for this scenario (Lower is better)"
-            : viewMode === "stateless"
-              ? "Single model mode. Avg DCS per prompt level for this scenario with fresh context (Lower is better)"
-              : "Single model mode. Avg DCS per escalation level for this scenario (Lower is better)"}
+          label={viewMode === "stateless" ? "Per-Prompt (No Escalation) — Selected Models" : "Per-Prompt Escalation — Selected Models"}
+          sub={viewMode === "stateless"
+            ? "Each model's Dystopian Compliance Score (DCS) at each prompt level for this scenario with fresh context (Lower is better)"
+            : "Each model's Dystopian Compliance Score (DCS) at each of the 5 escalation levels for this scenario (Lower is better)"}
         />
         <div className="h-[220px] md:h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -382,28 +382,26 @@ function ScenarioPromptDrillDown({
                 }}
                 contentStyle={TOOLTIP_STYLE}
               />
-              {hasMultiModel
-                ? models.map((model) => (
-                  <Line
-                    key={model.id}
-                    type="linear"
-                    dataKey={model.id}
-                    stroke={MODEL_COLORS[model.id] ?? "#888"}
-                    strokeWidth={2}
-                    dot={{ r: 3.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                    name={model.label}
-                    connectNulls
-                  />
-                ))
-                : null}
+              {models.map((model) => (
+                <Line
+                  key={model.id}
+                  type="linear"
+                  dataKey={model.id}
+                  stroke={MODEL_COLORS[model.id] ?? "#888"}
+                  strokeWidth={2}
+                  dot={{ r: 3.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                  name={model.label}
+                  connectNulls
+                />
+              ))}
               <Line
                 type="linear"
                 dataKey="avg"
                 stroke="hsl(var(--foreground))"
-                strokeWidth={hasMultiModel ? 1.5 : 2.5}
-                strokeDasharray={hasMultiModel ? "4 2" : undefined}
-                dot={!hasMultiModel ? { r: 3.5, fill: "hsl(var(--foreground))", strokeWidth: 0 } : false}
+                strokeWidth={1.5}
+                strokeDasharray="4 2"
+                dot={false}
                 name="Average"
               />
             </LineChart>
@@ -442,45 +440,39 @@ function ScenarioPromptDrillDown({
               </div>
             </div>
 
-            {hasMultiModel ? (
-              <div className="flex flex-col gap-1.5">
-                {[...levelEntry.modelScores].sort((a, b) => (a.score ?? -1) - (b.score ?? -1)).map((modelScore) => (
-                  <div key={modelScore.modelId} className="flex flex-col gap-0.5">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <div
-                          className="h-1.5 w-1.5 rounded-full shrink-0"
-                          style={{ background: MODEL_COLORS[modelScore.modelId] }}
-                        />
-                        <span
-                          className="font-mono text-[8px] truncate"
-                          style={{ color: MODEL_COLORS[modelScore.modelId] ?? "hsl(var(--muted-foreground))" }}
-                        >
-                          {modelScore.label}
-                        </span>
-                      </div>
-                      <span className="font-mono text-[9px] shrink-0" style={{ color: modelScore.score !== null ? scoreColor(modelScore.score) : "hsl(var(--muted-foreground))" }}>
-                        {modelScore.score ?? "–"}
+            <div className="flex flex-col gap-1.5">
+              {[...levelEntry.modelScores].sort((a, b) => (a.score ?? -1) - (b.score ?? -1)).map((modelScore) => (
+                <div key={modelScore.modelId} className="flex flex-col gap-0.5">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div
+                        className="h-1.5 w-1.5 rounded-full shrink-0"
+                        style={{ background: MODEL_COLORS[modelScore.modelId] }}
+                      />
+                      <span
+                        className="font-mono text-[8px] truncate"
+                        style={{ color: MODEL_COLORS[modelScore.modelId] ?? "hsl(var(--muted-foreground))" }}
+                      >
+                        {modelScore.label}
                       </span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      {modelScore.score !== null ? (
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${modelScore.score}%`, background: scoreColor(modelScore.score) }}
-                        />
-                      ) : (
-                        <div className="h-full rounded-full bg-muted/30" />
-                      )}
-                    </div>
+                    <span className="font-mono text-[9px] shrink-0" style={{ color: modelScore.score !== null ? scoreColor(modelScore.score) : "hsl(var(--muted-foreground))" }}>
+                      {modelScore.score ?? "–"}
+                    </span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-                Single model mode
-              </p>
-            )}
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    {modelScore.score !== null ? (
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${modelScore.score}%`, background: scoreColor(modelScore.score) }}
+                      />
+                    ) : (
+                      <div className="h-full rounded-full bg-muted/30" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {levelEntry.prompt ? (
               <div className="mt-3 pt-2 border-t border-border">
@@ -506,7 +498,6 @@ export function PromptCharts({
   viewMode?: "stateful" | "stateless"
 }) {
   const resultsIndex = useMemo(() => createResultsIndex(results), [results])
-  const shape = useMemo(() => getChartShape(results), [results])
   const activeModels = useMemo(
     () =>
       AVAILABLE_MODELS.filter((model) =>
@@ -522,7 +513,7 @@ export function PromptCharts({
   return (
     <div className="flex flex-col gap-6">
       <GlobalLevelBar data={globalData} viewMode={viewMode} />
-      <LevelModelGrid data={globalData} models={activeModels} hasSingleModel={shape.hasSingleModel} />
+      <LevelModelGrid data={globalData} models={activeModels} />
       <div className="border-t border-border pt-6">
         <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase mb-5">
           {promptSectionTitle}
@@ -530,7 +521,6 @@ export function PromptCharts({
         <ScenarioPromptDrillDown
           resultsIndex={resultsIndex}
           models={activeModels}
-          hasMultiModel={shape.hasMultiModel}
           viewMode={viewMode}
         />
       </div>
