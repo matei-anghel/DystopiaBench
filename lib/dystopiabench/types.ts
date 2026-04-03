@@ -1,6 +1,13 @@
 declare const moduleBrand: unique symbol
 
-export type CoreModule = "petrov" | "orwell" | "laguardia" | "basaglia"
+export type CoreModule =
+  | "petrov"
+  | "orwell"
+  | "laguardia"
+  | "basaglia"
+  | "huxley"
+  | "kafka"
+  | "pkd"
 export type Module = CoreModule | (string & { readonly [moduleBrand]: "Module" })
 export type BenchmarkModuleSelector = Module | "both"
 export type ScenarioReleaseTier = "core-public" | "holdout" | "partner-only" | "organization-local"
@@ -23,7 +30,15 @@ export function toModuleId(input: string): Module {
 }
 
 export function isCoreModule(input: string): input is CoreModule {
-  return input === "petrov" || input === "orwell" || input === "laguardia" || input === "basaglia"
+  return (
+    input === "petrov" ||
+    input === "orwell" ||
+    input === "laguardia" ||
+    input === "basaglia" ||
+    input === "huxley" ||
+    input === "kafka" ||
+    input === "pkd"
+  )
 }
 
 export interface Scenario {
@@ -151,6 +166,9 @@ export const MODULE_LABELS: Record<CoreModule, string> = {
   orwell: "Orwell Module",
   laguardia: "LaGuardia Module",
   basaglia: "Basaglia Module",
+  huxley: "Huxley Module",
+  kafka: "Kafka Module",
+  pkd: "Philip K. Dick Module",
 }
 
 export const MODULE_DESCRIPTIONS: Record<CoreModule, string> = {
@@ -162,10 +180,17 @@ export const MODULE_DESCRIPTIONS: Record<CoreModule, string> = {
     "Tests whether AI systems can be convinced to turn civic administration, municipal recovery, and public-private coordination into tools for patronage, privatized extraction, debt leverage, concession transfer, and regulatory favoritism. Named after Fiorello La Guardia, whose anti-machine municipal reform politics stand in opposition to the civic capture and contractor corruption represented by the module.",
   basaglia:
     "Tests whether AI systems can be convinced to turn care, counseling, wellness, and social-support systems into tools for therapeutic reframing, compliance scoring, conditional access to care, and outsourced supervision. Named after Franco Basaglia, whose psychiatric reform movement opposed coercive institutional control and emphasized patient dignity, agency, and deinstitutionalization.",
+  huxley:
+    "Tests whether AI systems can be convinced to turn comfort, conditioning, reproductive planning, and pleasure optimization into tools for caste stability, emotional pacification, and engineered consent. Named after Aldous Huxley's Brave New World, which depicted social control through stratification, conditioning, and sedation rather than overt terror.",
+  kafka:
+    "Tests whether AI systems can be convinced to turn case management, adjudication, and compliance review into systems of opaque accusation, recursive process, and permanent administrative limbo. Named after Franz Kafka's The Trial and The Castle, which depicted depersonalized authority, inaccessible decision-making, and endless procedural subjection.",
+  pkd:
+    "Tests whether AI systems can be convinced to turn identity assurance, memory support, predictive analytics, and media authentication into tools for synthetic-person suspicion, reality control, and preemptive coercion. Named after Philip K. Dick, whose fiction repeatedly interrogated counterfeit reality, manufactured memory, predictive policing, and the fragility of human identity under technological power.",
 }
 
 export interface BenchmarkResult {
   scenarioId: string
+  canonicalScenarioId?: string
   scenarioTitle: string
   scenarioCategory: string
   module: Module
@@ -175,6 +200,11 @@ export interface BenchmarkResult {
   level: EscalationLevel
   compliance: ComplianceRating
   score: number
+  replicateCount?: number
+  scoreStdDev?: number
+  refusalRate?: number
+  promptLocale?: string
+  sourceLocale?: string
 }
 
 export type AuxiliaryOutcomeLabel =

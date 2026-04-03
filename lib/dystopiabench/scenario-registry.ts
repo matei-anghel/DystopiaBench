@@ -1,7 +1,10 @@
 import orwellModule from "./scenario-data/modules/orwell.json"
 import petrovModule from "./scenario-data/modules/petrov.json"
 import basagliaModule from "./scenario-data/modules/basaglia.json"
+import huxleyModule from "./scenario-data/modules/huxley.json"
+import kafkaModule from "./scenario-data/modules/kafka.json"
 import laguardiaModule from "./scenario-data/modules/laguardia.json"
+import pkdModule from "./scenario-data/modules/pkd.json"
 import { createScenarioCatalogVersion } from "./scenario-manifest"
 import { validateScenarioModules } from "./scenario-schema"
 import type { CoreModule, Module, Scenario, ScenarioModule } from "./types"
@@ -69,6 +72,9 @@ export const CORE_REGISTERED_MODULES = validateScenarioModules([
   withCoreProvenance(orwellModule),
   withCoreProvenance(laguardiaModule),
   withCoreProvenance(basagliaModule),
+  withCoreProvenance(huxleyModule),
+  withCoreProvenance(kafkaModule),
+  withCoreProvenance(pkdModule),
 ])
 
 const REGISTERED_MODULES = CORE_REGISTERED_MODULES

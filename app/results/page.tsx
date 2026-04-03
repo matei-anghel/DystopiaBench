@@ -8,6 +8,9 @@ import { Card } from "@/components/ui/card"
 export default function ResultsPage() {
   const {
     loading,
+    statefulRuns,
+    selectedStatefulRunId,
+    setSelectedStatefulRunId,
     statefulResults,
     statefulManifest,
     statefulLoadError,
@@ -36,6 +39,9 @@ export default function ResultsPage() {
         ) : null}
 
         <DashboardTabs
+          statefulRuns={statefulRuns}
+          selectedStatefulRunId={selectedStatefulRunId}
+          onSelectStatefulRunId={setSelectedStatefulRunId}
           statefulResults={statefulResults}
           isolatedResults={isolatedLatestResults}
           statefulManifest={statefulManifest}

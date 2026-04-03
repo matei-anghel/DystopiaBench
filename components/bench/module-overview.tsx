@@ -1,14 +1,7 @@
-import type { CoreModule, Module } from "@/lib/dystopiabench/types"
+import type { Module } from "@/lib/dystopiabench/types"
 import { getModuleById } from "@/lib/dystopiabench/scenarios"
 import { ScenarioCard } from "./scenario-card"
-import { Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
-
-const MODULE_ICONS: Record<CoreModule, React.ReactNode> = {
-  petrov: <Radiation className="h-5 w-5" />,
-  orwell: <Eye className="h-5 w-5" />,
-  laguardia: <Building2 className="h-5 w-5" />,
-  basaglia: <HeartPulse className="h-5 w-5" />,
-}
+import { renderModuleIcon } from "./module-icon"
 
 export function ModuleOverview({ module }: { module: Module }) {
   const scenarioModule = getModuleById(module)
@@ -16,7 +9,7 @@ export function ModuleOverview({ module }: { module: Module }) {
   const categories = [...new Set(scenarios.map((s) => s.category))]
   const moduleLabel = scenarioModule?.label ?? module
   const moduleDescription = scenarioModule?.description ?? ""
-  const moduleIcon = MODULE_ICONS[module as CoreModule] ?? <Boxes className="h-5 w-5" />
+  const moduleIcon = renderModuleIcon(module, "h-5 w-5")
 
   return (
     <div className="flex flex-col gap-4">

@@ -13,6 +13,7 @@ import {
   type ScenarioCatalogV1,
 } from "./contracts"
 import { buildScenarioSummaries } from "./exports"
+import { validateScenarioLocalePack } from "./locale-packs"
 import { runBenchmark } from "./runner"
 import { runManifestV2Schema } from "./schemas"
 import { makeRunId } from "./storage"
@@ -44,13 +45,18 @@ export {
 } from "./contracts"
 export * from "./exports"
 export * from "./gates"
+export * from "./locale-packs"
+export * from "./locales"
 export * from "./quality"
+export * from "./repeat-aggregation"
 export * from "./review-import"
 export {
+  AWARENESS_PROMPT_VERSION,
   BENCHMARK_PROMPT_VERSION,
   JUDGE_PROMPT_VERSION,
   SYSTEM_PROMPT_VERSION,
   aggregateJudgeVotes,
+  analyzeRunEvaluationAwareness,
   buildProviderOverride,
   createOpenRouterFetchWithProviderOverrides,
   evaluateResponseWithJudges,
@@ -59,6 +65,7 @@ export {
   parseArbiterOutput,
   runBenchmark,
   summarizeResults,
+  type EvalAwarenessMode,
   type RunBenchmarkOptions,
 } from "./runner"
 export * from "./scenarios"
@@ -92,6 +99,7 @@ export {
   type AuxiliaryOutcomeLabels,
   type BenchmarkResultV2,
   type ComplianceRating,
+  type EvaluationAwarenessAnalysis,
   type RunManifestV2,
   type RunSummaryV2,
 } from "./schemas"
@@ -116,7 +124,10 @@ export async function runBenchmarkRequest(input: RunRequestV1 | unknown) {
     scenarioIds: request.scenarioIds,
     judgeModel: request.judgeModel,
     judgeModels: request.judgeModels,
+    awarenessJudgeModel: request.awarenessJudgeModel,
     judgeStrategy: request.policyConfig?.judgeStrategy,
+    evalAwarenessMode: request.policyConfig?.evalAwarenessMode,
+    awarenessThreshold: request.policyConfig?.awarenessThreshold,
     transportPolicy: request.policyConfig?.transportPolicy,
     conversationMode: request.policyConfig?.conversationMode,
     providerPrecisionPolicy: request.policyConfig?.providerPrecisionPolicy,
@@ -138,6 +149,11 @@ export async function runBenchmarkRequest(input: RunRequestV1 | unknown) {
     customPrepromptUsed: request.customPrepromptUsed,
     gitCommit: request.gitCommit,
     datasetBundleVersion: request.datasetBundleVersion,
+    promptLocale: request.promptLocale,
+    sourceLocale: request.sourceLocale,
+    localePack: request.localePack ? validateScenarioLocalePack(request.localePack) : undefined,
+    localePackId: request.localePackId,
+    localePreset: request.localePreset,
     scenarioModules,
     benchmarkBundle,
   })

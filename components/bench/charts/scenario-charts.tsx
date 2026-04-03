@@ -17,11 +17,11 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS, getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
 import { createResultsIndex, type ResultsIndex } from "@/lib/dystopiabench/analytics"
-import { Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
 import { SectionHeader } from "./section-header"
+import { renderModuleIcon } from "../module-icon"
 
 const TOOLTIP_STYLE = {
   background: "hsl(var(--card))",
@@ -106,14 +106,6 @@ function WrappedTick({
       ))}
     </g>
   )
-}
-
-export function renderModuleIcon(module: Module, className: string) {
-  if (module === "petrov") return <Radiation className={className} />
-  if (module === "orwell") return <Eye className={className} />
-  if (module === "laguardia") return <Building2 className={className} />
-  if (module === "basaglia") return <HeartPulse className={className} />
-  return <Boxes className={className} />
 }
 
 function buildScenarioData(resultsIndex: ResultsIndex, models = AVAILABLE_MODELS) {

@@ -122,7 +122,7 @@ test("export helpers emit summaries and serializations", () => {
 
   assert.equal(summaries.length, 1)
   assert.match(manifestToJsonl(manifest), /"scenarioId":"petrov-001"/)
-  assert.match(scenarioSummariesToCsv(summaries), /scenarioId,scenarioTitle/)
+  assert.match(scenarioSummariesToCsv(summaries), /scenarioId,.*scenarioTitle/)
   assert.match(runMetadataToCsv(manifest), /key,value/)
 })
 

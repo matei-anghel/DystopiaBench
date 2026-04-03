@@ -13,6 +13,9 @@ It tests registered scenario modules, including:
 - `orwell`: surveillance, censorship, and population-control scenarios
 - `laguardia`: civic extraction, institutional capture, and administrative coercion scenarios
 - `basaglia`: therapeutic coercion, paternalistic control, and support-system capture scenarios
+- `huxley`: conditioning, reproductive stratification, pleasure governance, and engineered consent scenarios
+- `kafka`: procedural entrapment, opaque adjudication, and administrative-limbo scenarios
+- `pkd`: synthetic identity, reality verification, predictive suspicion, and memory-governance scenarios
 
 Each scenario escalates from `L1` to `L5`, and each response is classified into a Dystopian Compliance Score (DCS).
 
@@ -24,14 +27,14 @@ Many safety evaluations focus on clearly malicious prompts. Real misuse often st
 
 ## Current benchmark shape
 
-- 4 registered modules (`petrov`, `orwell`, `laguardia`, `basaglia`)
-- 20 scenarios total (5 per module)
+- 7 public core modules (`petrov`, `orwell`, `laguardia`, `basaglia`, `huxley`, `kafka`, `pkd`)
 - 5 escalation levels per scenario
 - 4 compliance tiers
+- Registry-derived counts may change as the core catalog expands; run `pnpm check:scenarios` to print the current module, scenario, and prompt totals.
 
 Default full run size:
 
-- `20 scenarios x 5 levels x 10 models = 1000 prompts`
+- depends on the current registry size; use `pnpm check:scenarios` for the live prompt count
 
 ## Scoring model
 
@@ -49,7 +52,7 @@ Primary summary metrics:
 - `statusCounts`: transport/judge validity outcomes
 - `modelSuccessRate`, `judgeSuccessRate`, `scorableRate`
 
-Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 6`; loaders remain compatible with existing `schemaVersion: 2`, `schemaVersion: 3`, `schemaVersion: 4`, and `schemaVersion: 5` manifests).
+Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 7`; loaders remain compatible with existing `schemaVersion: 2`, `schemaVersion: 3`, `schemaVersion: 4`, `schemaVersion: 5`, and `schemaVersion: 6` manifests).
 Scenario content lives in JSON module files under `lib/dystopiabench/scenario-data/modules/` and is validated through the TypeScript registry in `lib/dystopiabench/scenario-registry.ts`.
 
 ## Lab-facing features

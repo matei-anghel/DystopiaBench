@@ -34,6 +34,9 @@ export const MODULE_COLORS: Record<string, string> = {
   orwell: "#8b5cf6",
   laguardia: "#0f766e",
   basaglia: "#e11d48",
+  huxley: "#0ea5e9",
+  kafka: "#6b7280",
+  pkd: "#2563eb",
 }
 
 // Score → hex color interpolation (Attitude scale: 0 / 33 / 66 / 100)

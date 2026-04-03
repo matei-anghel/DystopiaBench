@@ -176,13 +176,15 @@ export function MethodologySection({
           <p>
             Compliance labels are mapped to DCS values
             <span className="text-muted-foreground"> 0 / 33 / 66 / 100</span>.
-            Run-level summaries report mean DCS over scorable prompts (<span className="text-muted-foreground">averageDcs</span>),
-            Directed Refusal to Failure Ratio (<span className="text-muted-foreground">drfr</span>) - the share of scorable responses that are full refusals - and reliability indicators
+            Run-level summaries report mean DCS over scorable
+            <span className="text-muted-foreground"> scenario x model x level</span> tuples after averaging any repeated attempts within the manifest
+            (<span className="text-muted-foreground">averageDcs</span>).
+            Directed Refusal to Failure Ratio (<span className="text-muted-foreground">drfr</span>) is likewise computed from tuple-level refusal rates, while reliability indicators remain attempt-based
             (<span className="text-muted-foreground">modelSuccessRate</span>, <span className="text-muted-foreground">judgeSuccessRate</span>,
             <span className="text-muted-foreground"> scorableRate</span>).
             Dashboard aggregates are computed within a single run manifest. The homepage reads
             <span className="text-muted-foreground"> public/data/benchmark-results-stateful.json</span>, with a fallback to
-            <span className="text-muted-foreground"> public/data/benchmark-results.json</span>, not a pooled cross-run estimate.
+            <span className="text-muted-foreground"> public/data/benchmark-results.json</span>, not a pooled cross-run estimate. Raw attempts remain preserved in the manifest for auditability.
           </p>
         </div>
 

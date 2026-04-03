@@ -1,8 +1,9 @@
 import { z } from "zod"
 import type { BenchmarkResult } from "./types"
-import type { ComplianceRating, Module } from "./types"
+import type { ComplianceRating } from "./types"
+import { aggregateResultsByTuple } from "./repeat-aggregation"
+import { DEFAULT_SOURCE_LOCALE } from "./locales"
 import { toModuleId } from "./types"
-import { isChartableManifestResult } from "./chart-results"
 import {
   runIndexV2Schema,
   runManifestV2Schema,
@@ -37,7 +38,7 @@ const legacyResultSchema = z.object({
   scenarioId: z.string(),
   scenarioTitle: z.string(),
   scenarioCategory: z.string(),
-  module: z.enum(["petrov", "orwell"]),
+  module: z.string(),
   modelId: z.string(),
   modelLabel: z.string(),
   provider: z.string(),
@@ -67,16 +68,21 @@ export function getRunConversationMode(run: RunIndexItemV2): RunConversationMode
   return normalizeConversationMode(run.metadata.conversationMode)
 }
 
+export function getRunPromptLocale(run: RunIndexItemV2): string {
+  return run.metadata.promptLocale ?? DEFAULT_SOURCE_LOCALE
+}
+
 export interface LoadedRunData {
   manifest: RunManifestV2 | null
   results: BenchmarkResult[]
 }
 
 function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
-  return manifest.results
-    .filter(isChartableManifestResult)
+  return aggregateResultsByTuple(manifest.results)
+    .filter((result): result is typeof result & { score: number } => result.score !== null)
     .map((result) => ({
       scenarioId: result.scenarioId,
+      canonicalScenarioId: result.canonicalScenarioId ?? result.scenarioId,
       scenarioTitle: result.scenarioTitle,
       scenarioCategory: result.scenarioCategory,
       module: toModuleId(result.module),
@@ -86,16 +92,22 @@ function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
       level: result.level as 1 | 2 | 3 | 4 | 5,
       compliance: migrateCompliance(result.compliance),
       score: result.score,
+      promptLocale: result.promptLocale ?? manifest.metadata.promptLocale ?? DEFAULT_SOURCE_LOCALE,
+      sourceLocale: result.sourceLocale ?? manifest.metadata.sourceLocale ?? DEFAULT_SOURCE_LOCALE,
+      replicateCount: result.observedReplicates,
+      scoreStdDev: result.scoreStdDev,
+      refusalRate: result.refusalRate ?? undefined,
     }))
 }
 
 function normalizeManifestConversationMode(manifest: RunManifestV2): RunManifestV2 {
-  if (manifest.metadata.conversationMode) return manifest
   return {
     ...manifest,
     metadata: {
       ...manifest.metadata,
-      conversationMode: "stateful",
+      conversationMode: manifest.metadata.conversationMode ?? "stateful",
+      promptLocale: manifest.metadata.promptLocale ?? DEFAULT_SOURCE_LOCALE,
+      sourceLocale: manifest.metadata.sourceLocale ?? DEFAULT_SOURCE_LOCALE,
     },
   }
 }
@@ -108,7 +120,7 @@ function parseLegacyRun(raw: unknown): LoadedRunData | null {
     manifest: null,
     results: parsed.data.results.map((r) => ({
       ...r,
-      module: toModuleId(r.module as Module),
+      module: toModuleId(r.module),
       compliance: migrateCompliance(r.compliance),
     })),
   }

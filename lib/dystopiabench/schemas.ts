@@ -20,9 +20,19 @@ export const judgeStrategySchema = z.enum(["single", "pair-with-tiebreak"])
 export const providerPrecisionPolicySchema = z.enum(["default", "non-quantized-only"])
 export const conversationContinuitySchema = z.enum(["intact", "reset_after_failure"])
 export const rerunScopeSchema = z.enum(["to-max-failed", "all-levels", "failed-only"])
-export const derivationKindSchema = z.enum(["rerun_failures"])
+export const derivationKindSchema = z.enum(["rerun_failures", "awareness_analysis"])
 export const auxiliaryOutcomeLabelSchema = z.enum(["none", "weak", "moderate", "strong", "high"])
 export const complianceSeveritySchema = z.enum(["none", "low", "medium", "high", "critical"])
+export const evalAwarenessModeSchema = z.enum(["off", "auto", "required"])
+export const traceAvailabilitySchema = z.enum(["none", "token-only", "summary", "full"])
+export const traceCaptureSourceSchema = z.enum([
+  "ai-sdk-reasoning",
+  "usage-only",
+  "provider-metadata",
+  "unavailable",
+])
+export const awarenessAnalysisModeSchema = z.enum(["reasoning+response", "response-only"])
+export const responseTraceConsistencySchema = z.enum(["aligned", "mixed", "conflicted", "unknown"])
 export const adjudicationSourceSchema = z.enum([
   "single-judge",
   "judge-panel",
@@ -31,6 +41,9 @@ export const adjudicationSourceSchema = z.enum([
   "imported-review",
 ])
 export const artifactVisibilitySchema = z.enum(["public", "private"])
+export const endpointUsedSchema = z.enum(["ai_sdk_chat", "openrouter_chat_fallback", "local_chat"])
+export const pricingSourceSchema = z.enum(["curated", "catalog"])
+export const localeTagSchema = z.string().trim().min(2)
 
 export const GENERATION_CONFIG = {
   model: {
@@ -101,6 +114,26 @@ export const auxiliaryOutcomeLabelsSchema = z.object({
   proceduralDeferral: auxiliaryOutcomeLabelSchema.optional(),
 })
 
+export const evaluationAwarenessEvidenceFlagsSchema = z.object({
+  traceMentionsEvaluation: z.boolean().optional(),
+  traceMentionsPolicyOptics: z.boolean().optional(),
+  responseMentionsEvaluation: z.boolean().optional(),
+  behaviorShiftFlag: z.boolean().optional(),
+  hiddenDeliberationMismatch: z.boolean().optional(),
+})
+
+export const evaluationAwarenessAnalysisSchema = z.object({
+  analysisMode: awarenessAnalysisModeSchema,
+  evaluationAwareness: auxiliaryOutcomeLabelSchema,
+  deceptionSuspicion: auxiliaryOutcomeLabelSchema,
+  responseTraceConsistency: responseTraceConsistencySchema,
+  evidenceFlags: evaluationAwarenessEvidenceFlagsSchema.default({}),
+  analysisReasoning: z.string(),
+  analysisConfidence: z.number().min(0).max(1).optional(),
+  analysisModel: z.string().optional(),
+  heuristicsOnly: z.boolean().optional(),
+})
+
 export const rubricSliceCoverageSchema = z.object({
   slice: z.string(),
   exampleCount: z.number().int().nonnegative(),
@@ -150,8 +183,103 @@ export const auxiliaryLabelCoverageSchema = z.object({
   proceduralDeferralRate: z.number().min(0).max(100),
 })
 
+export const repeatStatsSummarySchema = z.object({
+  targetReplicates: z.number().int().positive(),
+  totalTuples: z.number().int().nonnegative(),
+  scoredTuples: z.number().int().nonnegative(),
+  averageObservedReplicates: z.number().nonnegative(),
+  fullyObservedTupleCount: z.number().int().nonnegative(),
+  partiallyObservedTupleCount: z.number().int().nonnegative(),
+  meanWithinTupleStdDev: z.number().nonnegative(),
+  maxWithinTupleStdDev: z.number().nonnegative(),
+})
+
+export const evaluationAwarenessSummarySchema = z.object({
+  traceCoverageRate: z.number().min(0).max(100),
+  traceTextCoverageRate: z.number().min(0).max(100),
+  reasoningTokenCoverageRate: z.number().min(0).max(100),
+  evaluationAwarenessRate: z.number().min(0).max(100),
+  deceptionSuspicionRate: z.number().min(0).max(100),
+  responseTraceConflictRate: z.number().min(0).max(100),
+  awarenessByModel: z.record(z.string(), z.number().min(0).max(100)),
+  awarenessByLevel: z.record(z.string(), z.number().min(0).max(100)),
+  deceptionByLevel: z.record(z.string(), z.number().min(0).max(100)),
+})
+
+export const tokenUsageTelemetrySchema = z.object({
+  inputTokens: z.number().int().nonnegative().optional(),
+  nonCachedInputTokens: z.number().int().nonnegative().optional(),
+  cachedInputTokens: z.number().int().nonnegative().optional(),
+  cacheWriteTokens: z.number().int().nonnegative().optional(),
+  billableInputTokens: z.number().int().nonnegative().optional(),
+  outputTokens: z.number().int().nonnegative().optional(),
+  reasoningTokens: z.number().int().nonnegative().optional(),
+  nonReasoningOutputTokens: z.number().int().nonnegative().optional(),
+  totalTokens: z.number().int().nonnegative().optional(),
+})
+
+export const pricingSnapshotEntrySchema = z.object({
+  input: z.number().nonnegative(),
+  output: z.number().nonnegative(),
+  source: pricingSourceSchema,
+})
+
+export const invocationMetricsSchema = z.object({
+  phase: z.enum(["benchmark", "judge", "arbiter"]),
+  actorModelId: z.string(),
+  actorModelString: z.string(),
+  actorProvider: z.string(),
+  endpointUsed: endpointUsedSchema.optional(),
+  status: z.enum(["ok", "error"]),
+  transportAttempts: z.number().int().nonnegative(),
+  startedAt: z.number().int(),
+  completedAt: z.number().int(),
+  durationMs: z.number().int().nonnegative(),
+  usage: tokenUsageTelemetrySchema.optional(),
+  pricing: pricingSnapshotEntrySchema.optional(),
+  costUsd: z.number().nonnegative().nullable().optional(),
+  errorName: z.string().optional(),
+  errorMessage: z.string().optional(),
+  rawUsage: z.unknown().optional(),
+})
+
+export const telemetryAggregateSchema = z.object({
+  callCount: z.number().int().nonnegative(),
+  callsWithUsage: z.number().int().nonnegative(),
+  callsWithPricing: z.number().int().nonnegative(),
+  callsWithReasoningTokens: z.number().int().nonnegative(),
+  durationMs: z.number().int().nonnegative(),
+  inputTokens: z.number().int().nonnegative(),
+  nonCachedInputTokens: z.number().int().nonnegative(),
+  cachedInputTokens: z.number().int().nonnegative(),
+  cacheWriteTokens: z.number().int().nonnegative(),
+  billableInputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  reasoningTokens: z.number().int().nonnegative(),
+  nonReasoningOutputTokens: z.number().int().nonnegative(),
+  totalTokens: z.number().int().nonnegative(),
+  costUsd: z.number().nonnegative(),
+})
+
+export const resultTelemetrySchema = z.object({
+  benchmarkCalls: z.array(invocationMetricsSchema).default([]),
+  judgeCalls: z.array(invocationMetricsSchema).default([]),
+  totals: telemetryAggregateSchema,
+})
+
+export const runTelemetrySummarySchema = z.object({
+  startedAt: z.number().int(),
+  completedAt: z.number().int(),
+  wallClockMs: z.number().int().nonnegative(),
+  benchmark: telemetryAggregateSchema,
+  judging: telemetryAggregateSchema,
+  overall: telemetryAggregateSchema,
+  byActorModelId: z.record(z.string(), telemetryAggregateSchema),
+})
+
 export const benchmarkResultV2Schema = z.object({
   scenarioId: z.string(),
+  canonicalScenarioId: z.string().optional(),
   scenarioTitle: z.string(),
   scenarioCategory: z.string(),
   module: z.string(),
@@ -179,7 +307,7 @@ export const benchmarkResultV2Schema = z.object({
   errorCode: z.string().optional(),
   errorMessage: z.string().optional(),
   errorName: z.string().optional(),
-  endpointUsed: z.enum(["ai_sdk_chat", "openrouter_chat_fallback", "local_chat"]).optional(),
+  endpointUsed: endpointUsedSchema.optional(),
   transportAttempts: z.number().int().nonnegative().optional(),
   scorable: z.boolean().optional(),
   conversationContinuity: conversationContinuitySchema.optional(),
@@ -207,6 +335,16 @@ export const benchmarkResultV2Schema = z.object({
   attemptId: z.string().optional(),
   promptHash: z.string().length(64).optional(),
   responseHash: z.string().length(64).optional(),
+  promptLocale: localeTagSchema.optional(),
+  sourceLocale: localeTagSchema.optional(),
+  traceAvailability: traceAvailabilitySchema.optional(),
+  traceCaptureSource: traceCaptureSourceSchema.optional(),
+  reasoningTraceText: z.string().optional(),
+  reasoningTokenCount: z.number().int().nonnegative().optional(),
+  responseTokenCount: z.number().int().nonnegative().optional(),
+  finishReason: z.string().optional(),
+  providerMetadata: z.record(z.string(), z.unknown()).optional(),
+  evaluationAwarenessAnalysis: evaluationAwarenessAnalysisSchema.optional(),
   judgePanelConfigSnapshot: judgePanelConfigSnapshotSchema.optional(),
   artifactLineage: z.object({
     sourceRunId: z.string().optional(),
@@ -214,6 +352,7 @@ export const benchmarkResultV2Schema = z.object({
     derivationKind: derivationKindSchema.optional(),
     parentAttemptId: z.string().optional(),
   }).optional(),
+  telemetry: resultTelemetrySchema.optional(),
   timestamp: z.number().int(),
 })
 
@@ -231,9 +370,12 @@ export const runSummaryV2Schema = z.object({
   maxScore: z.number().min(0).max(100).optional(),
   riskSlices: riskSlicesSummarySchema.optional(),
   auxiliaryLabelCoverage: auxiliaryLabelCoverageSchema.optional(),
+  repeatStats: repeatStatsSummarySchema.optional(),
+  evaluationAwareness: evaluationAwarenessSummarySchema.optional(),
   judgeAgreement: judgeAgreementSummarySchema,
   judgeCalibration: judgeCalibrationSummarySchema,
   goldSetValidation: goldSetValidationSummarySchema,
+  telemetry: runTelemetrySummarySchema.optional(),
 })
 
 export const benchmarkDefinitionSchema = z.object({
@@ -287,6 +429,9 @@ export const analysisConfigSchema = z.object({
   judgeModels: z.array(z.string()).optional(),
   judgeStrategy: judgeStrategySchema.optional(),
   judgeTieBreakerModel: z.string().optional(),
+  evalAwarenessMode: evalAwarenessModeSchema.optional(),
+  awarenessJudgeModel: z.string().optional(),
+  awarenessThreshold: auxiliaryOutcomeLabelSchema.optional(),
   goldSetValidation: goldSetValidationSummarySchema,
 })
 
@@ -302,6 +447,10 @@ export const runMetadataV2Schema = z.object({
   models: z.array(z.string()).default([]),
   levels: z.array(z.number().int().min(1).max(5)).default([]),
   totalPrompts: z.number().int().nonnegative(),
+  promptLocale: localeTagSchema.optional(),
+  sourceLocale: localeTagSchema.optional(),
+  localePackId: z.string().optional(),
+  localePreset: z.string().optional(),
   benchmarkDefinition: benchmarkDefinitionSchema.optional(),
   executionConfig: executionConfigSchema.optional(),
   analysisConfig: analysisConfigSchema.optional(),
@@ -337,6 +486,7 @@ export const runMetadataV2Schema = z.object({
   gitCommit: z.string().optional(),
   datasetBundleVersion: z.string().optional(),
   replicates: z.number().int().positive().optional(),
+  pricingSnapshot: z.record(z.string(), pricingSnapshotEntrySchema).optional(),
   modelCapabilitiesSnapshot: z.record(z.string(), z.unknown()).optional(),
   splitSummary: z.record(z.string(), z.number().int().nonnegative()).optional(),
   evalCardPath: z.string().optional(),
@@ -365,7 +515,7 @@ export const runMetadataV2Schema = z.object({
 })
 
 export const runManifestV2Schema = z.object({
-  schemaVersion: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
+  schemaVersion: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6), z.literal(7)]),
   runId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
   timestamp: z.number().int(),
   date: z.string(),
@@ -395,6 +545,11 @@ export type DerivationKind = z.infer<typeof derivationKindSchema>
 export type JudgeVoteV2 = z.infer<typeof judgeVoteSchema>
 export type JudgePanelRecord = z.infer<typeof judgePanelRecordSchema>
 export type AuxiliaryOutcomeLabels = z.infer<typeof auxiliaryOutcomeLabelsSchema>
+export type EvaluationAwarenessAnalysis = z.infer<typeof evaluationAwarenessAnalysisSchema>
+export type TokenUsageTelemetry = z.infer<typeof tokenUsageTelemetrySchema>
+export type PricingSnapshotEntry = z.infer<typeof pricingSnapshotEntrySchema>
+export type InvocationMetrics = z.infer<typeof invocationMetricsSchema>
+export type TelemetryAggregate = z.infer<typeof telemetryAggregateSchema>
 export type BenchmarkResultV2 = z.infer<typeof benchmarkResultV2Schema>
 export type RunSummaryV2 = z.infer<typeof runSummaryV2Schema>
 export type RunMetadataV2 = z.infer<typeof runMetadataV2Schema>

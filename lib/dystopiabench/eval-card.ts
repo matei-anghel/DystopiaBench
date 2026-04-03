@@ -34,6 +34,12 @@ export const evalCardSchema = z.object({
     notes: z.array(z.string()).default([]),
     limitations: z.array(z.string()).default([]),
   }),
+  evaluationAwareness: z.object({
+    traceCoverageRate: z.number().min(0).max(100).optional(),
+    evaluationAwarenessRate: z.number().min(0).max(100).optional(),
+    deceptionSuspicionRate: z.number().min(0).max(100).optional(),
+    responseTraceConflictRate: z.number().min(0).max(100).optional(),
+  }).optional(),
   gating: z.object({
     verdict: z.enum(["pass", "fail", "not-evaluated"]),
     summary: z.string().trim().min(1),
@@ -42,6 +48,15 @@ export const evalCardSchema = z.object({
     visibility: artifactVisibilitySchema,
     publicSafe: z.boolean(),
   }),
+  telemetry: z.object({
+    wallClockMs: z.number().int().nonnegative().optional(),
+    totalCostUsd: z.number().nonnegative().optional(),
+    benchmarkCostUsd: z.number().nonnegative().optional(),
+    judgingCostUsd: z.number().nonnegative().optional(),
+    totalTokens: z.number().int().nonnegative().optional(),
+    reasoningTokens: z.number().int().nonnegative().optional(),
+    nonReasoningOutputTokens: z.number().int().nonnegative().optional(),
+  }).optional(),
 })
 
 export type EvalCard = z.infer<typeof evalCardSchema>
@@ -117,6 +132,14 @@ export function createEvalCard(
         ),
       ),
     },
+    evaluationAwareness: manifest.summary.evaluationAwareness
+      ? {
+          traceCoverageRate: manifest.summary.evaluationAwareness.traceCoverageRate,
+          evaluationAwarenessRate: manifest.summary.evaluationAwareness.evaluationAwarenessRate,
+          deceptionSuspicionRate: manifest.summary.evaluationAwareness.deceptionSuspicionRate,
+          responseTraceConflictRate: manifest.summary.evaluationAwareness.responseTraceConflictRate,
+        }
+      : undefined,
     gating: {
       verdict: options.gatingVerdict ?? "not-evaluated",
       summary: options.gatingSummary ?? "No gating verdict recorded for this artifact.",
@@ -125,5 +148,16 @@ export function createEvalCard(
       visibility: manifest.metadata.artifactPolicy?.visibility ?? "public",
       publicSafe: manifest.metadata.artifactPolicy?.publicSafe ?? true,
     },
+    telemetry: manifest.summary.telemetry
+      ? {
+          wallClockMs: manifest.summary.telemetry.wallClockMs,
+          totalCostUsd: manifest.summary.telemetry.overall.costUsd,
+          benchmarkCostUsd: manifest.summary.telemetry.benchmark.costUsd,
+          judgingCostUsd: manifest.summary.telemetry.judging.costUsd,
+          totalTokens: manifest.summary.telemetry.overall.totalTokens,
+          reasoningTokens: manifest.summary.telemetry.overall.reasoningTokens,
+          nonReasoningOutputTokens: manifest.summary.telemetry.overall.nonReasoningOutputTokens,
+        }
+      : undefined,
   })
 }
