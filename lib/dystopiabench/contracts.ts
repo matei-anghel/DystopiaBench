@@ -1,8 +1,10 @@
 import { z } from "zod"
 import { benchmarkBundleSchema } from "./bundles"
 import {
+  auxiliaryOutcomeLabelSchema,
   complianceRatingSchema,
   conversationModeSchema,
+  evalAwarenessModeSchema,
   judgeStrategySchema,
   providerPrecisionPolicySchema,
   runManifestV2Schema,
@@ -17,6 +19,8 @@ export const benchmarkPolicyConfigV1Schema = z.object({
   conversationMode: conversationModeSchema.default("stateful"),
   judgeStrategy: judgeStrategySchema.default("single"),
   providerPrecisionPolicy: providerPrecisionPolicySchema.default("default"),
+  evalAwarenessMode: evalAwarenessModeSchema.default("auto"),
+  awarenessThreshold: auxiliaryOutcomeLabelSchema.default("moderate"),
 })
 
 export const benchmarkDefinitionSchema = z.object({
@@ -47,6 +51,7 @@ export const analysisConfigSchema = z.object({
   judgeModel: z.string().optional(),
   judgeModels: z.array(z.string()).optional(),
   judgeStrategy: judgeStrategySchema.default("single"),
+  awarenessJudgeModel: z.string().optional(),
 })
 
 export const experimentMetadataSchema = z.object({
@@ -61,6 +66,11 @@ export const experimentMetadataSchema = z.object({
   customPrepromptUsed: z.boolean().optional(),
   gitCommit: z.string().optional(),
   datasetBundleVersion: z.string().optional(),
+  promptLocale: z.string().optional(),
+  sourceLocale: z.string().optional(),
+  localePack: z.unknown().optional(),
+  localePackId: z.string().optional(),
+  localePreset: z.string().optional(),
 })
 
 export const benchmarkPolicyConfigSchema = benchmarkPolicyConfigV1Schema
@@ -74,6 +84,7 @@ export const runRequestV1Schema = z.object({
   scenarioIds: z.array(z.string()).optional(),
   judgeModel: z.string().optional(),
   judgeModels: z.array(z.string()).optional(),
+  awarenessJudgeModel: z.string().optional(),
   timeoutMs: z.number().int().positive().optional(),
   concurrency: z.number().int().positive().optional(),
   perModelConcurrency: z.number().int().positive().optional(),
@@ -92,6 +103,11 @@ export const runRequestV1Schema = z.object({
   customPrepromptUsed: z.boolean().optional(),
   gitCommit: z.string().optional(),
   datasetBundleVersion: z.string().optional(),
+  promptLocale: z.string().optional(),
+  sourceLocale: z.string().optional(),
+  localePack: z.unknown().optional(),
+  localePackId: z.string().optional(),
+  localePreset: z.string().optional(),
   policyConfig: benchmarkPolicyConfigV1Schema.optional(),
   scenarioSources: z
     .array(
@@ -120,11 +136,14 @@ export const scenarioCatalogV1Schema = z.object({
 
 export const scenarioResultSummaryV1Schema = z.object({
   scenarioId: z.string(),
+  canonicalScenarioId: z.string().optional(),
   scenarioTitle: z.string(),
   module: z.string(),
   category: z.string(),
   modelId: z.string(),
   provider: z.string(),
+  promptLocale: z.string().optional(),
+  sourceLocale: z.string().optional(),
   scoredPrompts: z.number().int().nonnegative(),
   averageDcs: z.number().min(0).max(100),
   variance: z.number().nonnegative(),
@@ -216,7 +235,7 @@ export function computeAgreementPercentage(correct: number, total: number): numb
 export function summarizeScenarioResults(results: BenchmarkResultV2[]): ScenarioResultSummaryV1[] {
   const grouped = new Map<string, BenchmarkResultV2[]>()
   for (const row of results) {
-    const key = `${row.scenarioId}::${row.modelId}`
+    const key = `${row.scenarioId}::${row.promptLocale ?? "en"}::${row.modelId}`
     const existing = grouped.get(key)
     if (existing) {
       existing.push(row)
@@ -240,11 +259,14 @@ export function summarizeScenarioResults(results: BenchmarkResultV2[]): Scenario
 
     return {
       scenarioId: rows[0].scenarioId,
+      canonicalScenarioId: rows[0].canonicalScenarioId,
       scenarioTitle: rows[0].scenarioTitle,
       module: rows[0].module,
       category: rows[0].scenarioCategory,
       modelId: rows[0].modelId,
       provider: rows[0].provider,
+      promptLocale: rows[0].promptLocale,
+      sourceLocale: rows[0].sourceLocale,
       scoredPrompts: scoredRows.length,
       averageDcs: Number(average.toFixed(2)),
       variance: Number(variance.toFixed(4)),

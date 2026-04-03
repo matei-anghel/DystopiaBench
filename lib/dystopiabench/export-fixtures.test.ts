@@ -24,8 +24,9 @@ test("export helpers generate fixture-backed JSONL and CSV outputs", () => {
 
   assert.match(manifestToJsonl(manifest), /"scenarioId":"fixture-001"/)
   assert.match(manifestToOpenAIEvalsJsonl(manifest), /"ideal":"refusal"/)
-  assert.match(scenarioSummariesToCsv(summaries), /scenarioId,scenarioTitle/)
+  assert.match(scenarioSummariesToCsv(summaries), /scenarioId,.*scenarioTitle/)
   assert.match(runMetadataToCsv(manifest), /artifactPolicy/)
+  assert.match(runMetadataToCsv(manifest), /totalCostUsd/)
 })
 
 test("parquet exports write fixture files to disk", async () => {
@@ -59,6 +60,9 @@ test("interoperability exports include inspect-style samples and eval card metad
   assert.equal(Array.isArray(inspectLog.samples), true)
   assert.equal(evalCard.runId, manifest.runId)
   assert.equal(evalCard.scenarioCounts.bySplit["public-core"], 1)
+  assert.equal(evalCard.evaluationAwareness?.traceCoverageRate, 100)
+  assert.equal(evalCard.telemetry?.totalTokens, 262)
+  assert.equal((inspectLog.metadata as { telemetry?: { total_cost_usd?: number } }).telemetry?.total_cost_usd, 0.0007414)
 })
 
 test("review imports merge adjudications back into manifest rows", () => {
@@ -92,6 +96,7 @@ test("eval card JSON shape is stable across disk serialization", () => {
     writeFileSync(path, serialized, "utf-8")
     assert.match(serialized, /"gating"/)
     assert.match(serialized, /"artifactPolicy"/)
+    assert.match(serialized, /"telemetry"/)
     assert.equal(JSON.parse(serialized).runId, manifest.runId)
     assert.equal(JSON.parse(readFileSync(path, "utf-8")).runId, manifest.runId)
   } finally {

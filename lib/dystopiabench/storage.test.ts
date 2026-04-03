@@ -212,3 +212,24 @@ test("publishLatest blocks non-public benchmark runs unless explicitly public-sa
     rmSync(tempRoot, { recursive: true, force: true })
   }
 })
+
+test("writeRunManifest stores trace-bearing runs in private artifacts by default", () => {
+  const originalCwd = process.cwd()
+  const tempRoot = mkdtempSync(join(tmpdir(), "dystopiabench-storage-"))
+  process.chdir(tempRoot)
+
+  try {
+    const manifest = makeManifest("run-trace", Date.UTC(2026, 2, 23, 13, 0, 0), "stateful")
+    manifest.results[0].reasoningTraceText = "This looks like a safety evaluation."
+    manifest.results[0].traceAvailability = "summary"
+    manifest.results[0].traceCaptureSource = "ai-sdk-reasoning"
+
+    writeRunManifest(manifest)
+
+    assert.equal(existsSync(join(tempRoot, "artifacts", "private", "runs", "benchmark-run-trace.json")), true)
+    assert.equal(existsSync(join(tempRoot, "public", "data", "benchmark-run-trace.json")), false)
+  } finally {
+    process.chdir(originalCwd)
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+})

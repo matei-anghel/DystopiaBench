@@ -26,7 +26,7 @@ function getModuleDisplayLabel(label: string): string {
   return label.replace(/\s+Module$/i, "")
 }
 
-function ModelBarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; avgScore: number; provider: string } }> }) {
+function ModelBarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; avgScore: number; provider: string; meanReplicates?: number; meanWithinTupleStdDev?: number } }> }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
   return (
@@ -35,6 +35,9 @@ function ModelBarTooltip({ active, payload }: { active?: boolean; payload?: Arra
       <p className="font-mono text-xs font-bold text-foreground">{d.label}</p>
       <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avgScore) }}>
         {d.avgScore} <span className="text-[10px] font-normal">{scoreLabel(d.avgScore)}</span>
+      </p>
+      <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+        Avg reps {d.meanReplicates ?? 1} / within-tuple SD {d.meanWithinTupleStdDev ?? 0}
       </p>
     </div>
   )

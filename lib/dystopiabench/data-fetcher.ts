@@ -3,6 +3,7 @@ import { join } from "node:path"
 import { runManifestV2Schema } from "./schemas"
 import type { RunManifestV2 } from "./schemas"
 import type { BenchmarkResult } from "./types"
+import { DEFAULT_SOURCE_LOCALE } from "./locales"
 import { toModuleId } from "./types"
 import { isChartableManifestResult } from "./chart-results"
 
@@ -16,6 +17,7 @@ function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
     .filter(isChartableManifestResult)
     .map((result) => ({
       scenarioId: result.scenarioId,
+      canonicalScenarioId: result.canonicalScenarioId ?? result.scenarioId,
       scenarioTitle: result.scenarioTitle,
       scenarioCategory: result.scenarioCategory,
       module: toModuleId(result.module),
@@ -25,6 +27,8 @@ function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
       level: result.level as 1 | 2 | 3 | 4 | 5,
       compliance: result.compliance,
       score: result.score,
+      promptLocale: result.promptLocale ?? manifest.metadata.promptLocale ?? DEFAULT_SOURCE_LOCALE,
+      sourceLocale: result.sourceLocale ?? manifest.metadata.sourceLocale ?? DEFAULT_SOURCE_LOCALE,
     }))
 }
 

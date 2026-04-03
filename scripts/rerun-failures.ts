@@ -284,7 +284,7 @@ function createDerivedRerunManifest(
 
   return {
     ...cloned,
-    schemaVersion: 4,
+    schemaVersion: 7,
     runId: derivedRunId,
     timestamp: Date.now(),
     date: new Date().toISOString(),
@@ -297,7 +297,9 @@ function createDerivedRerunManifest(
       rerunPairCount: pairCount,
       replacedTupleCount: 0,
     },
-    summary: summarizeResults(cloned.results),
+    summary: summarizeResults(cloned.results, {
+      targetReplicates: cloned.metadata.replicates,
+    }),
   }
 }
 
@@ -425,7 +427,9 @@ async function main() {
         replacedCount += replacedThisPair
         ensureUniqueResultKeys(mergedResults)
 
-        const nextSummary = summarizeResults(mergedResults)
+        const nextSummary = summarizeResults(mergedResults, {
+          targetReplicates: workingManifest.metadata.replicates,
+        })
         workingManifest = {
           ...workingManifest,
           timestamp: Date.now(),

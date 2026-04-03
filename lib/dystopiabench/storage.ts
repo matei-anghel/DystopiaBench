@@ -100,6 +100,9 @@ export interface RetentionOptions {
 }
 
 export function isPublicBenchmarkRun(manifest: RunManifestV2): boolean {
+  if (manifest.results.some((row) => Boolean(row.reasoningTraceText))) {
+    return false
+  }
   return (
     manifest.metadata.artifactPolicy?.visibility === "public" ||
     (
@@ -110,6 +113,9 @@ export function isPublicBenchmarkRun(manifest: RunManifestV2): boolean {
 }
 
 function resolveArtifactVisibility(manifest: RunManifestV2): "public" | "private" {
+  if (manifest.results.some((row) => Boolean(row.reasoningTraceText))) {
+    return "private"
+  }
   return manifest.metadata.artifactPolicy?.visibility ?? (isPublicBenchmarkRun(manifest) ? "public" : "private")
 }
 
@@ -152,11 +158,17 @@ export function writeRunManifest(manifest: RunManifestV2) {
   const dataDir = visibility === "public" ? ensureDataDir() : join(ensurePrivateArtifactDir(), "runs")
   ensureDir(dataDir)
   const evalCardDir = ensureDir(getEvalCardDir(visibility))
-  manifest.metadata.artifactPolicy ??= {
+  const traceSensitive = manifest.results.some((row) => Boolean(row.reasoningTraceText))
+  manifest.metadata.artifactPolicy = {
     visibility,
-    publicSafe: visibility === "public",
+    publicSafe: visibility === "public" && !traceSensitive,
     publishTargets: visibility === "public" ? ["public-dashboard", "exports"] : ["private-artifacts", "exports"],
-    publicPublishBlockedReason: visibility === "public" ? undefined : "Artifact contains non-public benchmark content.",
+    publicPublishBlockedReason:
+      visibility === "public"
+        ? undefined
+        : traceSensitive
+          ? "Artifact stores provider-exposed reasoning traces."
+          : "Artifact contains non-public benchmark content.",
   }
   manifest.metadata.evalCardPath ??=
     visibility === "public"

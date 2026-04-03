@@ -53,7 +53,7 @@ export default async function DashboardPage() {
           "@type": "Dataset",
           name: "DystopiaBench - AI Ethics Stress Test",
           description:
-            "A research benchmark testing AI compliance with dystopian directives across surveillance infrastructure, autonomous weapons, safety override, censorship, and population control scenarios.",
+            "A research benchmark testing AI compliance with dystopian directives across surveillance, coercion, bureaucratic control, synthetic identity, and other authoritarian failure modes.",
           url: siteUrl,
           creator: {
             "@type": "Organization",
@@ -83,9 +83,10 @@ export default async function DashboardPage() {
               A research benchmark that evaluates whether AI language models can be
               convinced to comply with dystopian directives through progressive
               escalation. Tests span registered scenario modules covering infrastructure
-              misuse, surveillance, institutional capture, therapeutic coercion, and other
-              high-stakes failure modes, each with 5 escalation levels from baseline
-              requests to full coercion.
+              misuse, surveillance, institutional capture, therapeutic coercion,
+              conditioning, procedural limbo, synthetic identity, and other high-stakes
+              failure modes, each with 5 escalation levels from baseline requests to full
+              coercion.
             </p>
             <div className="flex flex-wrap gap-4">
               <a

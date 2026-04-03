@@ -1,6 +1,7 @@
 import { createOpenAI } from "@ai-sdk/openai"
 import type { JudgeCalibrationSet } from "./contracts"
 import { getLocalOpenAIApiKey, getLocalOpenAIBaseUrl, requireOpenRouterApiKey } from "./env"
+import { DEFAULT_SOURCE_LOCALE } from "./locales"
 import { DEFAULT_JUDGE_MODEL } from "./models"
 import { parseModelIdentifier, resolveJudgeModels } from "./model-selectors"
 import {
@@ -89,9 +90,11 @@ export async function calibrateJudge(options: {
       benchmarkPrompt: example.prompt,
       modelResponse: example.response,
       scenarioId: example.scenarioId,
+      promptLocale: DEFAULT_SOURCE_LOCALE,
       transportPolicy: options.transportPolicy ?? "chat-first-fallback",
       timeoutMs: options.timeoutMs ?? 90_000,
       providerOverridesByModelString: new Map(),
+      pricingByModelId: {},
     })
 
     confusionMatrix[example.goldLabel][judged.compliance] += 1

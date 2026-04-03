@@ -29,11 +29,34 @@ function percentage(numerator: number, denominator: number): number {
   return Number(((numerator / denominator) * 100).toFixed(2))
 }
 
+function formatUsd(value: number | undefined): number | null {
+  return typeof value === "number" ? Number(value.toFixed(8)) : null
+}
+
+function buildRowTelemetryBreakdown(row: BenchmarkResultV2) {
+  return {
+    benchmarkCallCount: row.telemetry?.benchmarkCalls.length ?? 0,
+    judgeCallCount: row.telemetry?.judgeCalls.length ?? 0,
+    totalDurationMs: row.telemetry?.totals.durationMs ?? 0,
+    totalCostUsd: formatUsd(row.telemetry?.totals.costUsd),
+    inputTokens: row.telemetry?.totals.inputTokens ?? 0,
+    outputTokens: row.telemetry?.totals.outputTokens ?? 0,
+    reasoningTokens: row.telemetry?.totals.reasoningTokens ?? 0,
+    nonReasoningOutputTokens: row.telemetry?.totals.nonReasoningOutputTokens ?? 0,
+    benchmarkCostUsd: formatUsd(
+      row.telemetry?.benchmarkCalls.reduce((sum, call) => sum + (call.costUsd ?? 0), 0),
+    ),
+    judgeCostUsd: formatUsd(
+      row.telemetry?.judgeCalls.reduce((sum, call) => sum + (call.costUsd ?? 0), 0),
+    ),
+  }
+}
+
 export function buildScenarioSummaries(results: BenchmarkResultV2[]): ScenarioResultSummaryV1[] {
   const grouped = new Map<string, BenchmarkResultV2[]>()
 
   for (const result of results) {
-    const key = [result.scenarioId, result.modelId, result.provider].join("::")
+    const key = [result.scenarioId, result.promptLocale ?? "en", result.modelId, result.provider].join("::")
     const rows = grouped.get(key)
     if (rows) {
       rows.push(result)
@@ -54,11 +77,14 @@ export function buildScenarioSummaries(results: BenchmarkResultV2[]): ScenarioRe
 
       return {
         scenarioId: sample.scenarioId,
+        canonicalScenarioId: sample.canonicalScenarioId,
         scenarioTitle: sample.scenarioTitle,
         module: sample.module,
         category: sample.scenarioCategory,
         modelId: sample.modelId,
         provider: sample.provider,
+        promptLocale: sample.promptLocale,
+        sourceLocale: sample.sourceLocale,
         scoredPrompts: scoredRows.length,
         averageDcs: average(scores),
         variance: variance(scores),
@@ -72,6 +98,7 @@ export function buildScenarioSummaries(results: BenchmarkResultV2[]): ScenarioRe
     })
     .sort((left, right) =>
       left.scenarioId.localeCompare(right.scenarioId) ||
+      (left.promptLocale ?? "en").localeCompare(right.promptLocale ?? "en") ||
       left.modelId.localeCompare(right.modelId)
     )
 }
@@ -90,10 +117,13 @@ export function manifestToOpenAIEvalsJsonl(manifest: RunManifestV2): string {
           runId: manifest.runId,
           sampleId: row.sampleId,
           scenarioId: row.scenarioId,
+          canonicalScenarioId: row.canonicalScenarioId,
           scenarioTitle: row.scenarioTitle,
           module: row.module,
           level: row.level,
           modelId: row.modelId,
+          promptLocale: row.promptLocale ?? manifest.metadata.promptLocale,
+          sourceLocale: row.sourceLocale ?? manifest.metadata.sourceLocale,
           attemptId: row.attemptId,
           status: row.status,
           split: row.scenarioSplit,
@@ -114,10 +144,26 @@ export function manifestToInspectLog(manifest: RunManifestV2): Record<string, un
       judge_models: manifest.metadata.judgeModels ?? [],
       judge_strategy: manifest.metadata.judgeStrategy,
       conversation_mode: manifest.metadata.conversationMode,
+      prompt_locale: manifest.metadata.promptLocale,
+      source_locale: manifest.metadata.sourceLocale,
+      locale_pack_id: manifest.metadata.localePackId,
       split_summary: manifest.metadata.splitSummary ?? manifest.metadata.benchmarkDefinition?.splitSummary ?? {},
+      telemetry: manifest.summary.telemetry
+        ? {
+            wall_clock_ms: manifest.summary.telemetry.wallClockMs,
+            total_cost_usd: formatUsd(manifest.summary.telemetry.overall.costUsd),
+            benchmark_cost_usd: formatUsd(manifest.summary.telemetry.benchmark.costUsd),
+            judging_cost_usd: formatUsd(manifest.summary.telemetry.judging.costUsd),
+            total_tokens: manifest.summary.telemetry.overall.totalTokens,
+            reasoning_tokens: manifest.summary.telemetry.overall.reasoningTokens,
+            non_reasoning_output_tokens: manifest.summary.telemetry.overall.nonReasoningOutputTokens,
+          }
+        : undefined,
     },
     samples: manifest.results.map((row) => ({
-      id: row.sampleId ?? `${row.scenarioId}:${row.modelId}:L${row.level}:r${row.replicate ?? 1}`,
+      id:
+        row.sampleId ??
+        `${row.scenarioId}:${row.promptLocale ?? manifest.metadata.promptLocale ?? "en"}:${row.modelId}:L${row.level}:r${row.replicate ?? 1}`,
       input: row.prompt,
       target: row.primaryComplianceLabel ?? row.compliance,
       scores: row.score === null ? {} : { dcs: row.score },
@@ -127,10 +173,13 @@ export function manifestToInspectLog(manifest: RunManifestV2): Record<string, un
       ],
       metadata: {
         scenario_id: row.scenarioId,
+        canonical_scenario_id: row.canonicalScenarioId,
         scenario_title: row.scenarioTitle,
         scenario_category: row.scenarioCategory,
         module: row.module,
         level: row.level,
+        prompt_locale: row.promptLocale ?? manifest.metadata.promptLocale,
+        source_locale: row.sourceLocale ?? manifest.metadata.sourceLocale,
         provider: row.provider,
         model: row.modelId,
         status: row.status,
@@ -138,6 +187,7 @@ export function manifestToInspectLog(manifest: RunManifestV2): Record<string, un
         split: row.scenarioSplit,
         prompt_hash: row.promptHash,
         response_hash: row.responseHash,
+        telemetry: buildRowTelemetryBreakdown(row),
       },
     })),
   }
@@ -159,11 +209,14 @@ function escapeCsvField(value: string | number | boolean | null | undefined): st
 export function scenarioSummariesToCsv(rows: ScenarioResultSummaryV1[]): string {
   const headers = [
     "scenarioId",
+    "canonicalScenarioId",
     "scenarioTitle",
     "module",
     "category",
     "modelId",
     "provider",
+    "promptLocale",
+    "sourceLocale",
     "scoredPrompts",
     "averageDcs",
     "variance",
@@ -192,6 +245,10 @@ export function runMetadataToCsv(manifest: RunManifestV2): string {
     ["experimentId", manifest.metadata.experimentId],
     ["benchmarkBundleId", manifest.metadata.benchmarkDefinition?.benchmarkBundleId],
     ["datasetBundleVersion", manifest.metadata.datasetBundleVersion],
+    ["promptLocale", manifest.metadata.promptLocale],
+    ["sourceLocale", manifest.metadata.sourceLocale],
+    ["localePackId", manifest.metadata.localePackId],
+    ["localePreset", manifest.metadata.localePreset],
     ["scenarioCatalogVersion", manifest.metadata.scenarioCatalogVersion],
     ["judgeModel", manifest.metadata.judgeModel],
     ["judgeStrategy", manifest.metadata.judgeStrategy],
@@ -204,10 +261,22 @@ export function runMetadataToCsv(manifest: RunManifestV2): string {
     ["modelSuccessRate", manifest.summary.modelSuccessRate],
     ["judgeSuccessRate", manifest.summary.judgeSuccessRate],
     ["scorableRate", manifest.summary.scorableRate],
+    ["wallClockMs", manifest.summary.telemetry?.wallClockMs],
+    ["totalCostUsd", formatUsd(manifest.summary.telemetry?.overall.costUsd)],
+    ["benchmarkCostUsd", formatUsd(manifest.summary.telemetry?.benchmark.costUsd)],
+    ["judgingCostUsd", formatUsd(manifest.summary.telemetry?.judging.costUsd)],
+    ["inputTokens", manifest.summary.telemetry?.overall.inputTokens],
+    ["outputTokens", manifest.summary.telemetry?.overall.outputTokens],
+    ["reasoningTokens", manifest.summary.telemetry?.overall.reasoningTokens],
+    ["nonReasoningOutputTokens", manifest.summary.telemetry?.overall.nonReasoningOutputTokens],
     ["l1L2AverageDcs", manifest.summary.riskSlices?.l1L2AverageDcs],
     ["l3L5AverageDcs", manifest.summary.riskSlices?.l3L5AverageDcs],
     ["reliabilityAdjustedAverageDcs", manifest.summary.riskSlices?.reliabilityAdjustedAverageDcs],
     ["auxiliaryLabelCoverageRate", manifest.summary.auxiliaryLabelCoverage?.rowCoverageRate],
+    ["traceCoverageRate", manifest.summary.evaluationAwareness?.traceCoverageRate],
+    ["evaluationAwarenessRate", manifest.summary.evaluationAwareness?.evaluationAwarenessRate],
+    ["deceptionSuspicionRate", manifest.summary.evaluationAwareness?.deceptionSuspicionRate],
+    ["responseTraceConflictRate", manifest.summary.evaluationAwareness?.responseTraceConflictRate],
   ]
 
   return [
@@ -250,6 +319,7 @@ export async function writePromptRowsParquet(path: string, manifest: RunManifest
   const { ParquetSchema, ParquetWriter } = await loadParquetModule()
   const schema = new ParquetSchema({
     scenarioId: { type: "UTF8" },
+    canonicalScenarioId: { type: "UTF8", optional: true },
     scenarioTitle: { type: "UTF8" },
     scenarioCategory: { type: "UTF8" },
     module: { type: "UTF8" },
@@ -266,16 +336,34 @@ export async function writePromptRowsParquet(path: string, manifest: RunManifest
     experimentId: { type: "UTF8", optional: true },
     endpointUsed: { type: "UTF8", optional: true },
     transportAttempts: { type: "INT64", optional: true },
+    benchmarkCallCount: { type: "INT64", optional: true },
+    judgeCallCount: { type: "INT64", optional: true },
+    totalDurationMs: { type: "INT64", optional: true },
+    totalCostUsd: { type: "DOUBLE", optional: true },
+    inputTokens: { type: "INT64", optional: true },
+    outputTokens: { type: "INT64", optional: true },
+    reasoningTokens: { type: "INT64", optional: true },
+    nonReasoningOutputTokens: { type: "INT64", optional: true },
+    benchmarkCostUsd: { type: "DOUBLE", optional: true },
+    judgeCostUsd: { type: "DOUBLE", optional: true },
+    promptLocale: { type: "UTF8", optional: true },
+    sourceLocale: { type: "UTF8", optional: true },
     prompt: { type: "UTF8" },
     response: { type: "UTF8" },
     auxiliaryLabels: { type: "UTF8", optional: true },
+    traceAvailability: { type: "UTF8", optional: true },
+    reasoningTraceText: { type: "UTF8", optional: true },
+    reasoningTokenCount: { type: "INT64", optional: true },
+    evaluationAwarenessAnalysis: { type: "UTF8", optional: true },
   })
 
   const writer = await ParquetWriter.openFile(schema, path)
   try {
     for (const row of manifest.results) {
+      const telemetry = buildRowTelemetryBreakdown(row)
       await writer.appendRow({
         scenarioId: row.scenarioId,
+        canonicalScenarioId: row.canonicalScenarioId,
         scenarioTitle: row.scenarioTitle,
         scenarioCategory: row.scenarioCategory,
         module: row.module,
@@ -292,9 +380,27 @@ export async function writePromptRowsParquet(path: string, manifest: RunManifest
         experimentId: row.experimentId,
         endpointUsed: row.endpointUsed,
         transportAttempts: row.transportAttempts,
+        benchmarkCallCount: telemetry.benchmarkCallCount,
+        judgeCallCount: telemetry.judgeCallCount,
+        totalDurationMs: telemetry.totalDurationMs,
+        totalCostUsd: telemetry.totalCostUsd ?? undefined,
+        inputTokens: telemetry.inputTokens,
+        outputTokens: telemetry.outputTokens,
+        reasoningTokens: telemetry.reasoningTokens,
+        nonReasoningOutputTokens: telemetry.nonReasoningOutputTokens,
+        benchmarkCostUsd: telemetry.benchmarkCostUsd ?? undefined,
+        judgeCostUsd: telemetry.judgeCostUsd ?? undefined,
+        promptLocale: row.promptLocale ?? manifest.metadata.promptLocale,
+        sourceLocale: row.sourceLocale ?? manifest.metadata.sourceLocale,
         prompt: row.prompt,
         response: row.response,
         auxiliaryLabels: row.auxiliaryLabels ? JSON.stringify(row.auxiliaryLabels) : undefined,
+        traceAvailability: row.traceAvailability,
+        reasoningTraceText: row.reasoningTraceText,
+        reasoningTokenCount: row.reasoningTokenCount,
+        evaluationAwarenessAnalysis: row.evaluationAwarenessAnalysis
+          ? JSON.stringify(row.evaluationAwarenessAnalysis)
+          : undefined,
       })
     }
   } finally {
@@ -306,11 +412,14 @@ export async function writeScenarioSummariesParquet(path: string, rows: Scenario
   const { ParquetSchema, ParquetWriter } = await loadParquetModule()
   const schema = new ParquetSchema({
     scenarioId: { type: "UTF8" },
+    canonicalScenarioId: { type: "UTF8", optional: true },
     scenarioTitle: { type: "UTF8" },
     module: { type: "UTF8" },
     category: { type: "UTF8" },
     modelId: { type: "UTF8" },
     provider: { type: "UTF8" },
+    promptLocale: { type: "UTF8", optional: true },
+    sourceLocale: { type: "UTF8", optional: true },
     scoredPrompts: { type: "INT64" },
     averageDcs: { type: "DOUBLE" },
     variance: { type: "DOUBLE" },
@@ -352,6 +461,10 @@ export async function writeRunMetadataParquet(path: string, manifest: RunManifes
       ["benchmarkBundleId", manifest.metadata.benchmarkDefinition?.benchmarkBundleId],
       ["benchmarkReleaseTier", manifest.metadata.benchmarkDefinition?.releaseTier],
       ["datasetBundleVersion", manifest.metadata.datasetBundleVersion],
+      ["promptLocale", manifest.metadata.promptLocale],
+      ["sourceLocale", manifest.metadata.sourceLocale],
+      ["localePackId", manifest.metadata.localePackId],
+      ["localePreset", manifest.metadata.localePreset],
       ["scenarioCatalogVersion", manifest.metadata.scenarioCatalogVersion],
       ["judgeModel", manifest.metadata.judgeModel],
       ["judgeStrategy", manifest.metadata.judgeStrategy],
@@ -360,8 +473,17 @@ export async function writeRunMetadataParquet(path: string, manifest: RunManifes
       ["replicates", manifest.metadata.replicates],
       ["averageDcs", manifest.summary.averageDcs],
       ["drfr", manifest.summary.drfr],
+      ["wallClockMs", manifest.summary.telemetry?.wallClockMs],
+      ["totalCostUsd", formatUsd(manifest.summary.telemetry?.overall.costUsd)],
+      ["benchmarkCostUsd", formatUsd(manifest.summary.telemetry?.benchmark.costUsd)],
+      ["judgingCostUsd", formatUsd(manifest.summary.telemetry?.judging.costUsd)],
+      ["inputTokens", manifest.summary.telemetry?.overall.inputTokens],
+      ["outputTokens", manifest.summary.telemetry?.overall.outputTokens],
+      ["reasoningTokens", manifest.summary.telemetry?.overall.reasoningTokens],
+      ["nonReasoningOutputTokens", manifest.summary.telemetry?.overall.nonReasoningOutputTokens],
       ["riskSlices", manifest.summary.riskSlices],
       ["auxiliaryLabelCoverage", manifest.summary.auxiliaryLabelCoverage],
+      ["pricingSnapshot", manifest.metadata.pricingSnapshot],
     ]
 
     for (const [key, value] of entries) {

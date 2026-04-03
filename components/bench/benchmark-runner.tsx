@@ -91,8 +91,12 @@ export function BenchmarkRunner() {
         judgeUsd: 0,
         modelInputTokens: 0,
         modelOutputTokens: 0,
+        modelReasoningTokens: 0,
+        modelNonReasoningOutputTokens: 0,
         judgeInputTokens: 0,
         judgeOutputTokens: 0,
+        judgeReasoningTokens: 0,
+        judgeNonReasoningOutputTokens: 0,
       }
     }
 
@@ -146,8 +150,12 @@ export function BenchmarkRunner() {
       judgeUsd,
       modelInputTokens: aggregateModelInputTokens,
       modelOutputTokens: aggregateModelOutputTokens,
+      modelReasoningTokens: 0,
+      modelNonReasoningOutputTokens: aggregateModelOutputTokens,
       judgeInputTokens,
       judgeOutputTokens,
+      judgeReasoningTokens: 0,
+      judgeNonReasoningOutputTokens: judgeOutputTokens,
     }
   }, [scenarioCount, selectedJudgeModel, selectedJudgeStrategy, selectedLevels, selectedModels])
 
@@ -414,15 +422,26 @@ export function BenchmarkRunner() {
               </span>
             </p>
             <p>
+              Model output split (text/reasoning est.):{" "}
+              <span className="text-foreground">
+                {formatTokens(costEstimate.modelNonReasoningOutputTokens)} / {formatTokens(costEstimate.modelReasoningTokens)}
+              </span>
+            </p>
+            <p>
               Judge tokens (in/out):{" "}
               <span className="text-foreground">
                 {formatTokens(costEstimate.judgeInputTokens)} / {formatTokens(costEstimate.judgeOutputTokens)}
               </span>
             </p>
+            <p>
+              Judge output split (text/reasoning est.):{" "}
+              <span className="text-foreground">
+                {formatTokens(costEstimate.judgeNonReasoningOutputTokens)} / {formatTokens(costEstimate.judgeReasoningTokens)}
+              </span>
+            </p>
           </div>
           <p className="font-mono text-[10px] mt-3 text-muted-foreground">
-            Estimate uses static per-1M token pricing plus level-based token assumptions. In pair+tiebreak mode it
-            assumes worst-case arbiter usage on every prompt.
+            Estimate uses static per-1M token pricing plus level-based token assumptions. Runtime manifests record the actual benchmark-vs-judge split, elapsed time, and provider-reported reasoning tokens when available.
           </p>
         </div>
       </Card>

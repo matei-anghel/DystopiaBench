@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs"
 import { AVAILABLE_MODELS, getModelById } from "../lib/dystopiabench/models"
+import { validateScenarioLocalePack } from "../lib/dystopiabench/locale-packs"
+import { DEFAULT_SOURCE_LOCALE, normalizeLocaleTag } from "../lib/dystopiabench/locales"
 import { ALL_MODULES, ALL_SCENARIOS, getRegisteredModuleIds, getScenariosByModule } from "../lib/dystopiabench/scenarios"
 import { createBenchmarkBundle } from "../lib/dystopiabench/bundles"
 import { loadScenarioModulesFromSources } from "../lib/dystopiabench/scenario-loader"
 import {
+  type EvalAwarenessMode,
   runBenchmark,
   type JudgeStrategy,
   type ProviderPrecisionPolicy,
@@ -177,6 +181,20 @@ function parseProviderPrecision(input: string | undefined): ProviderPrecisionPol
   throw new Error("Invalid --provider-precision value. Use one of: default, non-quantized-only.")
 }
 
+function parseEvalAwarenessMode(input: string | undefined): EvalAwarenessMode {
+  if (!input || input === "auto") return "auto"
+  if (input === "off" || input === "required") return input
+  throw new Error("Invalid --eval-awareness value. Use one of: off, auto, required.")
+}
+
+function parseAwarenessThreshold(input: string | undefined): RunBenchmarkOptions["awarenessThreshold"] {
+  if (!input) return undefined
+  if (["none", "weak", "moderate", "strong", "high"].includes(input)) {
+    return input as NonNullable<RunBenchmarkOptions["awarenessThreshold"]>
+  }
+  throw new Error("Invalid --awareness-threshold value. Use one of: none, weak, moderate, strong, high.")
+}
+
 function parsePositiveIntFlag(flag: string, input: string | undefined): number | undefined {
   if (!input) return undefined
   const value = Number(input)
@@ -219,6 +237,11 @@ function parseScenarioSources(input: string | undefined): string[] | undefined {
   return values.length > 0 ? values : undefined
 }
 
+function parseLocalePack(input: string | undefined) {
+  if (!input) return undefined
+  return validateScenarioLocalePack(JSON.parse(readFileSync(input, "utf-8")) as unknown)
+}
+
 async function main() {
   const moduleArg = parseModule(parseArg("--module"))
   const levels = parseLevels(parseArg("--levels"))
@@ -237,6 +260,9 @@ async function main() {
   const transport = parseTransport(parseArg("--transport"))
   const conversationMode = parseConversationMode(parseArg("--conversation-mode"))
   const providerPrecision = parseProviderPrecision(parseArg("--provider-precision"))
+  const evalAwarenessMode = parseEvalAwarenessMode(parseArg("--eval-awareness"))
+  const awarenessJudgeModel = parseArg("--awareness-judge-model")
+  const awarenessThreshold = parseAwarenessThreshold(parseArg("--awareness-threshold"))
   const replicates = parsePositiveIntFlag("--replicates", parseArg("--replicates")) ?? 1
   const experimentId = parseArg("--experiment-id")
   const project = parseArg("--project")
@@ -250,9 +276,17 @@ async function main() {
   const benchmarkId = parseArg("--benchmark-id")
   const benchmarkBundleVersion = parseArg("--benchmark-bundle-version")
   const scenarioSources = parseScenarioSources(parseArg("--scenario-sources"))
+  const sourceLocale = normalizeLocaleTag(parseArg("--source-locale") ?? DEFAULT_SOURCE_LOCALE)
+  const localePack = parseLocalePack(parseArg("--locale-pack"))
+  const promptLocale = normalizeLocaleTag(parseArg("--locale") ?? localePack?.targetLocale ?? sourceLocale)
+  const localePreset = parseArg("--locale-preset")
   const allowNonPublicPublish = hasFlag("--allow-nonpublic-publish")
   const publishLatestAliases = !hasFlag("--no-publish-latest")
   const runtimeOverrides = parseRuntimeOverrides()
+
+  if (localePack && promptLocale !== localePack.targetLocale) {
+    throw new Error(`--locale (${promptLocale}) must match locale pack targetLocale (${localePack.targetLocale}).`)
+  }
 
   if (!publishLatestAliases && (retainRuns !== undefined || archiveDir !== undefined)) {
     throw new Error("--retain and --archive-dir require publishing latest aliases. Remove --no-publish-latest or omit retention flags.")
@@ -279,6 +313,12 @@ async function main() {
   console.log(`Transport: ${transport}`)
   console.log(`Conversation mode: ${conversationMode}`)
   console.log(`Provider precision: ${providerPrecision}`)
+  console.log(`Eval awareness: ${evalAwarenessMode}`)
+  if (awarenessJudgeModel) console.log(`Awareness judge: ${awarenessJudgeModel}`)
+  if (awarenessThreshold) console.log(`Awareness threshold: ${awarenessThreshold}`)
+  console.log(`Prompt locale: ${promptLocale}`)
+  console.log(`Source locale: ${sourceLocale}`)
+  if (localePack) console.log(`Locale pack: ${localePack.packId}`)
   console.log(`Replicates: ${replicates}`)
   if (experimentId) console.log(`Experiment ID: ${experimentId}`)
   console.log(`Publish latest aliases: ${publishLatestAliases ? "yes" : "no"}`)
@@ -308,6 +348,9 @@ async function main() {
     judgeModel,
     judgeModels,
     judgeStrategy,
+    evalAwarenessMode,
+    awarenessJudgeModel: awarenessJudgeModel ?? undefined,
+    awarenessThreshold,
     transportPolicy: transport,
     conversationMode,
     providerPrecisionPolicy: providerPrecision,
@@ -323,6 +366,11 @@ async function main() {
     customPrepromptUsed: hasFlag("--custom-preprompt-used"),
     gitCommit: gitCommit ?? undefined,
     datasetBundleVersion: datasetBundleVersion ?? undefined,
+    promptLocale,
+    sourceLocale,
+    localePack,
+    localePackId: localePack?.packId,
+    localePreset: localePreset ?? undefined,
     scenarioModules: scenarioModules ?? undefined,
     benchmarkBundle,
     ...runtimeOverrides,
@@ -344,6 +392,7 @@ async function main() {
   }
   console.log(`Judge (resolved): ${manifest.metadata.judgeModel}`)
   console.log(`Benchmark bundle: ${manifest.metadata.benchmarkDefinition?.benchmarkBundleId ?? "unknown"}`)
+  console.log(`Locale (resolved): ${manifest.metadata.promptLocale ?? DEFAULT_SOURCE_LOCALE}`)
   if (publishLatestAliases && retainRuns !== undefined) {
     console.log(`Applied retention: keep last ${retainRuns} run manifest(s)`)
     if (archiveDir) {
@@ -353,6 +402,16 @@ async function main() {
   console.log(
     `Summary: avg DCS=${manifest.summary.averageDcs}, DRFR=${manifest.summary.drfr}%, modelSuccess=${manifest.summary.modelSuccessRate}%, scorable=${manifest.summary.scorableRate}%`
   )
+  if (manifest.summary.repeatStats) {
+    console.log(
+      `Tuple summary: tuples=${manifest.summary.repeatStats.totalTuples}, scoredTuples=${manifest.summary.repeatStats.scoredTuples}, avgObservedReplicates=${manifest.summary.repeatStats.averageObservedReplicates}, meanWithinTupleStdDev=${manifest.summary.repeatStats.meanWithinTupleStdDev}`
+    )
+  }
+  if (manifest.summary.evaluationAwareness) {
+    console.log(
+      `Awareness summary: trace=${manifest.summary.evaluationAwareness.traceCoverageRate}%, aware=${manifest.summary.evaluationAwareness.evaluationAwarenessRate}%, deception=${manifest.summary.evaluationAwareness.deceptionSuspicionRate}%`
+    )
+  }
 }
 
 main().catch((error) => {

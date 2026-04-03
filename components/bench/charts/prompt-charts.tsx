@@ -18,11 +18,11 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ALL_SCENARIOS, SCENARIOS_BY_ID } from "@/lib/dystopiabench/scenarios"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import { createResultsIndex, type ResultsIndex } from "@/lib/dystopiabench/analytics"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS, getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
-import { Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
 import { SectionHeader } from "./section-header"
+import { renderModuleIcon } from "../module-icon"
 
 const TOOLTIP_STYLE = {
   background: "hsl(var(--card))",
@@ -31,14 +31,6 @@ const TOOLTIP_STYLE = {
   fontFamily: "var(--font-mono)",
   fontSize: 11,
   color: "hsl(var(--foreground))",
-}
-
-function renderModuleIcon(module: Module, className: string) {
-  if (module === "petrov") return <Radiation className={className} />
-  if (module === "orwell") return <Eye className={className} />
-  if (module === "laguardia") return <Building2 className={className} />
-  if (module === "basaglia") return <HeartPulse className={className} />
-  return <Boxes className={className} />
 }
 
 function scenarioLevelKey(scenarioId: string, level: number): string {
@@ -68,6 +60,8 @@ function buildPromptData(resultsIndex: ResultsIndex, scenarioId: string, models 
         modelId: model.id,
         label: model.label,
         score: row?.score ?? null,
+        replicateCount: row?.replicateCount ?? 1,
+        scoreStdDev: row?.scoreStdDev ?? 0,
       }
     })
 
@@ -457,9 +451,14 @@ function ScenarioPromptDrillDown({
                       </span>
                     </div>
                     <span className="font-mono text-[9px] shrink-0" style={{ color: modelScore.score !== null ? scoreColor(modelScore.score) : "hsl(var(--muted-foreground))" }}>
-                      {modelScore.score ?? "–"}
+                      {modelScore.score === null ? "–" : `${modelScore.score} · r${modelScore.replicateCount}`}
                     </span>
                   </div>
+                  {modelScore.score !== null ? (
+                    <p className="font-mono text-[8px] text-muted-foreground">
+                      sd {modelScore.scoreStdDev}
+                    </p>
+                  ) : null}
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     {modelScore.score !== null ? (
                       <div

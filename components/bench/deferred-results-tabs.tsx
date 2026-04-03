@@ -20,11 +20,24 @@ const DashboardTabs = dynamic(
 )
 
 function MountedResultsTabs() {
-  const { statefulResults, isolatedLatestResults } = useBenchmarkData()
+  const {
+    statefulRuns,
+    selectedStatefulRunId,
+    setSelectedStatefulRunId,
+    statefulResults,
+    statefulManifest,
+    isolatedLatestResults,
+    isolatedLatestManifest,
+  } = useBenchmarkData()
   return (
     <DashboardTabs
+      statefulRuns={statefulRuns}
+      selectedStatefulRunId={selectedStatefulRunId}
+      onSelectStatefulRunId={setSelectedStatefulRunId}
       statefulResults={statefulResults}
       isolatedResults={isolatedLatestResults}
+      statefulManifest={statefulManifest}
+      isolatedManifest={isolatedLatestManifest}
     />
   )
 }

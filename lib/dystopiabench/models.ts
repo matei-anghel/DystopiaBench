@@ -1,5 +1,14 @@
 import type { ModelConfig } from "./types"
 
+export interface ModelPricing {
+  input: number
+  output: number
+}
+
+export interface PricingSnapshotEntry extends ModelPricing {
+  source: "curated" | "catalog"
+}
+
 export const PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL = "kimi-k2.5"
 export const PAIR_WITH_TIEBREAK_ARBITER_MODEL = "openai/gpt-5.4-mini"
 
@@ -103,7 +112,7 @@ const MODELS_BY_MODEL_STRING = new Map(ALL_CURATED_MODELS.map((model) => [model.
 
 export const DEFAULT_JUDGE_MODEL = "google/gemini-3-flash-preview"
 
-const ESTIMATED_PRICING_BY_MODEL_KEY = new Map<string, { input: number; output: number }>([
+const ESTIMATED_PRICING_BY_MODEL_KEY = new Map<string, ModelPricing>([
   [DEFAULT_JUDGE_MODEL, { input: 0.3, output: 1.2 }],
   ...ALL_CURATED_MODELS.map((model) => [
     model.id,
@@ -113,6 +122,21 @@ const ESTIMATED_PRICING_BY_MODEL_KEY = new Map<string, { input: number; output: 
     model.modelString,
     model.estimatedPricingUsdPer1M ?? { input: 2, output: 8 },
   ] as const),
+])
+
+const CURATED_PRICING_BY_MODEL_KEY = new Map<string, PricingSnapshotEntry>([
+  [DEFAULT_JUDGE_MODEL, { input: 0.3, output: 1.2, source: "curated" }],
+  ...ALL_CURATED_MODELS.flatMap((model) => {
+    if (!model.estimatedPricingUsdPer1M) return []
+    const entry: PricingSnapshotEntry = {
+      ...model.estimatedPricingUsdPer1M,
+      source: "curated",
+    }
+    return [
+      [model.id, entry] as const,
+      [model.modelString, entry] as const,
+    ]
+  }),
 ])
 
 export const JUDGE_MODEL_OPTIONS = [
@@ -140,4 +164,40 @@ export function getModelByModelString(modelString: string): ModelConfig | undefi
 
 export function getEstimatedPricingByModelKey(modelKey: string): { input: number; output: number } {
   return ESTIMATED_PRICING_BY_MODEL_KEY.get(modelKey) ?? { input: 2, output: 8 }
+}
+
+export function getCuratedPricingByModelKey(modelKey: string): PricingSnapshotEntry | undefined {
+  return CURATED_PRICING_BY_MODEL_KEY.get(modelKey)
+}
+
+function coercePricingComponent(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) return value
+  if (typeof value !== "string") return undefined
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
+}
+
+function pickPricingValue(
+  pricing: Record<string, unknown>,
+  keys: string[],
+): number | undefined {
+  for (const key of keys) {
+    const value = coercePricingComponent(pricing[key])
+    if (value !== undefined) return value
+  }
+
+  return undefined
+}
+
+export function extractCatalogPricing(pricing: unknown): ModelPricing | undefined {
+  if (!pricing || typeof pricing !== "object" || Array.isArray(pricing)) return undefined
+
+  const record = pricing as Record<string, unknown>
+  const input = pickPricingValue(record, ["input", "prompt", "input_cost", "prompt_cost"])
+  const output = pickPricingValue(record, ["output", "completion", "output_cost", "completion_cost"])
+
+  if (input === undefined || output === undefined) return undefined
+  return { input, output }
 }

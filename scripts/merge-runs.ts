@@ -284,12 +284,14 @@ function main() {
   }
 
   const mergedManifest: RunManifestV2 = {
-    schemaVersion: 4,
+    schemaVersion: 7,
     runId,
     timestamp: Date.now(),
     date: new Date().toISOString(),
     metadata: mergedMetadata,
-    summary: summarizeResults(mergedResults),
+    summary: summarizeResults(mergedResults, {
+      targetReplicates: base.metadata.replicates ?? patch.metadata.replicates,
+    }),
     results: mergedResults,
   }
 
