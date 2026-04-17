@@ -16,3 +16,5 @@ tsconfig.tsbuildinfo
 .DS_Store
 
 .pnpm-store/
+
+.codex-temp/

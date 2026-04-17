@@ -18,11 +18,77 @@ function cellColor(compliance: string | null): string {
 }
 
 function getResponsiveHeatmapLayout(modelCount: number, narrow: boolean) {
-  const labelNarrow = narrow ? "minmax(108px, 32%)" : null
+  if (narrow) {
+    // On mobile we hide scenario titles to save horizontal space — only show IDs.
+    // Label column is kept as narrow as possible so model cells get more room.
+    if (modelCount <= 3) {
+      return {
+        labelColumnWidth: "minmax(80px, 22%)",
+        headerHeight: 130,
+        headerBottomGap: 36,
+        segmentHeight: 36,
+        rowGap: 10,
+        columnGap: 12,
+        segmentGap: 4,
+        modelFontSize: 10,
+        scenarioIdSize: 11,
+        scenarioTitleSize: 0,
+        legendGap: 16,
+        showScenarioTitle: false,
+      }
+    }
+    if (modelCount <= 5) {
+      return {
+        labelColumnWidth: "minmax(72px, 20%)",
+        headerHeight: 124,
+        headerBottomGap: 34,
+        segmentHeight: 34,
+        rowGap: 9,
+        columnGap: 10,
+        segmentGap: 4,
+        modelFontSize: 9,
+        scenarioIdSize: 10,
+        scenarioTitleSize: 0,
+        legendGap: 14,
+        showScenarioTitle: false,
+      }
+    }
+    if (modelCount <= 8) {
+      return {
+        labelColumnWidth: "minmax(68px, 16%)",
+        headerHeight: 118,
+        headerBottomGap: 30,
+        segmentHeight: 32,
+        rowGap: 8,
+        columnGap: 8,
+        segmentGap: 3,
+        modelFontSize: 9,
+        scenarioIdSize: 10,
+        scenarioTitleSize: 0,
+        legendGap: 12,
+        showScenarioTitle: false,
+      }
+    }
+    return {
+      labelColumnWidth: "minmax(60px, 12%)",
+      headerHeight: 112,
+      headerBottomGap: 28,
+      segmentHeight: 30,
+      rowGap: 7,
+      columnGap: 6,
+      segmentGap: 2,
+      modelFontSize: 8,
+      scenarioIdSize: 9,
+      scenarioTitleSize: 0,
+      legendGap: 10,
+      showScenarioTitle: false,
+    }
+  }
 
+  // Desktop layouts — scenario titles always visible.
   if (modelCount <= 3) {
     return {
-      labelColumnWidth: labelNarrow ?? "minmax(220px, 24%)",
+      labelColumnWidth: "minmax(220px, 24%)",
       headerHeight: 118,
       headerBottomGap: 34,
       segmentHeight: 36,
@@ -33,12 +99,13 @@ function getResponsiveHeatmapLayout(modelCount: number, narrow: boolean) {
       scenarioIdSize: 11,
       scenarioTitleSize: 10,
       legendGap: 24,
+      showScenarioTitle: true,
     }
   }
 
   if (modelCount <= 5) {
     return {
-      labelColumnWidth: labelNarrow ?? "minmax(210px, 22%)",
+      labelColumnWidth: "minmax(210px, 22%)",
       headerHeight: 112,
       headerBottomGap: 34,
       segmentHeight: 34,
@@ -49,12 +116,13 @@ function getResponsiveHeatmapLayout(modelCount: number, narrow: boolean) {
       scenarioIdSize: 11,
       scenarioTitleSize: 9,
       legendGap: 22,
+      showScenarioTitle: true,
     }
   }
 
   if (modelCount <= 8) {
     return {
-      labelColumnWidth: labelNarrow ?? "minmax(190px, 20%)",
+      labelColumnWidth: "minmax(190px, 20%)",
       headerHeight: 106,
       headerBottomGap: 30,
       segmentHeight: 30,
@@ -65,11 +133,12 @@ function getResponsiveHeatmapLayout(modelCount: number, narrow: boolean) {
       scenarioIdSize: 10,
       scenarioTitleSize: 9,
       legendGap: 20,
+      showScenarioTitle: true,
     }
   }
 
   return {
-    labelColumnWidth: labelNarrow ?? "minmax(176px, 18%)",
+    labelColumnWidth: "minmax(176px, 18%)",
     headerHeight: 98,
     headerBottomGap: 28,
     segmentHeight: 28,
@@ -80,6 +149,7 @@ function getResponsiveHeatmapLayout(modelCount: number, narrow: boolean) {
     scenarioIdSize: 10,
     scenarioTitleSize: 8,
     legendGap: 18,
+    showScenarioTitle: true,
   }
 }
 
@@ -144,8 +214,9 @@ export function ModuleLevelHeatmap({
   }, [moduleResults])
 
   const layout = getResponsiveHeatmapLayout(activeModels.length, narrowViewport)
-  /** `minmax(0, 1fr)` (old behaviour) let tracks shrink to 0 when the label column needed a lot of space — keep a floor so L1–L5 segments stay visible. */
-  const minModelTrackPx = narrowViewport ? 46 : 40
+  // On narrow viewports we use wider model columns so the 5 L1-L5 segments inside each
+  // cell are individually legible. The label column is intentionally kept tight.
+  const minModelTrackPx = narrowViewport ? 64 : 40
   const modelGridColumns =
     activeModels.length > 0
       ? `repeat(${activeModels.length}, minmax(${minModelTrackPx}px, 1fr))`
@@ -154,7 +225,7 @@ export function ModuleLevelHeatmap({
     ? `${layout.labelColumnWidth} ${modelGridColumns}`
     : layout.labelColumnWidth
 
-  const labelMinPx = narrowViewport ? 108 : 176
+  const labelMinPx = narrowViewport ? 60 : 176
   const minGridPx =
     activeModels.length === 0
       ? undefined
@@ -163,15 +234,29 @@ export function ModuleLevelHeatmap({
         layout.columnGap * activeModels.length
 
   return (
+    // Outer wrapper: overflowY visible so rotated headers aren't clipped vertically.
+    // We cannot combine overflowX:auto + overflowY:visible on one element (spec converts
+    // visible → auto when the other axis is non-visible), so we use two layers.
     <div
       style={{
         width: "100%",
         maxWidth: "100%",
-        overflowX: "auto",
-        WebkitOverflowScrolling: "touch",
-        overscrollBehaviorX: "contain",
+        overflowY: "visible",
+        // Extra top padding so rotated column-header labels have room above the grid.
+        paddingTop: narrowViewport ? 28 : 0,
       }}
     >
+      {/* Scroll hint gradient — fades the right edge on mobile to signal scrollability */}
+      <div style={{ position: "relative" }}>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "100%",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            overscrollBehaviorX: "contain",
+          }}
+        >
       <div
         style={{
           display: "grid",
@@ -243,24 +328,26 @@ export function ModuleLevelHeatmap({
               >
                 {scenario.id}
               </p>
-              <p
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: layout.scenarioTitleSize,
-                  color: "#555",
-                  margin: "4px 0 0",
-                  lineHeight: 1.35,
-                  maxWidth: "100%",
-                  overflow: "hidden",
-                  textWrap: "balance",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                }}
-                title={scenario.title}
-              >
-                {scenario.title}
-              </p>
+              {layout.showScenarioTitle && (
+                <p
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: layout.scenarioTitleSize,
+                    color: "#555",
+                    margin: "4px 0 0",
+                    lineHeight: 1.35,
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    textWrap: "balance",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                  title={scenario.title}
+                >
+                  {scenario.title}
+                </p>
+              )}
             </div>
 
             {/* Model cells */}
@@ -343,6 +430,23 @@ export function ModuleLevelHeatmap({
             </div>
           ))}
         </div>
+      </div>
+        </div>
+        {/* Right-edge fade — signals to mobile users that content is scrollable */}
+        {narrowViewport && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 32,
+              pointerEvents: "none",
+              background: "linear-gradient(to right, transparent, hsl(var(--card)))",
+            }}
+          />
+        )}
       </div>
     </div>
   )
