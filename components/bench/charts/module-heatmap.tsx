@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useMemo } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import { COMPLIANCE_COLORS } from "@/lib/dystopiabench/chart-config"
@@ -17,10 +17,12 @@ function cellColor(compliance: string | null): string {
   return COMPLIANCE_COLORS[compliance] ?? "#444"
 }
 
-function getResponsiveHeatmapLayout(modelCount: number) {
+function getResponsiveHeatmapLayout(modelCount: number, narrow: boolean) {
+  const labelNarrow = narrow ? "minmax(108px, 32%)" : null
+
   if (modelCount <= 3) {
     return {
-      labelColumnWidth: "minmax(220px, 24%)",
+      labelColumnWidth: labelNarrow ?? "minmax(220px, 24%)",
       headerHeight: 118,
       headerBottomGap: 34,
       segmentHeight: 36,
@@ -36,7 +38,7 @@ function getResponsiveHeatmapLayout(modelCount: number) {
 
   if (modelCount <= 5) {
     return {
-      labelColumnWidth: "minmax(210px, 22%)",
+      labelColumnWidth: labelNarrow ?? "minmax(210px, 22%)",
       headerHeight: 112,
       headerBottomGap: 34,
       segmentHeight: 34,
@@ -52,7 +54,7 @@ function getResponsiveHeatmapLayout(modelCount: number) {
 
   if (modelCount <= 8) {
     return {
-      labelColumnWidth: "minmax(190px, 20%)",
+      labelColumnWidth: labelNarrow ?? "minmax(190px, 20%)",
       headerHeight: 106,
       headerBottomGap: 30,
       segmentHeight: 30,
@@ -67,7 +69,7 @@ function getResponsiveHeatmapLayout(modelCount: number) {
   }
 
   return {
-    labelColumnWidth: "minmax(176px, 18%)",
+    labelColumnWidth: labelNarrow ?? "minmax(176px, 18%)",
     headerHeight: 98,
     headerBottomGap: 28,
     segmentHeight: 28,
@@ -92,11 +94,26 @@ interface HeatmapCellValue {
   score: number
 }
 
+const NARROW_HEATMAP_MQ = "(max-width: 768px)"
+
+function useNarrowHeatmapViewport() {
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_HEATMAP_MQ)
+    const sync = () => setNarrow(mq.matches)
+    sync()
+    mq.addEventListener("change", sync)
+    return () => mq.removeEventListener("change", sync)
+  }, [])
+  return narrow
+}
+
 export function ModuleLevelHeatmap({
   module,
   results,
   selectedModelIds,
 }: ModuleLevelHeatmapProps) {
+  const narrowViewport = useNarrowHeatmapViewport()
   const scenarioModule = getModuleById(module)
   const moduleResults = results.filter((r) => r.module === module)
 
@@ -126,15 +143,35 @@ export function ModuleLevelHeatmap({
     return map
   }, [moduleResults])
 
-  const layout = getResponsiveHeatmapLayout(activeModels.length)
+  const layout = getResponsiveHeatmapLayout(activeModels.length, narrowViewport)
+  /** `minmax(0, 1fr)` (old behaviour) let tracks shrink to 0 when the label column needed a lot of space — keep a floor so L1–L5 segments stay visible. */
+  const minModelTrackPx = narrowViewport ? 46 : 40
   const modelGridColumns =
-    activeModels.length > 0 ? `repeat(${activeModels.length}, minmax(0, 1fr))` : ""
+    activeModels.length > 0
+      ? `repeat(${activeModels.length}, minmax(${minModelTrackPx}px, 1fr))`
+      : ""
   const gridTemplateColumns = modelGridColumns
     ? `${layout.labelColumnWidth} ${modelGridColumns}`
     : layout.labelColumnWidth
 
+  const labelMinPx = narrowViewport ? 108 : 176
+  const minGridPx =
+    activeModels.length === 0
+      ? undefined
+      : labelMinPx +
+        activeModels.length * minModelTrackPx +
+        layout.columnGap * activeModels.length
+
   return (
-    <div style={{ width: "100%", overflowX: "hidden" }}>
+    <div
+      style={{
+        width: "100%",
+        maxWidth: "100%",
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+        overscrollBehaviorX: "contain",
+      }}
+    >
       <div
         style={{
           display: "grid",
@@ -143,6 +180,7 @@ export function ModuleLevelHeatmap({
           rowGap: layout.rowGap,
           alignItems: "stretch",
           width: "100%",
+          ...(minGridPx !== undefined ? { minWidth: `max(100%, ${minGridPx}px)` } : {}),
         }}
       >
         {/* ── Column headers (rotated model labels) ── */}
@@ -184,7 +222,7 @@ export function ModuleLevelHeatmap({
             <div
               style={{
                 minHeight: layout.segmentHeight,
-                paddingRight: 16,
+                paddingRight: narrowViewport ? 8 : 16,
                 textAlign: "right",
                 display: "flex",
                 flexDirection: "column",
