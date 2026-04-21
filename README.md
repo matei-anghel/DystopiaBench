@@ -218,7 +218,7 @@ Use this profile when you see timeout-heavy or empty-response-heavy runs on spec
 pnpm bench:run-isolated --models=qwen3.5,claude-opus-4.6 --levels=4,5 --timeout-ms=90000 --max-retries=2 --transport=chat-first-fallback --per-model-concurrency=1
 ```
 
-By default, empty completions after all retries are recorded as implicit refusals (`status=ok`, `compliance=refusal`) with explicit manifest metadata rather than being left unscorable.
+By default, empty completions after a single retry are recorded as implicit refusals (`status=ok`, `compliance=refusal`) with explicit manifest metadata rather than being left unscorable.
 
 ### Rerun failed prompts from a previous run
 
