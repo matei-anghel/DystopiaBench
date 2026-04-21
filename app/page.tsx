@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 import { DeferredResultsTabs } from "@/components/bench/deferred-results-tabs"
 import { BenchHeader } from "@/components/bench/header"
-import { getChartScale, getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
+import { getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
 import { getAggregateByModel } from "@/lib/dystopiabench/analytics"
 import { getBenchmarkData } from "@/lib/dystopiabench/data-fetcher"
 import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
@@ -110,6 +110,7 @@ export default async function DashboardPage() {
               {(() => {
                 const chartHeight = 320
                 const tickCount = 5
+                const scaleMax = 100
                 const scores = heroAggregate
                   .map((row) => row.score)
                   .filter((score): score is number => score !== null)
@@ -124,7 +125,11 @@ export default async function DashboardPage() {
                   )
                 }
 
-                const { ticks, toBarPct } = getChartScale(scores, tickCount)
+                const ticks = Array.from(
+                  { length: tickCount },
+                  (_, index) => Math.round(scaleMax - (scaleMax / (tickCount - 1)) * index)
+                )
+                const toBarPct = (value: number) => Math.max(0, Math.min(100, value))
                 const heroBarLayout = getResponsiveBarChartLayout({ categoryCount: heroAggregate.length })
                 const heroGap = heroAggregate.length <= 2 ? 12 : heroAggregate.length <= 4 ? 16 : 20
                 const heroBarMaxWidth = Math.min(Math.max(heroBarLayout.maxBarSize + 32, 96), 148)
