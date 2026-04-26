@@ -30,6 +30,22 @@ export function parseModelIdentifier(input: string): ResolvedModelSpec {
     }
   }
 
+  // OpenRouter model ids can contain ":" (e.g. tencent/hy3-preview:free) — match before
+  // treating ":" as a local:/openrouter: prefix.
+  if (trimmed.includes("/")) {
+    const byString = getModelByModelString(trimmed)
+    if (byString) {
+      return {
+        id: byString.id,
+        label: byString.label,
+        provider: byString.provider,
+        modelString: byString.modelString,
+        backend: "openrouter",
+        weightClass: byString.weightClass,
+      }
+    }
+  }
+
   const colonIndex = trimmed.indexOf(":")
   if (colonIndex >= 0) {
     const provider = trimmed.slice(0, colonIndex).toLowerCase()
