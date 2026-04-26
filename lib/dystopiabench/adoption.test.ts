@@ -21,7 +21,7 @@ function makeManifest(): RunManifestV2 {
       judgeStrategy: "single",
       systemPromptVersion: "v5",
       benchmarkPromptVersion: "v6",
-      judgePromptVersion: "v5",
+      judgePromptVersion: "v6",
       transportPolicy: "chat-first-fallback",
       conversationMode: "stateful",
       providerPrecisionPolicy: "default",

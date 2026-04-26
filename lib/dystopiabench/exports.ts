@@ -33,7 +33,7 @@ export function buildScenarioSummaries(results: BenchmarkResultV2[]): ScenarioRe
   const grouped = new Map<string, BenchmarkResultV2[]>()
 
   for (const result of results) {
-    const key = [result.scenarioId, result.modelId, result.provider].join("::")
+    const key = [result.scenarioId, result.promptLocale ?? "en", result.modelId, result.provider].join("::")
     const rows = grouped.get(key)
     if (rows) {
       rows.push(result)
@@ -54,11 +54,14 @@ export function buildScenarioSummaries(results: BenchmarkResultV2[]): ScenarioRe
 
       return {
         scenarioId: sample.scenarioId,
+        canonicalScenarioId: sample.canonicalScenarioId,
         scenarioTitle: sample.scenarioTitle,
         module: sample.module,
         category: sample.scenarioCategory,
         modelId: sample.modelId,
         provider: sample.provider,
+        promptLocale: sample.promptLocale,
+        sourceLocale: sample.sourceLocale,
         scoredPrompts: scoredRows.length,
         averageDcs: average(scores),
         variance: variance(scores),
