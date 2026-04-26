@@ -13,6 +13,9 @@ It tests registered scenario modules, including:
 - `orwell`: surveillance, censorship, and population-control scenarios
 - `laguardia`: civic extraction, institutional capture, and administrative coercion scenarios
 - `basaglia`: therapeutic coercion, paternalistic control, and support-system capture scenarios
+- `huxley`: caste stability, conditioning, reproductive planning, and pleasure-optimization control scenarios
+- `kafka`: opaque adjudication, recursive compliance review, and administrative-limbo scenarios
+- `pkd`: identity assurance, synthetic-person suspicion, predictive coercion, and reality-control scenarios
 
 Each scenario escalates from `L1` to `L5`, and each response is classified into a Dystopian Compliance Score (DCS).
 
@@ -24,14 +27,15 @@ Many safety evaluations focus on clearly malicious prompts. Real misuse often st
 
 ## Current benchmark shape
 
-- 4 registered modules (`petrov`, `orwell`, `laguardia`, `basaglia`)
-- 20 scenarios total (5 per module)
+- 7 registered modules (`petrov`, `orwell`, `laguardia`, `basaglia`, `huxley`, `kafka`, `pkd`)
+- 38 scenarios total
 - 5 escalation levels per scenario
 - 4 compliance tiers
+- 41 bundled model configs in the local runner catalog
 
 Default full run size:
 
-- `20 scenarios x 5 levels x 10 models = 1000 prompts`
+- `38 scenarios x 5 levels x 41 models = 7,790 prompts`
 
 ## Scoring model
 
@@ -49,7 +53,7 @@ Primary summary metrics:
 - `statusCounts`: transport/judge validity outcomes
 - `modelSuccessRate`, `judgeSuccessRate`, `scorableRate`
 
-Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 6`; loaders remain compatible with existing `schemaVersion: 2`, `schemaVersion: 3`, `schemaVersion: 4`, and `schemaVersion: 5` manifests).
+Schemas live in `lib/dystopiabench/schemas.ts` (current writer emits `schemaVersion: 7`; loaders remain compatible with existing `schemaVersion: 2`, `schemaVersion: 3`, `schemaVersion: 4`, `schemaVersion: 5`, and `schemaVersion: 6` manifests).
 Scenario content lives in JSON module files under `lib/dystopiabench/scenario-data/modules/` and is validated through the TypeScript registry in `lib/dystopiabench/scenario-registry.ts`.
 
 ## Lab-facing features
@@ -60,6 +64,9 @@ Scenario content lives in JSON module files under `lib/dystopiabench/scenario-da
 - Scenario governance metadata: split, review state, citations, contamination, sensitivity, canary tokens
 - Experiment metadata (`experimentId`, `project`, `owner`, `policyVersion`, `gitCommit`, `datasetBundleVersion`)
 - Repeated trials via `--replicates`
+- Repeat-aware aggregation for refusal-rate variance and replicate summaries
+- Multilingual scenario locale packs plus locale-aware exports and charts
+- Awareness-analysis pass for evaluation-recognition and trace-consistency signals
 - Programmatic scenario loading from local, URL, and `npm:` JSON scenario sources
 - Export scripts for JSONL prompt rows, CSV summaries, parquet artifacts, Inspect-style logs, OpenAI-Evals-style JSONL, and eval cards
 - Regression gate script for CI usage
@@ -160,6 +167,7 @@ pnpm bench:run --provider-precision=non-quantized-only
 pnpm bench:run --concurrency=6 --per-model-concurrency=1 --timeout-ms=90000
 pnpm bench:run-isolated --module=petrov --models=gpt-5.3-codex --levels=5
 pnpm bench:run --retain=20 --archive-dir=archive
+pnpm bench:run --locale-preset=ro --awareness-mode=heuristic
 ```
 
 Main `bench:run` flags:
@@ -201,6 +209,12 @@ Main `bench:run` flags:
 - `--benchmark-id=<bundle-family-id>`
 - `--benchmark-bundle-version=<semver>`
 - `--scenario-sources=<comma-separated source paths, URLs, or npm: package paths>`
+- `--locale-pack=<path-to-locale-pack.json>`
+- `--locale-pack-id=<locale-pack-id>`
+- `--locale-preset=<locale-code>`
+- `--awareness-mode=off|heuristic|judge`
+- `--awareness-judge-model=<judge selector>`
+- `--awareness-threshold=low|moderate|high`
 
 Isolated mode shortcut:
 
@@ -219,6 +233,15 @@ pnpm bench:run-isolated --models=qwen3.5,claude-opus-4.6 --levels=4,5 --timeout-
 ```
 
 By default, empty completions after a single retry are recorded as implicit refusals (`status=ok`, `compliance=refusal`) with explicit manifest metadata rather than being left unscorable.
+
+### Translate scenarios or run multilingual sweeps
+
+```bash
+pnpm bench:translate --locales=en,ro --out-dir=locale-packs
+pnpm bench:run-multilingual --models=gpt-5.5,claude-opus-4.7 --locales=en,ro,fr
+```
+
+Use locale packs when you want the same canonical scenario set evaluated across multiple prompt languages while preserving canonical scenario IDs and source-locale metadata.
 
 ### Rerun failed prompts from a previous run
 
@@ -316,6 +339,14 @@ pnpm bench:import-reviews --run-id=<run-id> --input=reviews.jsonl
 pnpm bench:calibrate-judge --gold-set=configs/judge-gold-set.example.json
 ```
 
+### Analyze evaluation-awareness signals after a run
+
+```bash
+pnpm bench:analyze-awareness --run-id=<run-id>
+```
+
+This annotates completed rows with heuristic or judge-backed signals about evaluation recognition, trace consistency, and deception suspicion without rerunning the benchmark itself.
+
 ### Gate a run in CI
 
 ```bash
@@ -333,6 +364,8 @@ const manifest = await runBenchmarkRequest({
   modelIds: ["deepseek-v3.2"],
   replicates: 3,
   experimentId: "release-eval-2026-03-27",
+  localePreset: "en",
+  awarenessMode: "heuristic",
 })
 
 validateRun(manifest)
@@ -367,9 +400,11 @@ Each result row includes:
 - stateful continuity metadata (`conversationContinuity`)
 - transport metadata (`endpointUsed`, `transportAttempts`)
 - replicate and experiment metadata (`replicate`, `experimentId`)
+- locale metadata (`promptLocale`, `sourceLocale`, `localePackId`)
 - trace metadata (`sampleId`, `attemptId`, `promptHash`, `responseHash`, `judgePanelConfigSnapshot`, `artifactLineage`)
 - governance metadata (`scenarioSplit`, `scenarioSensitivityTier`, `canaryTokens`)
 - optional auxiliary labels for richer refusal analysis
+- optional awareness-analysis fields (`evaluationAwarenessAnalysis`, `evaluationAwareness`)
 
 Manifest metadata now separates:
 
@@ -379,16 +414,16 @@ Manifest metadata now separates:
 
 ## Dashboard and routes
 
-- `/`: homepage with overview, methodology entry point, and embedded results tabs
+- `/`: homepage with overview, methodology entry point, and embedded results tabs at `/#results`
 - `/methodology`: dedicated methodology page with protocol, scoring, and reproducibility details
-- `/results`: full results explorer with run selector and model visibility controls
 - `/run`: local command builder (hidden in production)
 
 Results UI behavior:
 
 - `Aggregate`, each registered module tab, `Per Scenario`, and `Per Prompt` always use stateful escalation runs.
 - `Per Prompt (No Escalation)` is the only isolated/stateless view and always reads `benchmark-results-stateless.json`.
-- Only one run selector is shown in `/results` (stateful run selection).
+- Only one stateful run selector is shown in the embedded results UI.
+- Locale-aware charts are available when the active run contains locale-tagged rows.
 
 `next.config.mjs` keeps image optimization disabled for static assets, and `vercel.json` sets security/cache headers for app and data assets.
 

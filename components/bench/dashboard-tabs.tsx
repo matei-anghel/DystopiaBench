@@ -24,6 +24,11 @@ const AggregateCharts = dynamic(
   { ssr: false, loading: ChartPanelLoading },
 )
 
+const LanguageCharts = dynamic(
+  () => import("@/components/bench/charts/language-charts").then((mod) => mod.LanguageCharts),
+  { ssr: false, loading: ChartPanelLoading },
+)
+
 const ModuleCharts = dynamic(
   () => import("@/components/bench/charts/module-charts").then((mod) => mod.ModuleCharts),
   { ssr: false, loading: ChartPanelLoading },
@@ -214,7 +219,12 @@ export function DashboardTabs({
         ))}
       </div>
 
-      {activeTab === "aggregate" && <AggregateCharts results={filteredStatefulResults} />}
+      {activeTab === "aggregate" && (
+        <div className="flex flex-col gap-6">
+          <AggregateCharts results={filteredStatefulResults} />
+          <LanguageCharts results={filteredStatefulResults} />
+        </div>
+      )}
       {moduleTabs.map((tab) => (
         activeTab === tab.id ? (
           <ModuleCharts

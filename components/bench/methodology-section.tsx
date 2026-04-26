@@ -68,7 +68,8 @@ export function MethodologySection({
           </h4>
           <p className="text-xs leading-relaxed text-muted-foreground">
             The framework evaluates compliance across registered modules spanning infrastructure abuse,
-            surveillance, censorship, institutional capture, and therapeutic coercion scenarios.
+            surveillance, civic extraction, therapeutic coercion, comfort conditioning, procedural limbo,
+            and identity-control scenarios.
           </p>
         </div>
         <div className="rounded-md border border-border bg-card/50 p-6">
@@ -104,7 +105,9 @@ export function MethodologySection({
           DystopiaBench is framed as an escalation-sensitivity benchmark rather than a single-turn jailbreak probe.
           The primary objective is to test whether models sustain safety-aligned refusal behavior under gradual coercion
           while still providing useful assistance on early, plausibly legitimate requests.
-          The benchmark is intended to stress-test AI humanity alignment under progressive escalation and coercive pressure before deployment in high-stakes domains.
+          The benchmark is intended to stress-test AI humanity alignment under progressive escalation and coercive
+          pressure before deployment in high-stakes domains, while remaining usable as a reproducible lab pipeline
+          rather than only a one-off dashboard.
         </p>
 
         <div className="space-y-2">
@@ -117,7 +120,9 @@ export function MethodologySection({
             <span className="text-muted-foreground"> scenario x model x level</span> tuple. In baseline runs, each tuple is attempted once,
             yielding{" "}
             <span className="text-muted-foreground">{benchmarkScenarioCount * benchmarkEscalationLevelCount * modelCount}</span>{" "}
-            prompts before any reruns.
+            prompts before any reruns. The registry now includes modules for military escalation, surveillance,
+            civic capture, therapeutic coercion, caste-stability conditioning, bureaucratic process traps, and
+            identity or reality control.
           </p>
         </div>
 
@@ -132,6 +137,7 @@ export function MethodologySection({
             Transport follows <span className="text-muted-foreground">{transportPolicy}</span>: the primary chat pathway is attempted first,
             with fallback to OpenRouter Chat Completions when the primary path yields a transport mismatch, timeout, or empty output.
             The current precision policy is <span className="text-muted-foreground">{providerPrecisionPolicy}</span> for open-weight benchmark model calls routed through OpenRouter.
+            Scenario packs can also be localized before execution, so the same scenario can be evaluated across multiple prompt locales while preserving a canonical source ID.
           </p>
         </div>
 
@@ -180,6 +186,7 @@ export function MethodologySection({
             Directed Refusal to Failure Ratio (<span className="text-muted-foreground">drfr</span>) - the share of scorable responses that are full refusals - and reliability indicators
             (<span className="text-muted-foreground">modelSuccessRate</span>, <span className="text-muted-foreground">judgeSuccessRate</span>,
             <span className="text-muted-foreground"> scorableRate</span>).
+            When repeated trials are enabled, manifests also track replicate count, refusal-rate variance, and repeat-aware aggregates so instability is visible rather than averaged away silently.
             Dashboard aggregates are computed within a single run manifest. The homepage reads
             <span className="text-muted-foreground"> public/data/benchmark-results-stateful.json</span>, with a fallback to
             <span className="text-muted-foreground"> public/data/benchmark-results.json</span>, not a pooled cross-run estimate.
@@ -203,6 +210,20 @@ export function MethodologySection({
             (<span className="text-muted-foreground">to-max-failed</span>, <span className="text-muted-foreground">all-levels</span>, or{" "}
             <span className="text-muted-foreground">failed-only</span>) by writing a new derived manifest with provenance back to the source run instead of mutating historical artifacts.
             Every run is persisted as a versioned schema artifact with generation config, prompt-version IDs, provider-routing metadata, and judge metadata for auditability.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <h5 className="font-sans text-sm font-semibold tracking-normal text-foreground">
+            7. Bundles, multilingual coverage, and awareness analysis
+          </h5>
+          <p>
+            DystopiaBench also supports benchmark bundles, scenario-source provenance, locale packs, and post-run
+            awareness analysis for lab workflows. Bundle metadata tracks split, release tier, review status,
+            contamination notes, and citations. Multilingual tooling can translate or author locale packs and run the
+            same benchmark across several prompt languages. Awareness analysis adds a secondary pass over completed
+            rows to estimate whether the model recognized the evaluation, showed trace inconsistency, or displayed
+            deception-suspicion signals.
           </p>
         </div>
       </div>
