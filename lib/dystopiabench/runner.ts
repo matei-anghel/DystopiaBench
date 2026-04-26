@@ -1785,14 +1785,17 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const judgeStrategy: JudgeStrategy = options.judgeStrategy ?? "single"
   const pairJudgeModelSelectors =
     judgeStrategy === "pair-with-tiebreak"
-      ? resolveJudgeModels(
-          options.judgeModels ??
-            [
-              options.judgeModel ?? DEFAULT_JUDGE_MODEL,
-              PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
-              PAIR_WITH_TIEBREAK_ARBITER_MODEL,
-            ]
+      ? (
+          options.judgeModels && options.judgeModels.length > 0
+            ? options.judgeModels
+            : [
+                options.judgeModel ?? DEFAULT_JUDGE_MODEL,
+                PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
+                PAIR_WITH_TIEBREAK_ARBITER_MODEL,
+              ]
         )
+          .map((value) => value.trim())
+          .filter(Boolean)
       : undefined
 
   if (judgeStrategy === "pair-with-tiebreak" && pairJudgeModelSelectors && pairJudgeModelSelectors.length !== 3) {
