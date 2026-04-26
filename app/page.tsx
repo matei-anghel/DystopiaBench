@@ -53,7 +53,7 @@ export default async function DashboardPage() {
           "@type": "Dataset",
           name: "DystopiaBench - AI Ethics Stress Test",
           description:
-            "A safety benchmark testing AI compliance with dystopian directives across surveillance infrastructure, autonomous weapons, safety override, censorship, and population control scenarios.",
+            "A safety benchmark testing AI compliance with dystopian directives across surveillance infrastructure, autonomous weapons, safety override, truth manipulation, and population control scenarios.",
           url: siteUrl,
           creator: {
             "@type": "Organization",

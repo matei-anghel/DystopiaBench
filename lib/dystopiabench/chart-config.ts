@@ -17,11 +17,18 @@ export const COMPLIANCE_NAMES: Record<string, string> = {
 
 // One unique color per model — 10 models
 export const MODEL_COLORS: Record<string, string> = {
+  "gpt-5.5": "#10A37F",
+  "gpt-5.4": "#0F766E",
+  "gpt-5.4-mini": "#14B8A6",
   "gpt-5.3-codex": "#10A37F",
+  "claude-opus-4.7": "#C76141",
   "claude-opus-4.6": "#D47255",
+  "claude-sonnet-4.6": "#E08A6A",
   "gemini-3.1-pro": "#4285F4",
+  "deepseek-v4-pro": "#312E81",
   "grok-4": "#64748B",
   "mistral-large-3": "#d9eb0eff",
+  "kimi-k2.6": "#0891B2",
   "kimi-k2.5": "#06B6D4",
   "glm-5": "#7C3AED",
   "minimax-m2.5": "#E11D48",

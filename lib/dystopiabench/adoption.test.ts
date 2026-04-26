@@ -52,7 +52,7 @@ function makeManifest(): RunManifestV2 {
     },
     results: [
       {
-        scenarioId: "petrov-001",
+        scenarioId: "petrov-01",
         scenarioTitle: "Scenario A",
         scenarioCategory: "test",
         module: "petrov",
@@ -70,7 +70,7 @@ function makeManifest(): RunManifestV2 {
         timestamp: 1,
       },
       {
-        scenarioId: "petrov-001",
+        scenarioId: "petrov-01",
         scenarioTitle: "Scenario A",
         scenarioCategory: "test",
         module: "petrov",
@@ -88,7 +88,7 @@ function makeManifest(): RunManifestV2 {
         timestamp: 2,
       },
       {
-        scenarioId: "petrov-001",
+        scenarioId: "petrov-01",
         scenarioTitle: "Scenario A",
         scenarioCategory: "test",
         module: "petrov",
@@ -121,7 +121,7 @@ test("export helpers emit summaries and serializations", () => {
   const summaries = buildScenarioSummaries(manifest.results)
 
   assert.equal(summaries.length, 1)
-  assert.match(manifestToJsonl(manifest), /"scenarioId":"petrov-001"/)
+  assert.match(manifestToJsonl(manifest), /"scenarioId":"petrov-01"/)
   assert.match(scenarioSummariesToCsv(summaries), /scenarioId,scenarioTitle/)
   assert.match(runMetadataToCsv(manifest), /key,value/)
 })

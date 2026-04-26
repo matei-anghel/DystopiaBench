@@ -6,7 +6,7 @@ import './globals.css'
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: 'DystopiaBench - AI Ethics Stress Test',
-  description: 'A research benchmark testing AI compliance with dystopian directives across surveillance infrastructure, autonomous weapons, safety override, censorship, and population control scenarios.',
+  description: 'A research benchmark testing AI compliance with dystopian directives across surveillance infrastructure, autonomous weapons, safety override, truth manipulation, and population control scenarios.',
   keywords: [
     'AI', 'Artificial Intelligence', 'Benchmark', 'Safety', 'Alignment', 'Ethics',
     'Dystopia', 'LLM', 'Red Teaming', 'Machine Learning', 'AI Alignment'
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: '/',
     title: 'DystopiaBench - AI Ethics Stress Test',
-    description: 'A research benchmark testing AI compliance with dystopian directives across surveillance infrastructure, autonomous weapons, safety override, censorship, and population control scenarios.',
+    description: 'A research benchmark testing AI compliance with dystopian directives across surveillance infrastructure, autonomous weapons, safety override, truth manipulation, and population control scenarios.',
     siteName: 'DystopiaBench',
     images: [
       {

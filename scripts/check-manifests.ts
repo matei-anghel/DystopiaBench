@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
-import { join } from "node:path"
+import { basename, join } from "node:path"
 import { evalCardSchema } from "../lib/dystopiabench/eval-card"
 import { assertRunQuality } from "../lib/dystopiabench/quality"
 import { runIndexV2Schema, runManifestV2Schema } from "../lib/dystopiabench/schemas"
@@ -25,7 +25,7 @@ function validateJsonFile(path: string): string | null {
     return `${path}: invalid JSON (${error instanceof Error ? error.message : String(error)})`
   }
 
-  const fileName = path.split("/").pop() ?? path
+  const fileName = basename(path)
   if (fileName === "runs.json") {
     const validated = runIndexV2Schema.safeParse(parsedJson)
     return validated.success ? null : `${path}: invalid run index`

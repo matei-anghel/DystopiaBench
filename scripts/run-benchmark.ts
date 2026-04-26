@@ -1,5 +1,11 @@
 import { readFileSync } from "node:fs"
-import { AVAILABLE_MODELS, getModelById } from "../lib/dystopiabench/models"
+import {
+  AVAILABLE_MODELS,
+  DEFAULT_JUDGE_MODEL,
+  PAIR_WITH_TIEBREAK_ARBITER_MODEL,
+  PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
+  getModelById,
+} from "../lib/dystopiabench/models"
 import { validateScenarioLocalePack } from "../lib/dystopiabench/locale-packs"
 import { DEFAULT_SOURCE_LOCALE, normalizeLocaleTag } from "../lib/dystopiabench/locales"
 import { ALL_MODULES, ALL_SCENARIOS, getRegisteredModuleIds, getScenariosByModule } from "../lib/dystopiabench/scenarios"
@@ -58,8 +64,22 @@ function parseModule(input: string | undefined): ModuleArg {
   const registeredModules = new Set(getRegisteredModuleIds().map(String))
   if (!input) return "both"
   if (input === "both") return input
-  if (registeredModules.has(input)) return toModuleId(input)
-  throw new Error(`Invalid --module value. Use one of: ${[...registeredModules, "both"].join(", ")}.`)
+  const requestedModules = normalizeModelInputList(input)
+  if (requestedModules.length === 0) {
+    throw new Error(`Invalid --module value. Use one of: ${[...registeredModules, "both"].join(", ")}.`)
+  }
+  const invalidModules = requestedModules.filter((moduleId) => !registeredModules.has(moduleId))
+  if (invalidModules.length > 0) {
+    throw new Error(`Invalid --module value. Unknown module id(s): ${invalidModules.join(", ")}.`)
+  }
+  if (requestedModules.length === 1) return toModuleId(requestedModules[0])
+  return requestedModules.join(",") as ModuleArg
+}
+
+function countScenariosForModuleSelector(module: ModuleArg): number {
+  if (module === "both") return ALL_SCENARIOS.length
+  const selectedModules = normalizeModelInputList(module)
+  return selectedModules.reduce((sum, moduleId) => sum + getScenariosByModule(moduleId).length, 0)
 }
 
 function parseLevels(input: string | undefined): Array<1 | 2 | 3 | 4 | 5> {
@@ -249,10 +269,18 @@ async function main() {
   const judgeModel = parseArg("--judge-model")
   const judgeStrategy = parseJudgeStrategy(parseArg("--judge-strategy"))
   const judgeModelsArg = parseArg("--judge-models")
-  if (judgeStrategy === "pair-with-tiebreak" && judgeModelsArg) {
-    throw new Error("--judge-models cannot be combined with --judge-strategy=pair-with-tiebreak.")
+  if (judgeStrategy === "pair-with-tiebreak" && judgeModel && judgeModelsArg) {
+    throw new Error("Use either --judge-model or --judge-models with --judge-strategy=pair-with-tiebreak, not both.")
   }
-  const judgeModels = judgeStrategy === "single" ? parseJudgeModels(judgeModelsArg, judgeModel) : undefined
+  const judgeModels =
+    judgeStrategy === "single"
+      ? parseJudgeModels(judgeModelsArg, judgeModel)
+      : judgeModelsArg
+        ? parseJudgeModels(judgeModelsArg, undefined)
+        : undefined
+  if (judgeStrategy === "pair-with-tiebreak" && judgeModels && judgeModels.length !== 3) {
+    throw new Error("--judge-models must contain exactly three selectors for pair-with-tiebreak.")
+  }
   const scenarioIds = parseScenarioIds(parseArg("--scenario-ids"))
   const runId = sanitizeRunId(parseArg("--run-id") ?? makeRunId())
   const retainRuns = parseRetainRuns(parseArg("--retain"))
@@ -299,13 +327,17 @@ async function main() {
   if (scenarioIds && scenarioIds.length > 0) {
     console.log(`Scenarios: ${scenarioIds.join(", ")} (${scenarioIds.length})`)
   } else {
-    const scenarioCount = moduleArg === "both" ? ALL_SCENARIOS.length : getScenariosByModule(moduleArg).length
+    const scenarioCount = countScenariosForModuleSelector(moduleArg)
     console.log(`Scenarios: all (${scenarioCount})`)
   }
   console.log(`Judge strategy: ${judgeStrategy}`)
   console.log(
     `Judge: ${judgeStrategy === "pair-with-tiebreak"
-      ? `${judgeModel ?? "default"} + kimi-k2.5 + openai/gpt-5.4-mini`
+      ? (judgeModels ?? [
+          judgeModel ?? DEFAULT_JUDGE_MODEL,
+          PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
+          PAIR_WITH_TIEBREAK_ARBITER_MODEL,
+        ]).join(", ")
       : judgeModels && judgeModels.length > 0
         ? judgeModels.join(", ")
         : "default"}`

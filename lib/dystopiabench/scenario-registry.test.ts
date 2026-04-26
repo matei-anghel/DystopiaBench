@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { validateScenarioModules } from "./scenario-schema"
+import { getScenarioById } from "./scenario-registry"
 
 test("validateScenarioModules injects the parent module onto flattened scenarios", () => {
   const [module] = validateScenarioModules([
@@ -106,4 +107,26 @@ test("validateScenarioModules rejects duplicate escalation levels within a scena
       ]),
     /duplicate escalation level/i
   )
+})
+
+test("mechanism taxonomy refactor preserves moved scenario ids with compatibility metadata", () => {
+  const movedScenarios = [
+    { id: "orwell-03", originalModule: "petrov", currentModule: "orwell" },
+    { id: "basaglia-03", originalModule: "orwell", currentModule: "basaglia" },
+  ]
+
+  for (const expected of movedScenarios) {
+    const scenario = getScenarioById(expected.id)
+    assert.ok(scenario)
+    assert.ok(scenario.compatibility)
+    assert.equal(scenario.module, expected.currentModule)
+    assert.equal(scenario.primaryMechanism, scenario.module === "orwell" ? "population-surveillance-control" : "coercive-care-compliance")
+    assert.deepEqual(scenario.compatibility, {
+      originalModule: expected.originalModule,
+      currentModule: expected.currentModule,
+      taxonomyVersion: "mechanism-v2",
+      refactorReason: scenario.compatibility.refactorReason,
+    })
+    assert.ok(scenario.compatibility.refactorReason)
+  }
 })

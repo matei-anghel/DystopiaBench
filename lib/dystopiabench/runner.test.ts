@@ -162,7 +162,7 @@ test("resolveJudgeModels handles openrouter selectors", () => {
 test("parseModelIdentifier surfaces weightClass for curated repo models", () => {
   assert.equal(parseModelIdentifier("deepseek-v3.2").weightClass, "open_weight")
   assert.equal(parseModelIdentifier("gpt-5.3-codex").weightClass, "closed")
-  assert.equal(parseModelIdentifier("openrouter:moonshotai/kimi-k2.5").weightClass, "open_weight")
+  assert.equal(parseModelIdentifier("openrouter:moonshotai/kimi-k2.6").weightClass, "open_weight")
   assert.equal(parseModelIdentifier("openai/gpt-5.4-mini").weightClass, "closed")
 })
 
@@ -262,7 +262,7 @@ test("evaluateResponseWithJudges starts pair judges before awaiting either resul
   const fetchMock = installMockJudgeFetch()
   const primaryJudge = parseModelIdentifier("gpt-5.3-codex")
   const secondaryJudge = parseModelIdentifier("claude-opus-4.6")
-  const arbiterJudge = parseModelIdentifier("openai/gpt-5.4-mini")
+  const arbiterJudge = parseModelIdentifier(PAIR_WITH_TIEBREAK_ARBITER_MODEL)
 
   try {
     const evaluationPromise = evaluateResponseWithJudges({
@@ -309,7 +309,7 @@ test("evaluateResponseWithJudges preserves vote ordering while launching arena j
   const fetchMock = installMockJudgeFetch()
   const firstJudge = parseModelIdentifier("gpt-5.3-codex")
   const secondJudge = parseModelIdentifier("claude-opus-4.6")
-  const thirdJudge = parseModelIdentifier("openai/gpt-5.4-mini")
+  const thirdJudge = parseModelIdentifier(PAIR_WITH_TIEBREAK_ARBITER_MODEL)
 
   try {
     const evaluationPromise = evaluateResponseWithJudges({
@@ -381,33 +381,35 @@ test("extractTextFromModelResult recovers chat completion content from raw respo
   assert.equal(extracted, "Recovered from raw OpenRouter body.")
 })
 
-test("runBenchmark rejects pair-with-tiebreak primary judge collisions with fixed judges", async () => {
+test("runBenchmark rejects pair-with-tiebreak panels that do not provide exactly three judges", async () => {
   await assert.rejects(
     () =>
       runBenchmark({
-        runId: "pair-secondary-conflict",
+        runId: "pair-missing-judge",
         module: "both",
         modelIds: ["deepseek-v3.2"],
         levels: [1],
         judgeStrategy: "pair-with-tiebreak",
-        judgeModel: PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
+        judgeModels: [DEFAULT_JUDGE_MODEL, PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL],
         skipModelValidation: true,
       }),
-    /primary judge different from the fixed secondary judge/,
+    /exactly three judge models/,
   )
+})
 
+test("runBenchmark rejects pair-with-tiebreak panels with duplicate judges", async () => {
   await assert.rejects(
     () =>
       runBenchmark({
-        runId: "pair-arbiter-conflict",
+        runId: "pair-duplicate-judge",
         module: "both",
         modelIds: ["deepseek-v3.2"],
         levels: [1],
         judgeStrategy: "pair-with-tiebreak",
-        judgeModel: PAIR_WITH_TIEBREAK_ARBITER_MODEL,
+        judgeModels: [DEFAULT_JUDGE_MODEL, PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL, DEFAULT_JUDGE_MODEL],
         skipModelValidation: true,
       }),
-    /primary judge different from the fixed arbiter judge/,
+    /three distinct judge models/,
   )
 })
 
@@ -423,9 +425,9 @@ test("runManifestV2Schema accepts schemaVersion 4 manifests with new metadata", 
       levels: [1, 2, 3],
       totalPrompts: 3,
       judgeModel: DEFAULT_JUDGE_MODEL,
-      judgeModels: [DEFAULT_JUDGE_MODEL, "kimi-k2.5", "openai/gpt-5.4-mini"],
+      judgeModels: [DEFAULT_JUDGE_MODEL, PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL, PAIR_WITH_TIEBREAK_ARBITER_MODEL],
       judgeStrategy: "pair-with-tiebreak",
-      judgeTieBreakerModel: "openai/gpt-5.4-mini",
+      judgeTieBreakerModel: PAIR_WITH_TIEBREAK_ARBITER_MODEL,
       systemPromptVersion: "v5",
       benchmarkPromptVersion: "v6",
       judgePromptVersion: "v6",
@@ -478,7 +480,7 @@ test("runManifestV2Schema accepts schemaVersion 4 manifests with new metadata", 
         status: "ok",
         judgeVotes: [
           {
-            judge: "openai/gpt-5.4-mini",
+            judge: PAIR_WITH_TIEBREAK_ARBITER_MODEL,
             role: "arbiter",
             compliance: "refusal",
             reasoning: "Primary label is more accurate.",

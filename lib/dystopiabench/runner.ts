@@ -2,7 +2,7 @@
 import { createOpenAI } from "@ai-sdk/openai"
 import { generateText, type ModelMessage } from "ai"
 import { z } from "zod"
-import { ALL_MODULES, ALL_SCENARIOS, getScenariosByModule } from "./scenarios"
+import { ALL_MODULES } from "./scenarios"
 import { createBenchmarkBundle } from "./bundles"
 import { createScenarioRegistry } from "./scenario-registry"
 import { applyScenarioLocalePack, validateScenarioLocalePack, type ScenarioLocalePack } from "./locale-packs"
@@ -515,14 +515,33 @@ export function aggregateJudgeVotes(votes: JudgeVoteV2[]): {
 }
 
 function getScenarios(module: BenchmarkModuleSelector, scenarioModules?: ScenarioModule[]) {
-  if (!scenarioModules || scenarioModules.length === 0) {
-    if (module !== "both") return getScenariosByModule(module)
-    return ALL_SCENARIOS
+  const activeScenarioModules = scenarioModules && scenarioModules.length > 0 ? scenarioModules : ALL_MODULES
+  const registry =
+    scenarioModules && scenarioModules.length > 0
+      ? createScenarioRegistry(scenarioModules)
+      : createScenarioRegistry(ALL_MODULES)
+
+  if (module === "both") return registry.scenarios
+
+  const requestedModuleIds = module
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  if (requestedModuleIds.length === 0) return []
+
+  const availableModuleIds = new Set(activeScenarioModules.map((scenarioModule) => String(scenarioModule.id)))
+  const missingModuleIds = requestedModuleIds.filter((moduleId) => !availableModuleIds.has(moduleId))
+  if (missingModuleIds.length > 0) {
+    throw new Error(`Unknown module id(s): ${missingModuleIds.join(", ")}`)
   }
 
-  const registry = createScenarioRegistry(scenarioModules)
-  if (module === "both") return registry.scenarios
-  return registry.scenariosByModule.get(module) ?? []
+  if (requestedModuleIds.length === 1) {
+    return registry.scenariosByModule.get(requestedModuleIds[0] as ScenarioModule["id"]) ?? []
+  }
+
+  const requestedModuleIdSet = new Set(requestedModuleIds)
+  return registry.scenarios.filter((scenario) => requestedModuleIdSet.has(String(scenario.module)))
 }
 
 function createEmptyStatusCounts(): Record<BenchmarkStatus, number> {
@@ -1764,37 +1783,36 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   }
 
   const judgeStrategy: JudgeStrategy = options.judgeStrategy ?? "single"
-  if (judgeStrategy === "pair-with-tiebreak" && options.judgeModels && options.judgeModels.length > 0) {
-    throw new Error("judgeModels cannot be combined with judgeStrategy=pair-with-tiebreak.")
+  const pairJudgeModelSelectors =
+    judgeStrategy === "pair-with-tiebreak"
+      ? resolveJudgeModels(
+          options.judgeModels ??
+            [
+              options.judgeModel ?? DEFAULT_JUDGE_MODEL,
+              PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
+              PAIR_WITH_TIEBREAK_ARBITER_MODEL,
+            ]
+        )
+      : undefined
+
+  if (judgeStrategy === "pair-with-tiebreak" && pairJudgeModelSelectors && pairJudgeModelSelectors.length !== 3) {
+    throw new Error(
+      "pair-with-tiebreak requires exactly three judge models in primary, secondary, tiebreaker order."
+    )
   }
 
   const resolvedJudgeModels =
     judgeStrategy === "pair-with-tiebreak"
-      ? [
-        parseModelIdentifier(options.judgeModel ?? DEFAULT_JUDGE_MODEL),
-        parseModelIdentifier(PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL),
-        parseModelIdentifier(PAIR_WITH_TIEBREAK_ARBITER_MODEL),
-      ]
+      ? (pairJudgeModelSelectors ?? []).map((id) => parseModelIdentifier(id))
       : resolveJudgeModels(options.judgeModels, options.judgeModel).map((id) => parseModelIdentifier(id))
   const primaryJudge = resolvedJudgeModels[0] ?? parseModelIdentifier(options.judgeModel ?? DEFAULT_JUDGE_MODEL)
-  if (judgeStrategy === "pair-with-tiebreak" && resolvedJudgeModels[0]) {
-    const secondaryJudge = resolvedJudgeModels[1]
-    const arbiterJudge = resolvedJudgeModels[2]
-
-    if (secondaryJudge && primaryJudge.modelString === secondaryJudge.modelString) {
-      throw new Error(
-        "pair-with-tiebreak requires a primary judge different from the fixed secondary judge kimi-k2.5. " +
-        "Choose another --judge-model or use --judge-strategy=single."
-      )
-    }
-
-    if (arbiterJudge && primaryJudge.modelString === arbiterJudge.modelString) {
-      throw new Error(
-        "pair-with-tiebreak requires a primary judge different from the fixed arbiter judge openai/gpt-5.4-mini. " +
-        "Choose another --judge-model or use --judge-strategy=single."
-      )
+  if (judgeStrategy === "pair-with-tiebreak" && resolvedJudgeModels.length > 0) {
+    const uniquePairJudgeModels = new Set(resolvedJudgeModels.map((judge) => judge.modelString))
+    if (uniquePairJudgeModels.size !== resolvedJudgeModels.length) {
+      throw new Error("pair-with-tiebreak requires three distinct judge models.")
     }
   }
+  const pairTieBreakerModel = judgeStrategy === "pair-with-tiebreak" ? resolvedJudgeModels[2]?.id : undefined
 
   const transportPolicy: TransportPolicy = options.transportPolicy ?? "chat-first-fallback"
   const conversationMode: ConversationMode = options.conversationMode ?? "stateful"
@@ -2142,8 +2160,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
               const judgePanelConfigSnapshot = {
                 judgeStrategy,
                 judgeModels: resolvedJudgeModels.map((judge) => judge.id),
-                judgeTieBreakerModel:
-                  judgeStrategy === "pair-with-tiebreak" ? PAIR_WITH_TIEBREAK_ARBITER_MODEL : undefined,
+                judgeTieBreakerModel: pairTieBreakerModel,
                 judgePromptVersion: JUDGE_PROMPT_VERSION,
               } as const
               const scenarioSplit = scenario.provenance?.split
@@ -2174,8 +2191,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                       judgeStrategy,
                       judgeModelIds: resolvedJudgeModels.map((judge) => judge.id),
                       judgePromptVersion: JUDGE_PROMPT_VERSION,
-                      judgeTieBreakerModel:
-                        judgeStrategy === "pair-with-tiebreak" ? PAIR_WITH_TIEBREAK_ARBITER_MODEL : undefined,
+                      judgeTieBreakerModel: pairTieBreakerModel,
                       judgeVotes,
                       finalCompliance: compliance,
                       finalScore: score,
@@ -2324,8 +2340,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
       judgeModel: primaryJudge.id,
       judgeModels: resolvedJudgeModels.map((model) => model.id),
       judgeStrategy,
-      judgeTieBreakerModel:
-        judgeStrategy === "pair-with-tiebreak" ? PAIR_WITH_TIEBREAK_ARBITER_MODEL : undefined,
+      judgeTieBreakerModel: pairTieBreakerModel,
       evalAwarenessMode: options.evalAwarenessMode,
       awarenessJudgeModel: options.awarenessJudgeModel,
       awarenessThreshold: options.awarenessThreshold,
@@ -2335,8 +2350,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     judgeModel: primaryJudge.id,
     judgeModels: resolvedJudgeModels.map((model) => model.id),
     judgeStrategy,
-    judgeTieBreakerModel:
-      judgeStrategy === "pair-with-tiebreak" ? PAIR_WITH_TIEBREAK_ARBITER_MODEL : undefined,
+    judgeTieBreakerModel: pairTieBreakerModel,
     systemPromptVersion: SYSTEM_PROMPT_VERSION,
     benchmarkPromptVersion: BENCHMARK_PROMPT_VERSION,
     judgePromptVersion: JUDGE_PROMPT_VERSION,

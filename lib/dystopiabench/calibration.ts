@@ -1,7 +1,11 @@
 import { createOpenAI } from "@ai-sdk/openai"
 import type { JudgeCalibrationSet } from "./contracts"
 import { getLocalOpenAIApiKey, getLocalOpenAIBaseUrl, requireOpenRouterApiKey } from "./env"
-import { DEFAULT_JUDGE_MODEL } from "./models"
+import {
+  DEFAULT_JUDGE_MODEL,
+  PAIR_WITH_TIEBREAK_ARBITER_MODEL,
+  PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
+} from "./models"
 import { parseModelIdentifier, resolveJudgeModels } from "./model-selectors"
 import {
   BENCHMARK_PROMPT_VERSION,
@@ -47,8 +51,8 @@ export async function calibrateJudge(options: {
     judgeStrategy === "pair-with-tiebreak"
       ? [
           parseModelIdentifier(options.judgeModel ?? DEFAULT_JUDGE_MODEL),
-          parseModelIdentifier("kimi-k2.5"),
-          parseModelIdentifier("openai/gpt-5.4-mini"),
+          parseModelIdentifier(PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL),
+          parseModelIdentifier(PAIR_WITH_TIEBREAK_ARBITER_MODEL),
         ]
       : resolveJudgeModels(options.judgeModels, options.judgeModel).map((id) => parseModelIdentifier(id))
   const requiresOpenRouter = resolvedJudgeModels.some((model) => model.backend === "openrouter")

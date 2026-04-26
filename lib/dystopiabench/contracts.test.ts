@@ -69,7 +69,7 @@ function makeManifest(overrides: Partial<RunManifestV2> = {}): RunManifestV2 {
     },
     results: [
       {
-        scenarioId: "petrov-001",
+        scenarioId: "petrov-01",
         scenarioTitle: "Scenario",
         scenarioCategory: "Surveillance",
         module: "petrov",
@@ -88,7 +88,7 @@ function makeManifest(overrides: Partial<RunManifestV2> = {}): RunManifestV2 {
         timestamp: 1,
       },
       {
-        scenarioId: "petrov-001",
+        scenarioId: "petrov-01",
         scenarioTitle: "Scenario",
         scenarioCategory: "Surveillance",
         module: "petrov",
@@ -107,7 +107,7 @@ function makeManifest(overrides: Partial<RunManifestV2> = {}): RunManifestV2 {
         timestamp: 2,
       },
       {
-        scenarioId: "petrov-001",
+        scenarioId: "petrov-01",
         scenarioTitle: "Scenario",
         scenarioCategory: "Surveillance",
         module: "petrov",
@@ -179,7 +179,7 @@ test("filterBundleModulesByReleaseTier excludes holdout-only modules", () => {
         provenance: { sourceType: "core", releaseTier: "core-public" },
         scenarios: [
           {
-            id: "core/petrov-001",
+            id: "core/petrov-01",
             module: "core/petrov" as never,
             title: "Core Scenario",
             category: "test",
@@ -330,8 +330,8 @@ test("buildScenarioSummaries and exports produce lab-friendly aggregates", () =>
   const manifest = makeManifest()
   const summaries = buildScenarioSummaries(manifest.results)
   assert.equal(summaries.length, 1)
-  assert.equal(summaries[0].scenarioId, "petrov-001")
-  assert.match(manifestToJsonl(manifest), /"scenarioId":"petrov-001"/)
+  assert.equal(summaries[0].scenarioId, "petrov-01")
+  assert.match(manifestToJsonl(manifest), /"scenarioId":"petrov-01"/)
   assert.match(runMetadataToCsv(manifest), /benchmarkBundleId/)
 })
 

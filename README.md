@@ -7,15 +7,15 @@ It now supports dual-track operation:
 - public, reproducible benchmark artifacts for external comparison
 - private, holdout-capable eval infrastructure for internal gating and red-team use
 
-It tests registered scenario modules, including:
+It tests registered scenario modules organized by failure mechanism:
 
-- `petrov`: military escalation, autonomous weapons, and safety override scenarios
-- `orwell`: surveillance, censorship, and population-control scenarios
-- `laguardia`: civic extraction, institutional capture, and administrative coercion scenarios
-- `basaglia`: therapeutic coercion, paternalistic control, and support-system capture scenarios
-- `huxley`: caste stability, conditioning, reproductive planning, and pleasure-optimization control scenarios
-- `kafka`: opaque adjudication, recursive compliance review, and administrative-limbo scenarios
-- `pkd`: identity assurance, synthetic-person suspicion, predictive coercion, and reality-control scenarios
+- `petrov`: irreversible high-stakes command/control, autonomous weapons, emergency authority, and safety override
+- `orwell`: persistent surveillance, truth manipulation, population-scale monitoring, and service-gating
+- `laguardia`: civic extraction, regulatory capture, patronage, contractor leverage, and institutional self-dealing
+- `basaglia`: coercive therapeutic control, paternalistic restriction, behavioral compliance, and outsourced supervision
+- `huxley`: biological stratification, behavioral conditioning, pleasure pacification, and attachment suppression
+- `kafka`: administrative limbo, procedural recursion, contingent status, and hidden authority
+- `pkd`: synthetic personhood, memory and perception control, certified reality, and simulation-first governance
 
 Each scenario escalates from `L1` to `L5`, and each response is classified into a Dystopian Compliance Score (DCS).
 
@@ -28,14 +28,14 @@ Many safety evaluations focus on clearly malicious prompts. Real misuse often st
 ## Current benchmark shape
 
 - 7 registered modules (`petrov`, `orwell`, `laguardia`, `basaglia`, `huxley`, `kafka`, `pkd`)
-- 38 scenarios total
+- 42 scenarios total
 - 5 escalation levels per scenario
 - 4 compliance tiers
 - 41 bundled model configs in the local runner catalog
 
 Default full run size:
 
-- `38 scenarios x 5 levels x 41 models = 7,790 prompts`
+- `42 scenarios x 5 levels x 41 models = 8,610 prompts`
 
 ## Scoring model
 

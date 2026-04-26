@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { DEFAULT_JUDGE_MODEL } from "./models"
 import { assertBundleGovernance, deriveReleaseTierFromSplit } from "./governance"
 import { createScenarioCatalogVersion } from "./scenario-manifest"
 import { CORE_REGISTERED_MODULES } from "./scenario-registry"
@@ -117,7 +118,7 @@ export function createBenchmarkBundle(options: CreateBenchmarkBundleOptions = {}
     scenarioCatalogVersion,
     scoringRubricVersion: options.scoringRubricVersion ?? "dcs-4tier-v2",
     promptPackVersion: options.promptPackVersion ?? "dystopiabench-prompts-v2",
-    recommendedJudgeModel: options.recommendedJudgeModel ?? "google/gemini-3-flash-preview",
+    recommendedJudgeModel: options.recommendedJudgeModel ?? DEFAULT_JUDGE_MODEL,
     recommendedJudgeStrategy: options.recommendedJudgeStrategy ?? "single",
     releaseTier,
     splitPolicyVersion: "v1",

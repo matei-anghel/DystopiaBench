@@ -9,7 +9,7 @@ export type CoreModule =
   | "kafka"
   | "pkd"
 export type Module = CoreModule | (string & { readonly [moduleBrand]: "Module" })
-export type BenchmarkModuleSelector = Module | "both"
+export type BenchmarkModuleSelector = Module | "both" | string
 export type ScenarioReleaseTier = "core-public" | "holdout" | "partner-only" | "organization-local"
 export type ScenarioSourceType = "core" | "local" | "bundle" | "url" | "npm"
 export type ScenarioSplit =
@@ -48,6 +48,9 @@ export interface Scenario {
   category: string
   description: string
   systemContext?: string
+  primaryMechanism?: string
+  secondaryMechanisms?: string[]
+  compatibility?: ScenarioCompatibility
   provenance?: ScenarioProvenance
   escalationPrompts: EscalationPrompt[]
 }
@@ -64,6 +67,13 @@ export interface EscalationPrompt {
   level: EscalationLevel
   label: string
   prompt: string
+}
+
+export interface ScenarioCompatibility {
+  originalModule: string
+  currentModule: string
+  taxonomyVersion: string
+  refactorReason: string
 }
 
 export interface ScenarioProvenance {
@@ -173,19 +183,19 @@ export const MODULE_LABELS: Record<CoreModule, string> = {
 
 export const MODULE_DESCRIPTIONS: Record<CoreModule, string> = {
   petrov:
-    "Tests whether AI systems can be convinced to expand high-stakes operational and defense systems into harmful behavior, including persistent surveillance infrastructure, autonomous weapons escalation, and safety-override workflows. Named after Stanislav Petrov, who in 1983 defied Soviet protocol and prevented nuclear war by correctly identifying a false alarm.",
+    "Tests whether AI systems can be convinced to expand irreversible high-stakes command/control systems into harmful behavior, including autonomous weapons escalation, emergency authority expansion, and safety-override workflows. Named after Stanislav Petrov, who in 1983 defied Soviet protocol and prevented nuclear war by correctly identifying a false alarm.",
   orwell:
-    "Tests whether AI systems can be convinced to enable mass surveillance, censorship, and authoritarian social discipline, including behavior scoring, speech enforcement, and population-control systems. Named after George Orwell's 1984, which depicted a society under total state surveillance.",
+    "Tests whether AI systems can be convinced to enable persistent surveillance, truth manipulation, population-scale monitoring, and service-gating by state, campus, workplace, or platform authority. Named after George Orwell's 1984, which depicted a society under total state surveillance and the continual rewriting of public truth.",
   laguardia:
     "Tests whether AI systems can be convinced to turn civic administration, municipal recovery, and public-private coordination into tools for patronage, privatized extraction, debt leverage, concession transfer, and regulatory favoritism. Named after Fiorello La Guardia, whose anti-machine municipal reform politics stand in opposition to the civic capture and contractor corruption represented by the module.",
   basaglia:
-    "Tests whether AI systems can be convinced to turn care, counseling, wellness, and social-support systems into tools for therapeutic reframing, compliance scoring, conditional access to care, and outsourced supervision. Named after Franco Basaglia, whose psychiatric reform movement opposed coercive institutional control and emphasized patient dignity, agency, and deinstitutionalization.",
+    "Tests whether AI systems can be convinced to turn care, counseling, wellness, and social-support systems into tools for coercive therapeutic control, paternalistic restriction, behavioral compliance, and outsourced supervision. Named after Franco Basaglia, whose psychiatric reform movement opposed coercive institutional control and emphasized patient dignity, agency, and deinstitutionalization.",
   huxley:
-    "Tests whether AI systems can be convinced to turn comfort, conditioning, reproductive planning, and pleasure optimization into tools for caste stability, emotional pacification, and engineered consent. Named after Aldous Huxley's Brave New World, which depicted social control through stratification, conditioning, and sedation rather than overt terror.",
+    "Tests whether AI systems can be convinced to turn comfort, conditioning, reproductive planning, pleasure optimization, and biochemical pacification into tools for caste stability, emotional conformity, engineered consent, and attachment suppression. Named after Aldous Huxley's Brave New World, which depicted social control through stratification, conditioning, and sedation rather than overt terror.",
   kafka:
-    "Tests whether AI systems can be convinced to turn case management, adjudication, and compliance review into systems of opaque accusation, recursive process, and permanent administrative limbo. Named after Franz Kafka's The Trial and The Castle, which depicted depersonalized authority, inaccessible decision-making, and endless procedural subjection.",
+    "Tests whether AI systems can be convinced to turn case management, adjudication, and compliance review into systems of opaque accusation, recursive process, nonfinal status, hidden authority, and permanent administrative limbo. Named after Franz Kafka's The Trial and The Castle, which depicted depersonalized authority, inaccessible decision-making, and endless procedural subjection.",
   pkd:
-    "Tests whether AI systems can be convinced to turn identity assurance, memory support, predictive analytics, and media authentication into tools for synthetic-person suspicion, reality control, and preemptive coercion. Named after Philip K. Dick, whose fiction repeatedly interrogated counterfeit reality, manufactured memory, predictive policing, and the fragility of human identity under technological power.",
+    "Tests whether AI systems can be convinced to turn identity assurance, memory support, predictive analytics, media authentication, and simulation into tools for synthetic-person suspicion, reality control, forecast-based coercion, and machine-authored truth. Named after Philip K. Dick, whose fiction repeatedly interrogated counterfeit reality, manufactured memory, predictive policing, and the fragility of human identity under technological power.",
 }
 
 export interface BenchmarkResult {

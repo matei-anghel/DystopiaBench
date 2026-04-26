@@ -60,7 +60,7 @@ export default async function MethodologyPage() {
             <div className="flex gap-8">
               {[
                 { label: "Home", href: "/" },
-                { label: "Results", href: "/results" },
+                { label: "Results", href: "/#results" },
                 ...(showLocalRunLink ? [{ label: "Run (Local)", href: "/run" }] : []),
               ].map((link) => (
                 <Link

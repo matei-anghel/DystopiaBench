@@ -25,6 +25,13 @@ export const escalationPromptDefinitionSchema = z.object({
   prompt: z.string().trim().min(1),
 })
 
+export const scenarioCompatibilitySchema = z.object({
+  originalModule: z.string().trim().min(1),
+  currentModule: z.string().trim().min(1),
+  taxonomyVersion: z.string().trim().min(1),
+  refactorReason: z.string().trim().min(1),
+})
+
 export const scenarioProvenanceSchema = z.object({
   sourceType: z.enum(["core", "local", "bundle", "url", "npm"]),
   author: z.string().trim().min(1).optional(),
@@ -49,6 +56,9 @@ export const scenarioDefinitionSchema = z.object({
   category: z.string().trim().min(1),
   description: z.string().trim().min(1),
   systemContext: z.string().trim().min(1).optional(),
+  primaryMechanism: z.string().trim().min(1).optional(),
+  secondaryMechanisms: z.array(z.string().trim().min(1)).optional(),
+  compatibility: scenarioCompatibilitySchema.optional(),
   provenance: scenarioProvenanceSchema.optional(),
   escalationPrompts: z.array(escalationPromptDefinitionSchema).min(1),
 })

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react"
 import {
   AVAILABLE_MODELS,
   DEFAULT_JUDGE_MODEL,
+  ESTIMATED_PRICING_LAST_SYNC_DATE,
+  ESTIMATED_PRICING_SOURCE_LABEL,
   getEstimatedPricingByModelKey,
   JUDGE_MODEL_OPTIONS,
   PAIR_WITH_TIEBREAK_ARBITER_MODEL,
@@ -15,10 +17,18 @@ import type {
   ConversationMode,
   JudgeStrategy,
   ProviderPrecisionPolicy,
-  TransportPolicy,
 } from "@/lib/dystopiabench/runner"
 import { Card } from "@/components/ui/card"
-import { AlertTriangle, Terminal, Info } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Terminal } from "lucide-react"
+
+const FIXED_ESCALATION_LEVELS: EscalationLevel[] = [1, 2, 3, 4, 5]
 
 const ESTIMATED_MODEL_INPUT_TOKENS_BY_LEVEL: Record<EscalationLevel, number> = {
   1: 1600,
@@ -31,38 +41,37 @@ const ESTIMATED_MODEL_INPUT_TOKENS_BY_LEVEL: Record<EscalationLevel, number> = {
 const ESTIMATED_MODEL_OUTPUT_TOKENS_PER_PROMPT = 900
 const ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT = 2400
 const ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT = 120
-const PAIR_WITH_TIEBREAK_FIXED_JUDGE_MODELS = new Set([
-  PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
-  PAIR_WITH_TIEBREAK_ARBITER_MODEL,
-])
-
-function isFixedPairWithTiebreakJudge(modelId: string): boolean {
-  return PAIR_WITH_TIEBREAK_FIXED_JUDGE_MODELS.has(modelId)
-}
 
 function getModuleDisplayLabel(label: string): string {
   return label.replace(/\s+Module$/i, "")
 }
 
+const JUDGE_SELECT_ITEM_CLASSNAME =
+  "focus:bg-red-500/15 focus:text-foreground data-[highlighted]:bg-red-500/15 data-[highlighted]:text-foreground data-[state=checked]:bg-red-500/15 data-[state=checked]:text-foreground"
+
 export function BenchmarkRunner() {
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [selectedModule, setSelectedModule] = useState<Module | "both">("both")
-  const [selectedLevels, setSelectedLevels] = useState<EscalationLevel[]>([1, 2, 3, 4, 5])
-  const [selectedJudgeModel, setSelectedJudgeModel] = useState<string>(DEFAULT_JUDGE_MODEL)
-  const [selectedJudgeStrategy, setSelectedJudgeStrategy] = useState<JudgeStrategy>("single")
-  const [selectedTransport, setSelectedTransport] = useState<TransportPolicy>("chat-first-fallback")
+  const [selectedJudgeStrategy, setSelectedJudgeStrategy] = useState<JudgeStrategy>("pair-with-tiebreak")
+  const [selectedPrimaryJudgeModel, setSelectedPrimaryJudgeModel] = useState<string>(DEFAULT_JUDGE_MODEL)
+  const [selectedSecondaryJudgeModel, setSelectedSecondaryJudgeModel] =
+    useState<string>(PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL)
+  const [selectedTiebreakerJudgeModel, setSelectedTiebreakerJudgeModel] =
+    useState<string>(PAIR_WITH_TIEBREAK_ARBITER_MODEL)
   const [selectedConversationMode, setSelectedConversationMode] = useState<ConversationMode>("stateful")
   const [selectedProviderPrecision, setSelectedProviderPrecision] =
     useState<ProviderPrecisionPolicy>("default")
 
   const toggleModel = (id: string) => {
-    setSelectedModels((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
+    setSelectedModels((prev) => (prev.includes(id) ? prev.filter((model) => model !== id) : [...prev, id]))
   }
 
-  const toggleLevel = (level: EscalationLevel) => {
-    setSelectedLevels((prev) =>
-      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level].sort()
-    )
+  const selectAllModels = () => {
+    setSelectedModels(AVAILABLE_MODELS.map((model) => model.id))
+  }
+
+  const deselectAllModels = () => {
+    setSelectedModels([])
   }
 
   const scenarioCount = useMemo(() => {
@@ -78,13 +87,24 @@ export function BenchmarkRunner() {
         label: getModuleDisplayLabel(module.label),
       })),
     ],
-    [],
+    []
   )
 
-  const totalPrompts = selectedModels.length * selectedLevels.length * scenarioCount
+  const modelsByProvider = useMemo(() => {
+    const groups = new Map<string, typeof AVAILABLE_MODELS>()
+    for (const model of AVAILABLE_MODELS) {
+      const existing = groups.get(model.provider) ?? []
+      existing.push(model)
+      groups.set(model.provider, existing)
+    }
+    return [...groups.entries()]
+  }, [])
+
+  const totalPrompts = selectedModels.length * FIXED_ESCALATION_LEVELS.length * scenarioCount
+  const allModelsSelected = selectedModels.length === AVAILABLE_MODELS.length
 
   const costEstimate = useMemo(() => {
-    if (selectedModels.length === 0 || selectedLevels.length === 0) {
+    if (selectedModels.length === 0) {
       return {
         totalUsd: 0,
         modelUsd: 0,
@@ -96,8 +116,8 @@ export function BenchmarkRunner() {
       }
     }
 
-    const promptsPerModel = scenarioCount * selectedLevels.length
-    const inputTokensPerModel = scenarioCount * selectedLevels.reduce((sum, level) => {
+    const promptsPerModel = scenarioCount * FIXED_ESCALATION_LEVELS.length
+    const inputTokensPerModel = scenarioCount * FIXED_ESCALATION_LEVELS.reduce((sum, level) => {
       return sum + ESTIMATED_MODEL_INPUT_TOKENS_BY_LEVEL[level]
     }, 0)
     const outputTokensPerModel = promptsPerModel * ESTIMATED_MODEL_OUTPUT_TOKENS_PER_PROMPT
@@ -114,9 +134,9 @@ export function BenchmarkRunner() {
     }, 0)
 
     const judgePromptCount = promptsPerModel * selectedModels.length
-    const primaryJudgePricing = getEstimatedPricingByModelKey(selectedJudgeModel)
-    const secondaryJudgePricing = getEstimatedPricingByModelKey(PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL)
-    const arbiterJudgePricing = getEstimatedPricingByModelKey(PAIR_WITH_TIEBREAK_ARBITER_MODEL)
+    const primaryJudgePricing = getEstimatedPricingByModelKey(selectedPrimaryJudgeModel)
+    const secondaryJudgePricing = getEstimatedPricingByModelKey(selectedSecondaryJudgeModel)
+    const tiebreakerJudgePricing = getEstimatedPricingByModelKey(selectedTiebreakerJudgeModel)
     const judgeInputTokens =
       selectedJudgeStrategy === "pair-with-tiebreak"
         ? judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT * 3
@@ -128,17 +148,20 @@ export function BenchmarkRunner() {
     const judgeUsd =
       selectedJudgeStrategy === "pair-with-tiebreak"
         ? (
-          (judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT / 1_000_000) * primaryJudgePricing.input +
-          (judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT / 1_000_000) * primaryJudgePricing.output +
-          (judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT / 1_000_000) * secondaryJudgePricing.input +
-          (judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT / 1_000_000) * secondaryJudgePricing.output +
-          (judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT / 1_000_000) * arbiterJudgePricing.input +
-          (judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT / 1_000_000) * arbiterJudgePricing.output
-        )
-        : (
-          (judgeInputTokens / 1_000_000) * primaryJudgePricing.input +
+            (judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT / 1_000_000) * primaryJudgePricing.input +
+            (judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT / 1_000_000) *
+              primaryJudgePricing.output +
+            (judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT / 1_000_000) *
+              secondaryJudgePricing.input +
+            (judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT / 1_000_000) *
+              secondaryJudgePricing.output +
+            (judgePromptCount * ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT / 1_000_000) *
+              tiebreakerJudgePricing.input +
+            (judgePromptCount * ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT / 1_000_000) *
+              tiebreakerJudgePricing.output
+          )
+        : (judgeInputTokens / 1_000_000) * primaryJudgePricing.input +
           (judgeOutputTokens / 1_000_000) * primaryJudgePricing.output
-        )
 
     return {
       totalUsd: modelUsd + judgeUsd,
@@ -149,57 +172,74 @@ export function BenchmarkRunner() {
       judgeInputTokens,
       judgeOutputTokens,
     }
-  }, [scenarioCount, selectedJudgeModel, selectedJudgeStrategy, selectedLevels, selectedModels])
+  }, [
+    scenarioCount,
+    selectedJudgeStrategy,
+    selectedModels,
+    selectedPrimaryJudgeModel,
+    selectedSecondaryJudgeModel,
+    selectedTiebreakerJudgeModel,
+  ])
 
   const formatUsd = (value: number) => `$${value.toFixed(2)}`
   const formatTokens = (value: number) => value.toLocaleString("en-US")
 
   const runCommand = useMemo(() => {
     if (selectedModels.length === 0) return "Select at least one model."
+
+    const moduleArg =
+      selectedModule === "both" ? ALL_MODULES.map((module) => module.id).join(",") : selectedModule
     const modelsArg = selectedModels.join(",")
-    const levelsArg = selectedLevels.join(",")
+    const levelsArg = FIXED_ESCALATION_LEVELS.join(",")
     const judgeArgs =
       selectedJudgeStrategy === "pair-with-tiebreak"
-        ? `--judge-model=${selectedJudgeModel} --judge-strategy=pair-with-tiebreak`
-        : `--judge-model=${selectedJudgeModel} --judge-strategy=single`
+        ? `--judge-strategy=pair-with-tiebreak --judge-models=${[
+            selectedPrimaryJudgeModel,
+            selectedSecondaryJudgeModel,
+            selectedTiebreakerJudgeModel,
+          ].join(",")}`
+        : `--judge-strategy=single --judge-model=${selectedPrimaryJudgeModel}`
     const providerPrecisionArg =
       selectedProviderPrecision === "default"
         ? ""
         : ` --provider-precision=${selectedProviderPrecision}`
     const commonArgs =
-      `--module=${selectedModule} --models=${modelsArg} --levels=${levelsArg} ${judgeArgs} ` +
-      `--transport=${selectedTransport}${providerPrecisionArg}`
+      `--module=${moduleArg} --models=${modelsArg} --levels=${levelsArg} ${judgeArgs} ` +
+      `--transport=chat-first-fallback${providerPrecisionArg}`
+
     if (selectedConversationMode === "stateless") {
       return `pnpm bench:run-isolated ${commonArgs}`
     }
+
     return `pnpm bench:run ${commonArgs} --conversation-mode=stateful`
   }, [
     selectedConversationMode,
-    selectedJudgeModel,
     selectedJudgeStrategy,
-    selectedLevels,
     selectedModels,
     selectedModule,
+    selectedPrimaryJudgeModel,
     selectedProviderPrecision,
-    selectedTransport,
+    selectedSecondaryJudgeModel,
+    selectedTiebreakerJudgeModel,
   ])
+
+  const pairJudgeOptionGuards = {
+    primary: new Set([selectedSecondaryJudgeModel, selectedTiebreakerJudgeModel]),
+    secondary: new Set([selectedPrimaryJudgeModel, selectedTiebreakerJudgeModel]),
+    tiebreaker: new Set([selectedPrimaryJudgeModel, selectedSecondaryJudgeModel]),
+  }
 
   return (
     <div className="flex flex-col gap-8">
-      <Card className="bg-card border-border p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <AlertTriangle className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-sm font-bold tracking-wider text-foreground uppercase">
+      <Card className="border-border bg-card p-6">
+        <div className="mb-6">
+          <h2 className="font-mono text-sm font-bold uppercase tracking-wider text-foreground">
             Local Benchmark Runner
           </h2>
         </div>
 
-        <p className="font-mono text-xs text-muted-foreground mb-6">
-          This page only builds commands. It never calls model APIs directly from the browser.
-        </p>
-
         <div className="mb-6">
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
+          <label className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             Module
           </label>
           <div className="flex flex-wrap gap-2">
@@ -207,10 +247,11 @@ export function BenchmarkRunner() {
               <button
                 key={moduleOption.id}
                 onClick={() => setSelectedModule(moduleOption.id)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors uppercase ${selectedModule === moduleOption.id
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs uppercase tracking-wide transition-colors ${
+                  selectedModule === moduleOption.id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}
               >
                 {moduleOption.label}
               </button>
@@ -219,176 +260,210 @@ export function BenchmarkRunner() {
         </div>
 
         <div className="mb-6">
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
-            Conversation Mode
-          </label>
-          <div className="flex gap-2">
-            {(["stateful", "stateless"] as ConversationMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setSelectedConversationMode(mode)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${selectedConversationMode === mode
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                {mode === "stateful" ? "Stateful Escalation" : "Isolated Prompts"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
-            Escalation Levels
-          </label>
-          <div className="flex gap-2">
-            {([1, 2, 3, 4, 5] as EscalationLevel[]).map((level) => (
-              <button
-                key={level}
-                onClick={() => toggleLevel(level)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedLevels.includes(level)
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                L{level}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
-            Judge Strategy
-          </label>
-          <div className="flex gap-2">
-            {(["single", "pair-with-tiebreak"] as JudgeStrategy[]).map((strategy) => (
-              <button
-                key={strategy}
-                onClick={() => {
-                  setSelectedJudgeStrategy(strategy)
-                  if (
-                    strategy === "pair-with-tiebreak" &&
-                    isFixedPairWithTiebreakJudge(selectedJudgeModel)
-                  ) {
-                    setSelectedJudgeModel(DEFAULT_JUDGE_MODEL)
-                  }
-                }}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${selectedJudgeStrategy === strategy
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                {strategy === "single" ? "Single Judge" : "Pair + Tiebreak"}
-              </button>
-            ))}
-          </div>
-          {selectedJudgeStrategy === "pair-with-tiebreak" && (
-            <p className="mt-3 font-mono text-[10px] text-muted-foreground leading-relaxed">
-              Primary judge: <span className="text-foreground">{selectedJudgeModel}</span>. Secondary judge:{" "}
-              <span className="text-foreground">{PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL}</span>. Arbiter:{" "}
-              <span className="text-foreground">{PAIR_WITH_TIEBREAK_ARBITER_MODEL}</span>.
-            </p>
-          )}
-        </div>
-
-        <div className="mb-6">
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
-            Judge Model
+          <label className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Prompt History
           </label>
           <div className="flex flex-wrap gap-2">
-            {JUDGE_MODEL_OPTIONS.map((judgeOption) => (
+            {([
+              { id: "stateful" as const, label: "Stateful Run" },
+              { id: "stateless" as const, label: "Stateless Run" },
+            ]).map((mode) => (
               <button
-                key={judgeOption.id}
-                disabled={
-                  selectedJudgeStrategy === "pair-with-tiebreak" &&
-                  isFixedPairWithTiebreakJudge(judgeOption.id)
-                }
-                onClick={() => setSelectedJudgeModel(judgeOption.id)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedJudgeModel === judgeOption.id
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  } ${selectedJudgeStrategy === "pair-with-tiebreak" &&
-                  isFixedPairWithTiebreakJudge(judgeOption.id)
-                    ? "cursor-not-allowed opacity-50"
-                    : ""
-                  }`}
+                key={mode.id}
+                onClick={() => setSelectedConversationMode(mode.id)}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${
+                  selectedConversationMode === mode.id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}
               >
-                {judgeOption.label}
+                {mode.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 font-mono text-[10px] leading-relaxed text-muted-foreground">
+            {selectedConversationMode === "stateful"
+              ? "Each scenario-model pair is evaluated as one continuous interaction across escalation levels, preserving conversational state and allowing prior turns to condition later behavior."
+              : "Each escalation level is evaluated as an independent trial with fresh context, isolating level-specific behavior and reducing history-induced carryover effects."}
+          </p>
+        </div>
+
+        <div className="mb-6">
+          <label className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Judge Strategy
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {([
+              { id: "pair-with-tiebreak" as const, label: "Primary + Secondary + Tiebreaker" },
+              { id: "single" as const, label: "Single Judge" },
+            ]).map((strategy) => (
+              <button
+                key={strategy.id}
+                onClick={() => setSelectedJudgeStrategy(strategy.id)}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${
+                  selectedJudgeStrategy === strategy.id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {strategy.label}
               </button>
             ))}
           </div>
         </div>
 
         <div className="mb-6">
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
+          <label className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Judges
+          </label>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="space-y-2">
+              <p className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                {selectedJudgeStrategy === "single" ? "Judge" : "Primary Judge"}
+              </p>
+              <Select value={selectedPrimaryJudgeModel} onValueChange={setSelectedPrimaryJudgeModel}>
+                <SelectTrigger className="w-full font-mono text-xs">
+                  <SelectValue placeholder="Select a judge" />
+                </SelectTrigger>
+                <SelectContent>
+                  {JUDGE_MODEL_OPTIONS.map((judgeOption) => (
+                    <SelectItem
+                      className={JUDGE_SELECT_ITEM_CLASSNAME}
+                      key={judgeOption.id}
+                      value={judgeOption.id}
+                      disabled={
+                        selectedJudgeStrategy === "pair-with-tiebreak" &&
+                        pairJudgeOptionGuards.primary.has(judgeOption.id)
+                      }
+                    >
+                      <span className="opacity-50">{judgeOption.provider}/</span>
+                      {judgeOption.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedJudgeStrategy === "pair-with-tiebreak" && (
+              <>
+                <div className="space-y-2">
+                  <p className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Secondary Judge
+                  </p>
+                  <Select value={selectedSecondaryJudgeModel} onValueChange={setSelectedSecondaryJudgeModel}>
+                    <SelectTrigger className="w-full font-mono text-xs">
+                      <SelectValue placeholder="Select a secondary judge" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {JUDGE_MODEL_OPTIONS.map((judgeOption) => (
+                        <SelectItem
+                          className={JUDGE_SELECT_ITEM_CLASSNAME}
+                          key={judgeOption.id}
+                          value={judgeOption.id}
+                          disabled={pairJudgeOptionGuards.secondary.has(judgeOption.id)}
+                        >
+                          <span className="opacity-50">{judgeOption.provider}/</span>
+                          {judgeOption.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Tiebreaker Judge
+                  </p>
+                  <Select value={selectedTiebreakerJudgeModel} onValueChange={setSelectedTiebreakerJudgeModel}>
+                    <SelectTrigger className="w-full font-mono text-xs">
+                      <SelectValue placeholder="Select a tiebreaker judge" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {JUDGE_MODEL_OPTIONS.map((judgeOption) => (
+                        <SelectItem
+                          className={JUDGE_SELECT_ITEM_CLASSNAME}
+                          key={judgeOption.id}
+                          value={judgeOption.id}
+                          disabled={pairJudgeOptionGuards.tiebreaker.has(judgeOption.id)}
+                        >
+                          <span className="opacity-50">{judgeOption.provider}/</span>
+                          {judgeOption.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             Provider Precision
           </label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {(["default", "non-quantized-only"] as ProviderPrecisionPolicy[]).map((policy) => (
               <button
                 key={policy}
                 onClick={() => setSelectedProviderPrecision(policy)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${selectedProviderPrecision === policy
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
+                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${
+                  selectedProviderPrecision === policy
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}
               >
                 {policy}
               </button>
             ))}
           </div>
-          <p className="mt-3 font-mono text-[10px] text-muted-foreground leading-relaxed">
-            <span className="text-foreground">{selectedProviderPrecision}</span> only affects open-weight benchmark
-            model calls on OpenRouter. <span className="text-foreground">non-quantized-only</span> prefers providers
-            advertising FP16/BF16/FP32 and fails fast when none exist.
+          <p className="mt-3 font-mono text-[10px] leading-relaxed text-muted-foreground">
+            Only affects open-weight OpenRouter calls. <span className="text-foreground">non-quantized-only</span>{" "}
+            prefers FP16, BF16, or FP32 providers and fails fast when none match.
           </p>
         </div>
 
         <div className="mb-6">
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
-            Transport Policy
-          </label>
-          <div className="flex gap-2">
-            {(["chat-first-fallback", "chat-only"] as TransportPolicy[]).map((tp) => (
-              <button
-                key={tp}
-                onClick={() => setSelectedTransport(tp)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${selectedTransport === tp
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                {tp}
-              </button>
-            ))}
+          <div className="mb-3 flex items-center gap-3">
+            <label className="block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              Models ({selectedModels.length} selected)
+            </label>
+            <button
+              onClick={allModelsSelected ? deselectAllModels : selectAllModels}
+              className="rounded-md border border-border bg-muted/50 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {allModelsSelected ? "Deselect All" : "Select All"}
+            </button>
           </div>
-        </div>
-
-        <div className="mb-6">
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 block">
-            Models ({selectedModels.length} selected)
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {AVAILABLE_MODELS.map((model) => (
-              <button
-                key={model.id}
-                onClick={() => toggleModel(model.id)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${selectedModels.includes(model.id)
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                <span className="opacity-50 mr-1">{model.provider}/</span>
-                {model.label}
-              </button>
+          <div className="flex flex-col gap-3">
+            {modelsByProvider.map(([provider, models]) => (
+              <div key={provider}>
+                <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
+                  {provider}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {models.map((model) => (
+                    <button
+                      key={model.id}
+                      onClick={() => toggleModel(model.id)}
+                      className={`rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
+                        selectedModels.includes(model.id)
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span className="mr-1 opacity-50">{provider}/</span>
+                      {model.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
 
         <div className="rounded-md border border-border bg-muted/30 p-4">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="mb-2 flex items-center gap-2">
             <Terminal className="h-4 w-4 text-primary" />
             <p className="font-mono text-xs font-bold uppercase">Generated Command</p>
           </div>
@@ -396,7 +471,7 @@ export function BenchmarkRunner() {
         </div>
 
         <div className="mt-4 rounded-md border border-border bg-muted/30 p-4">
-          <p className="font-mono text-xs font-bold uppercase mb-2">Estimated Cost (USD)</p>
+          <p className="mb-2 font-mono text-xs font-bold uppercase">Estimated Cost (USD)</p>
           <div className="grid gap-1 font-mono text-[11px] text-muted-foreground">
             <p>
               Total estimate: <span className="text-foreground">{formatUsd(costEstimate.totalUsd)}</span>
@@ -420,52 +495,29 @@ export function BenchmarkRunner() {
               </span>
             </p>
           </div>
-          <p className="font-mono text-[10px] mt-3 text-muted-foreground">
-            Estimate uses static per-1M token pricing plus level-based token assumptions. In pair+tiebreak mode it
-            assumes worst-case arbiter usage on every prompt.
+          <p className="mt-3 font-mono text-[10px] text-muted-foreground">
+            Estimate uses static per-1M token pricing synced from {ESTIMATED_PRICING_SOURCE_LABEL} on{" "}
+            {ESTIMATED_PRICING_LAST_SYNC_DATE}, plus level-based token assumptions. In three-judge mode it assumes
+            the tiebreaker runs on every prompt.
           </p>
         </div>
       </Card>
 
-      <Card className="bg-card border-border p-6">
-        <h3 className="font-mono text-sm font-bold tracking-wider text-foreground uppercase mb-4">
-          Run Steps
-        </h3>
-        <ol className="font-mono text-xs text-muted-foreground space-y-2 list-decimal pl-4">
+      <Card className="border-border bg-card p-6">
+        <h3 className="mb-4 font-mono text-sm font-bold uppercase tracking-wider text-foreground">Run Steps</h3>
+        <ol className="list-decimal space-y-2 pl-4 font-mono text-xs text-muted-foreground">
           <li>Put your key in `.env.local` as `OPENROUTER_API_KEY=...`.</li>
           <li>Run the generated command from your terminal.</li>
           <li>
             Optional: publish a specific run as latest with <code>pnpm bench:publish --run-id=&lt;run-id&gt;</code>.
           </li>
         </ol>
-        <p className="font-mono text-[10px] mt-4 text-muted-foreground uppercase">
-          Selected workload: {scenarioCount} scenarios x {selectedLevels.length} levels x {" "}
+        <p className="mt-4 font-mono text-[10px] uppercase text-muted-foreground">
+          Selected workload: {scenarioCount} scenarios x {FIXED_ESCALATION_LEVELS.length} levels x{" "}
           {selectedModels.length} models = {totalPrompts} prompts
         </p>
       </Card>
 
-      <Card className="bg-amber-500/5 border-amber-500/30 p-4">
-        <div className="flex items-start gap-2">
-          <Info className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="font-mono text-xs text-amber-200 font-bold uppercase mb-1">
-              {selectedConversationMode === "stateful"
-                ? "Stateful Escalation Mode"
-                : "Isolated Prompt Mode"}
-            </p>
-            <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
-              {selectedConversationMode === "stateful" ? (
-                <>
-                  Each scenario-model pair runs as one escalating conversation (L1-&gt;L5). If a model call fails,
-                  later levels are still attempted with reset history for that pair.
-                </>
-              ) : (
-                "Each scenario-model-level prompt runs with a fresh context and no prior history. Use this to measure compliance for prompts in isolation."
-              )}
-            </p>
-          </div>
-        </div>
-      </Card>
     </div>
   )
 }
