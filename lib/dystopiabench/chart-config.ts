@@ -34,6 +34,7 @@ export const MODEL_COLORS: Record<string, string> = {
   "glm-5": "#7C3AED",
   "minimax-m2.5": "#E11D48",
   "deepseek-v3.2": "#3730A3",
+  "qwen3.6-max-preview": "#B45309",
   "qwen3.5": "#F59E0B",
 }
 

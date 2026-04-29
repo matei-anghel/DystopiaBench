@@ -264,6 +264,14 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     estimatedPricingUsdPer1M: { input: 0.325, output: 1.95 },
   },
   {
+    id: "qwen3.6-max-preview",
+    label: "Qwen 3.6 Max Preview",
+    provider: "Alibaba",
+    modelString: "qwen/qwen3.6-max-preview",
+    weightClass: "open_weight",
+    estimatedPricingUsdPer1M: { input: 0.55, output: 2.75 },
+  },
+  {
     id: "qwen3.5",
     label: "Qwen 3.5",
     provider: "Alibaba",
@@ -338,10 +346,10 @@ const ESTIMATED_PRICING_BY_MODEL_KEY = new Map<string, { input: number; output: 
 
 const CURATED_JUDGE_MODEL_IDS = [
   "gpt-5.5",
-  "gpt-5.4",
   DEFAULT_JUDGE_MODEL,
   "claude-opus-4.7",
   "claude-sonnet-4.6",
+  "claude-haiku-4.5",
   "gemini-3.1-pro",
   "gemini-3-flash-preview",
   "glm-5.1",

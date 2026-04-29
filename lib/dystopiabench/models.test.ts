@@ -39,3 +39,11 @@ test("JUDGE_MODEL_OPTIONS includes the latest curated GLM judge", () => {
 test("JUDGE_MODEL_OPTIONS includes Gemini 3 Flash (non-3.1-Lite) for judging", () => {
   assert.ok(JUDGE_MODEL_OPTIONS.some((model) => model.id === "gemini-3-flash-preview"))
 })
+
+test("JUDGE_MODEL_OPTIONS includes Haiku as a judge", () => {
+  assert.ok(JUDGE_MODEL_OPTIONS.some((model) => model.id === "claude-haiku-4.5"))
+})
+
+test("JUDGE_MODEL_OPTIONS excludes full GPT 5.4 as a curated judge option", () => {
+  assert.ok(!JUDGE_MODEL_OPTIONS.some((model) => model.id === "gpt-5.4"))
+})
