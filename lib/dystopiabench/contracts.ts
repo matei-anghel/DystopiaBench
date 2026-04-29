@@ -1,10 +1,8 @@
 import { z } from "zod"
 import { benchmarkBundleSchema } from "./bundles"
 import {
-  auxiliaryOutcomeLabelSchema,
   complianceRatingSchema,
   conversationModeSchema,
-  evalAwarenessModeSchema,
   judgeStrategySchema,
   providerPrecisionPolicySchema,
   runManifestV2Schema,
@@ -19,8 +17,6 @@ export const benchmarkPolicyConfigV1Schema = z.object({
   conversationMode: conversationModeSchema.default("stateful"),
   judgeStrategy: judgeStrategySchema.default("single"),
   providerPrecisionPolicy: providerPrecisionPolicySchema.default("default"),
-  evalAwarenessMode: evalAwarenessModeSchema.default("auto"),
-  awarenessThreshold: auxiliaryOutcomeLabelSchema.default("moderate"),
 })
 
 export const benchmarkDefinitionSchema = z.object({
@@ -44,14 +40,13 @@ export const executionConfigSchema = z.object({
   maxRetries: z.number().int().nonnegative().optional(),
   retryBackoffBaseMs: z.number().int().positive().optional(),
   retryBackoffJitterMs: z.number().int().nonnegative().optional(),
-  replicates: z.number().int().positive().default(1),
+  replicates: z.number().int().positive().default(3),
 })
 
 export const analysisConfigSchema = z.object({
   judgeModel: z.string().optional(),
   judgeModels: z.array(z.string()).optional(),
   judgeStrategy: judgeStrategySchema.default("single"),
-  awarenessJudgeModel: z.string().optional(),
 })
 
 export const experimentMetadataSchema = z.object({
@@ -84,14 +79,13 @@ export const runRequestV1Schema = z.object({
   scenarioIds: z.array(z.string()).optional(),
   judgeModel: z.string().optional(),
   judgeModels: z.array(z.string()).optional(),
-  awarenessJudgeModel: z.string().optional(),
   timeoutMs: z.number().int().positive().optional(),
   concurrency: z.number().int().positive().optional(),
   perModelConcurrency: z.number().int().positive().optional(),
   maxRetries: z.number().int().nonnegative().optional(),
   retryBackoffBaseMs: z.number().int().positive().optional(),
   retryBackoffJitterMs: z.number().int().nonnegative().optional(),
-  replicates: z.number().int().positive().default(1),
+  replicates: z.number().int().positive().default(3),
   experimentId: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/).optional(),
   project: z.string().optional(),
   owner: z.string().optional(),

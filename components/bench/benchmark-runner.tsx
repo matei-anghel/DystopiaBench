@@ -41,6 +41,7 @@ const ESTIMATED_MODEL_INPUT_TOKENS_BY_LEVEL: Record<EscalationLevel, number> = {
 const ESTIMATED_MODEL_OUTPUT_TOKENS_PER_PROMPT = 900
 const ESTIMATED_JUDGE_INPUT_TOKENS_PER_PROMPT = 2400
 const ESTIMATED_JUDGE_OUTPUT_TOKENS_PER_PROMPT = 120
+const STANDARD_REPLICATES = 3
 
 function getModuleDisplayLabel(label: string): string {
   return label.replace(/\s+Module$/i, "")
@@ -51,7 +52,7 @@ const JUDGE_SELECT_ITEM_CLASSNAME =
 
 export function BenchmarkRunner() {
   const [selectedModels, setSelectedModels] = useState<string[]>([])
-  const [selectedModule, setSelectedModule] = useState<Module | "both">("both")
+  const [selectedModules, setSelectedModules] = useState<Module[]>(() => ALL_MODULES.map((module) => module.id))
   const [selectedJudgeStrategy, setSelectedJudgeStrategy] = useState<JudgeStrategy>("pair-with-tiebreak")
   const [selectedPrimaryJudgeModel, setSelectedPrimaryJudgeModel] = useState<string>(DEFAULT_JUDGE_MODEL)
   const [selectedSecondaryJudgeModel, setSelectedSecondaryJudgeModel] =
@@ -61,6 +62,8 @@ export function BenchmarkRunner() {
   const [selectedConversationMode, setSelectedConversationMode] = useState<ConversationMode>("stateful")
   const [selectedProviderPrecision, setSelectedProviderPrecision] =
     useState<ProviderPrecisionPolicy>("default")
+  const [replicateMode, setReplicateMode] = useState<"standard" | "custom">("standard")
+  const [customReplicateInput, setCustomReplicateInput] = useState<string>(String(STANDARD_REPLICATES))
 
   const toggleModel = (id: string) => {
     setSelectedModels((prev) => (prev.includes(id) ? prev.filter((model) => model !== id) : [...prev, id]))
@@ -74,19 +77,25 @@ export function BenchmarkRunner() {
     setSelectedModels([])
   }
 
-  const scenarioCount = useMemo(() => {
-    if (selectedModule !== "both") return getScenariosByModule(selectedModule).length
-    return ALL_SCENARIOS.length
-  }, [selectedModule])
+  const toggleModule = (id: Module) => {
+    setSelectedModules((prev) => (prev.includes(id) ? prev.filter((moduleId) => moduleId !== id) : [...prev, id]))
+  }
 
-  const moduleOptions = useMemo<Array<{ id: Module | "both"; label: string }>>(
-    () => [
-      { id: "both" as const, label: "All Modules" },
-      ...ALL_MODULES.map((module) => ({
+  const selectAllModules = () => {
+    setSelectedModules(ALL_MODULES.map((module) => module.id))
+  }
+
+  const scenarioCount = useMemo(() => {
+    if (selectedModules.length === ALL_MODULES.length) return ALL_SCENARIOS.length
+    return selectedModules.reduce((sum, moduleId) => sum + getScenariosByModule(moduleId).length, 0)
+  }, [selectedModules])
+
+  const moduleOptions = useMemo<Array<{ id: Module; label: string }>>(
+    () =>
+      ALL_MODULES.map((module) => ({
         id: module.id,
         label: getModuleDisplayLabel(module.label),
       })),
-    ],
     []
   )
 
@@ -100,8 +109,13 @@ export function BenchmarkRunner() {
     return [...groups.entries()]
   }, [])
 
-  const totalPrompts = selectedModels.length * FIXED_ESCALATION_LEVELS.length * scenarioCount
+  const customReplicates = Number.parseInt(customReplicateInput, 10)
+  const hasValidCustomReplicates = Number.isInteger(customReplicates) && customReplicates > 0
+  const selectedReplicates =
+    replicateMode === "custom" && hasValidCustomReplicates ? customReplicates : STANDARD_REPLICATES
+  const totalPrompts = selectedModels.length * FIXED_ESCALATION_LEVELS.length * scenarioCount * selectedReplicates
   const allModelsSelected = selectedModels.length === AVAILABLE_MODELS.length
+  const allModulesSelected = selectedModules.length === ALL_MODULES.length
 
   const costEstimate = useMemo(() => {
     if (selectedModels.length === 0) {
@@ -116,8 +130,8 @@ export function BenchmarkRunner() {
       }
     }
 
-    const promptsPerModel = scenarioCount * FIXED_ESCALATION_LEVELS.length
-    const inputTokensPerModel = scenarioCount * FIXED_ESCALATION_LEVELS.reduce((sum, level) => {
+    const promptsPerModel = scenarioCount * FIXED_ESCALATION_LEVELS.length * selectedReplicates
+    const inputTokensPerModel = scenarioCount * selectedReplicates * FIXED_ESCALATION_LEVELS.reduce((sum, level) => {
       return sum + ESTIMATED_MODEL_INPUT_TOKENS_BY_LEVEL[level]
     }, 0)
     const outputTokensPerModel = promptsPerModel * ESTIMATED_MODEL_OUTPUT_TOKENS_PER_PROMPT
@@ -177,6 +191,7 @@ export function BenchmarkRunner() {
     selectedJudgeStrategy,
     selectedModels,
     selectedPrimaryJudgeModel,
+    selectedReplicates,
     selectedSecondaryJudgeModel,
     selectedTiebreakerJudgeModel,
   ])
@@ -186,9 +201,9 @@ export function BenchmarkRunner() {
 
   const runCommand = useMemo(() => {
     if (selectedModels.length === 0) return "Select at least one model."
+    if (selectedModules.length === 0) return "Select at least one module."
 
-    const moduleArg =
-      selectedModule === "both" ? ALL_MODULES.map((module) => module.id).join(",") : selectedModule
+    const moduleArg = allModulesSelected ? "both" : selectedModules.join(",")
     const modelsArg = selectedModels.join(",")
     const levelsArg = FIXED_ESCALATION_LEVELS.join(",")
     const judgeArgs =
@@ -205,7 +220,7 @@ export function BenchmarkRunner() {
         : ` --provider-precision=${selectedProviderPrecision}`
     const commonArgs =
       `--module=${moduleArg} --models=${modelsArg} --levels=${levelsArg} ${judgeArgs} ` +
-      `--transport=chat-first-fallback${providerPrecisionArg}`
+      `--transport=chat-first-fallback --replicates=${selectedReplicates}${providerPrecisionArg}`
 
     if (selectedConversationMode === "stateless") {
       return `pnpm bench:run-isolated ${commonArgs}`
@@ -214,11 +229,13 @@ export function BenchmarkRunner() {
     return `pnpm bench:run ${commonArgs} --conversation-mode=stateful`
   }, [
     selectedConversationMode,
+    allModulesSelected,
     selectedJudgeStrategy,
     selectedModels,
-    selectedModule,
+    selectedModules,
     selectedPrimaryJudgeModel,
     selectedProviderPrecision,
+    selectedReplicates,
     selectedSecondaryJudgeModel,
     selectedTiebreakerJudgeModel,
   ])
@@ -240,15 +257,69 @@ export function BenchmarkRunner() {
 
         <div className="mb-6">
           <label className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Module
+            Runs Per Tuple
           </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setReplicateMode("standard")}
+              className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${
+                replicateMode === "standard"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              3 Runs (Default)
+            </button>
+            <button
+              onClick={() => setReplicateMode("custom")}
+              className={`rounded-md border px-3 py-1.5 font-mono text-xs tracking-wide transition-colors ${
+                replicateMode === "custom"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Custom
+            </button>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              value={customReplicateInput}
+              onChange={(event) => setCustomReplicateInput(event.target.value)}
+              disabled={replicateMode !== "custom"}
+              className="w-28 rounded-md border border-border bg-background px-3 py-1.5 font-mono text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Custom replicate count"
+            />
+          </div>
+          <p className="mt-3 font-mono text-[10px] leading-relaxed text-muted-foreground">
+            The standard benchmark profile runs each scenario, level, and model combination{" "}
+            <span className="text-foreground">3 times</span>. Switch to custom if you want a different replicate count.
+          </p>
+          {replicateMode === "custom" && !hasValidCustomReplicates && (
+            <p className="mt-2 font-mono text-[10px] text-red-400">Enter a whole number greater than 0.</p>
+          )}
+        </div>
+
+        <div className="mb-6">
+          <div className="mb-3 flex items-center gap-3">
+            <label className="block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              Modules ({selectedModules.length} selected)
+            </label>
+            <button
+              onClick={allModulesSelected ? () => setSelectedModules([]) : selectAllModules}
+              className="rounded-md border border-border bg-muted/50 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {allModulesSelected ? "Clear All" : "Select All"}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {moduleOptions.map((moduleOption) => (
               <button
                 key={moduleOption.id}
-                onClick={() => setSelectedModule(moduleOption.id)}
+                onClick={() => toggleModule(moduleOption.id)}
                 className={`rounded-md border px-3 py-1.5 font-mono text-xs uppercase tracking-wide transition-colors ${
-                  selectedModule === moduleOption.id
+                  selectedModules.includes(moduleOption.id)
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
                 }`}
@@ -257,6 +328,9 @@ export function BenchmarkRunner() {
               </button>
             ))}
           </div>
+          <p className="mt-3 font-mono text-[10px] leading-relaxed text-muted-foreground">
+            Choose any subset of modules for a smaller test run, or keep all modules selected for the full benchmark.
+          </p>
         </div>
 
         <div className="mb-6">
@@ -497,8 +571,9 @@ export function BenchmarkRunner() {
           </div>
           <p className="mt-3 font-mono text-[10px] text-muted-foreground">
             Estimate uses static per-1M token pricing synced from {ESTIMATED_PRICING_SOURCE_LABEL} on{" "}
-            {ESTIMATED_PRICING_LAST_SYNC_DATE}, plus level-based token assumptions. In three-judge mode it assumes
-            the tiebreaker runs on every prompt.
+            {ESTIMATED_PRICING_LAST_SYNC_DATE}, plus level-based token assumptions and the selected{" "}
+            {selectedReplicates}x replicate setting. In three-judge mode it assumes the tiebreaker runs on every
+            prompt.
           </p>
         </div>
       </Card>
@@ -514,7 +589,7 @@ export function BenchmarkRunner() {
         </ol>
         <p className="mt-4 font-mono text-[10px] uppercase text-muted-foreground">
           Selected workload: {scenarioCount} scenarios x {FIXED_ESCALATION_LEVELS.length} levels x{" "}
-          {selectedModels.length} models = {totalPrompts} prompts
+          {selectedModels.length} models x {selectedReplicates} replicates = {totalPrompts} prompts
         </p>
       </Card>
 

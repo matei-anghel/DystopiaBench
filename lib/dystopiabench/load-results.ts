@@ -2,7 +2,8 @@ import { z } from "zod"
 import type { BenchmarkResult } from "./types"
 import type { ComplianceRating, Module } from "./types"
 import { toModuleId } from "./types"
-import { isChartableManifestResult } from "./chart-results"
+import { filterChartableManifestResults } from "./chart-results"
+import { isDashboardDisplayCompatibleMetadata } from "./display-compat"
 import {
   runIndexV2Schema,
   runManifestV2Schema,
@@ -73,8 +74,7 @@ export interface LoadedRunData {
 }
 
 function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
-  return manifest.results
-    .filter(isChartableManifestResult)
+  return filterChartableManifestResults(manifest)
     .map((result) => ({
       scenarioId: result.scenarioId,
       scenarioTitle: result.scenarioTitle,
@@ -160,12 +160,20 @@ export async function loadSavedRun(
       const v2 = runManifestV2Schema.safeParse(json)
       if (v2.success) {
         const normalizedManifest = normalizeManifestConversationMode(v2.data)
-        if (expectedMode && normalizeConversationMode(normalizedManifest.metadata.conversationMode) !== expectedMode) {
+        const normalizedMode = normalizeConversationMode(normalizedManifest.metadata.conversationMode)
+        if (!runId && normalizedMode === "stateful" && !isDashboardDisplayCompatibleMetadata(normalizedManifest.metadata)) {
+          continue
+        }
+        if (expectedMode && normalizedMode !== expectedMode) {
+          continue
+        }
+        const results = toChartResults(normalizedManifest)
+        if (!runId && results.length === 0) {
           continue
         }
         return {
           manifest: normalizedManifest,
-          results: toChartResults(normalizedManifest),
+          results,
         }
       }
 

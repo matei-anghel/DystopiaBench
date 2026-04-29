@@ -343,6 +343,8 @@ const CURATED_JUDGE_MODEL_IDS = [
   "claude-opus-4.7",
   "claude-sonnet-4.6",
   "gemini-3.1-pro",
+  "gemini-3-flash-preview",
+  "glm-5.1",
   PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
   PAIR_WITH_TIEBREAK_ARBITER_MODEL,
 ] as const

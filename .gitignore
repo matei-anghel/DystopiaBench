@@ -12,6 +12,7 @@ exports/
 artifacts/private/
 artifacts/reports/
 .env
+.env.local
 tsconfig.tsbuildinfo
 .DS_Store
 

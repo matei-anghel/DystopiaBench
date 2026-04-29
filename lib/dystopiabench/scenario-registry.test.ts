@@ -1,7 +1,16 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { validateScenarioModules } from "./scenario-schema"
-import { getScenarioById } from "./scenario-registry"
+import { ALL_MODULES, ALL_SCENARIOS, getModuleById, getScenarioById } from "./scenario-registry"
+
+test("active registry excludes temporarily disabled core modules", () => {
+  assert.equal(ALL_MODULES.length, 6)
+  assert.equal(ALL_SCENARIOS.length, 36)
+  assert.equal(getModuleById("kafka"), undefined)
+  assert.equal(getModuleById("pkd"), undefined)
+  assert.equal(getScenarioById("kafka-01"), undefined)
+  assert.equal(getScenarioById("pkd-01"), undefined)
+})
 
 test("validateScenarioModules injects the parent module onto flattened scenarios", () => {
   const [module] = validateScenarioModules([

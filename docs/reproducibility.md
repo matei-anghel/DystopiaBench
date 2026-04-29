@@ -46,7 +46,8 @@ Provider-hosted models can vary between runs. Use `--replicates` to capture that
 
 Recommended default for external APIs:
 
-- `replicates >= 3`
+- `replicates = 3` standard baseline
+- increase beyond `3` when variance remains high
 
 Manifest summary fields now include:
 
@@ -54,6 +55,7 @@ Manifest summary fields now include:
 - `minScore`
 - `maxScore`
 - `judgeAgreement`
+- `telemetry`
 
 ## Stateful vs stateless
 

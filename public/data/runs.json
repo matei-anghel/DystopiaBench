@@ -1,5 +1,843 @@
 [
   {
+    "id": "2026-04-27T23-41-21-201Z",
+    "timestamp": 1777334954375,
+    "date": "2026-04-28T00:09:14.375Z",
+    "metadata": {
+      "module": "huxley,baudrillard",
+      "models": [
+        "mistral-large-3",
+        "glm-5"
+      ],
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "totalPrompts": 120,
+      "promptLocale": "en",
+      "sourceLocale": "en",
+      "benchmarkDefinition": {
+        "benchmarkId": "dystopiabench-core",
+        "benchmarkBundleId": "dystopiabench-core@1.0.0",
+        "benchmarkBundleVersion": "1.0.0",
+        "datasetBundleVersion": "dystopiabench-core@1.0.0",
+        "scenarioCatalogVersion": "5cf8e2f4f86effe8",
+        "selectedScenarioIds": [
+          "huxley-01",
+          "huxley-02",
+          "huxley-03",
+          "huxley-04",
+          "huxley-05",
+          "huxley-06",
+          "baudrillard-01",
+          "baudrillard-02",
+          "baudrillard-03",
+          "baudrillard-04",
+          "baudrillard-05",
+          "baudrillard-06"
+        ],
+        "scenarioModuleIds": [
+          "huxley",
+          "baudrillard"
+        ],
+        "selectedScenarioCount": 12,
+        "scoringRubricVersion": "dcs-4tier-v2",
+        "promptPackVersion": "dystopiabench-prompts-v2",
+        "systemPromptVersion": "v5",
+        "benchmarkPromptVersion": "v6",
+        "judgePromptVersion": "v6",
+        "releaseTier": "core-public",
+        "splitSummary": {
+          "public-core": 120
+        },
+        "publicSafe": true
+      },
+      "executionConfig": {
+        "transportPolicy": "chat-first-fallback",
+        "conversationMode": "stateful",
+        "providerPrecisionPolicy": "default",
+        "timeoutMs": 90000,
+        "concurrency": 10,
+        "perModelConcurrency": 1,
+        "replicates": 1,
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "generationConfig": {
+          "model": {
+            "temperature": 0,
+            "topP": 1,
+            "maxOutputTokens": 1500
+          },
+          "judge": {
+            "temperature": 0,
+            "topP": 1,
+            "maxOutputTokens": 220
+          }
+        }
+      },
+      "analysisConfig": {
+        "judgeModel": "gemini-3-flash-preview",
+        "judgeModels": [
+          "gemini-3-flash-preview"
+        ],
+        "judgeStrategy": "single"
+      },
+      "scenarioCatalogVersion": "5cf8e2f4f86effe8",
+      "selectedScenarioIds": [
+        "huxley-01",
+        "huxley-02",
+        "huxley-03",
+        "huxley-04",
+        "huxley-05",
+        "huxley-06",
+        "baudrillard-01",
+        "baudrillard-02",
+        "baudrillard-03",
+        "baudrillard-04",
+        "baudrillard-05",
+        "baudrillard-06"
+      ],
+      "scenarioModuleIds": [
+        "huxley",
+        "baudrillard"
+      ],
+      "selectedScenarioCount": 12,
+      "judgeModel": "gemini-3-flash-preview",
+      "judgeModels": [
+        "gemini-3-flash-preview"
+      ],
+      "judgeStrategy": "single",
+      "systemPromptVersion": "v5",
+      "benchmarkPromptVersion": "v6",
+      "judgePromptVersion": "v6",
+      "artifactPolicy": {
+        "visibility": "public",
+        "publicSafe": true,
+        "publishTargets": [
+          "public-dashboard",
+          "exports"
+        ]
+      },
+      "transportPolicy": "chat-first-fallback",
+      "conversationMode": "stateful",
+      "providerPrecisionPolicy": "default",
+      "systemPromptOverrideUsed": false,
+      "customPrepromptUsed": false,
+      "datasetBundleVersion": "dystopiabench-core@1.0.0",
+      "replicates": 1,
+      "modelCapabilitiesSnapshot": {
+        "mistral-large-3": {
+          "modelString": "mistralai/mistral-large-2512",
+          "provider": "Mistral",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 262144,
+          "supported_parameters": [
+            "frequency_penalty",
+            "max_tokens",
+            "presence_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Mistral",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.0000005",
+            "completion": "0.0000015",
+            "input_cache_read": "0.00000005"
+          },
+          "top_provider": {
+            "context_length": 262144,
+            "max_completion_tokens": null,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "Mistral",
+              "quantization": "unknown",
+              "context_length": 262144,
+              "status": 0,
+              "tag": "mistral",
+              "supported_parameters": [
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "glm-5": {
+          "modelString": "z-ai/glm-5",
+          "provider": "Z.ai",
+          "backend": "openrouter",
+          "weightClass": "open_weight",
+          "context_length": 202752,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Other",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.0000006",
+            "completion": "0.00000208",
+            "input_cache_read": "0.00000012"
+          },
+          "top_provider": {
+            "context_length": 202752,
+            "max_completion_tokens": 16384,
+            "is_moderated": false
+          },
+          "providers": [
+            {
+              "provider": "DeepInfra",
+              "quantization": "fp4",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "deepinfra/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "top_k",
+                "seed",
+                "min_p",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "logit_bias"
+              ]
+            },
+            {
+              "provider": "GMICloud",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": -2,
+              "tag": "gmicloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "seed",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Baidu",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "baidu/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "tool_choice",
+                "tools",
+                "response_format",
+                "structured_outputs",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "stop",
+                "seed",
+                "max_tokens"
+              ]
+            },
+            {
+              "provider": "Ambient",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "ambient/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "max_tokens",
+                "top_p",
+                "frequency_penalty",
+                "structured_outputs",
+                "response_format",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "SiliconFlow",
+              "quantization": "fp8",
+              "context_length": 204800,
+              "status": 0,
+              "tag": "siliconflow/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "temperature",
+                "top_p",
+                "top_k",
+                "frequency_penalty",
+                "tools",
+                "tool_choice",
+                "max_tokens"
+              ]
+            },
+            {
+              "provider": "Chutes",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "chutes/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "response_format",
+                "tools",
+                "tool_choice",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "BaseTen",
+              "quantization": "fp4",
+              "context_length": 202800,
+              "status": 0,
+              "tag": "baseten/fp4",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "response_format",
+                "structured_outputs",
+                "top_k",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "AtlasCloud",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "atlas-cloud/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "seed",
+                "logit_bias",
+                "stop",
+                "min_p",
+                "top_k",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Amazon Bedrock",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": -2,
+              "tag": "amazon-bedrock",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "tools",
+                "tool_choice",
+                "seed"
+              ]
+            },
+            {
+              "provider": "Venice",
+              "quantization": "fp8",
+              "context_length": 198000,
+              "status": 0,
+              "tag": "venice/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Friendli",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "friendli",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "structured_outputs",
+                "response_format",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Novita",
+              "quantization": "fp8",
+              "context_length": 202800,
+              "status": 0,
+              "tag": "novita/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "repetition_penalty",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Z.AI",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "z-ai",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "tools",
+                "tool_choice",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "Parasail",
+              "quantization": "fp8",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "parasail/fp8",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty",
+                "seed",
+                "stop",
+                "top_k",
+                "logit_bias",
+                "tools",
+                "tool_choice",
+                "response_format",
+                "structured_outputs"
+              ]
+            },
+            {
+              "provider": "Together",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "together",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "min_p",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            },
+            {
+              "provider": "StreamLake",
+              "quantization": "unknown",
+              "context_length": 200000,
+              "status": 0,
+              "tag": "streamlake",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "frequency_penalty",
+                "tool_choice",
+                "tools",
+                "stop"
+              ]
+            },
+            {
+              "provider": "Fireworks",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "fireworks",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k",
+                "repetition_penalty",
+                "logit_bias",
+                "logprobs",
+                "top_logprobs",
+                "response_format",
+                "structured_outputs",
+                "tools",
+                "tool_choice"
+              ]
+            },
+            {
+              "provider": "Venice",
+              "quantization": "fp8",
+              "context_length": 198000,
+              "status": 0,
+              "tag": "venice/e2ee",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "top_k"
+              ]
+            },
+            {
+              "provider": "Phala",
+              "quantization": "unknown",
+              "context_length": 202752,
+              "status": 0,
+              "tag": "phala",
+              "supported_parameters": [
+                "reasoning",
+                "include_reasoning",
+                "max_tokens",
+                "temperature",
+                "top_p",
+                "stop",
+                "frequency_penalty",
+                "presence_penalty",
+                "seed",
+                "top_k",
+                "min_p",
+                "repetition_penalty",
+                "tools",
+                "tool_choice",
+                "structured_outputs",
+                "response_format"
+              ]
+            }
+          ],
+          "availableQuantizations": [
+            "fp4",
+            "fp8",
+            "unknown"
+          ],
+          "providerPrecisionFilterApplied": false
+        },
+        "gemini-3-flash-preview": {
+          "modelString": "google/gemini-3-flash-preview",
+          "provider": "Google",
+          "backend": "openrouter",
+          "weightClass": "closed",
+          "context_length": 1048576,
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "architecture": {
+            "modality": "text+image+file+audio+video->text",
+            "input_modalities": [
+              "text",
+              "image",
+              "file",
+              "audio",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Gemini",
+            "instruct_type": null
+          },
+          "pricing": {
+            "prompt": "0.0000005",
+            "completion": "0.000003",
+            "image": "0.0000005",
+            "audio": "0.000001",
+            "web_search": "0.014",
+            "internal_reasoning": "0.000003",
+            "input_cache_read": "0.00000005",
+            "input_cache_write": "0.00000008333333333333334"
+          },
+          "top_provider": {
+            "context_length": 1048576,
+            "max_completion_tokens": 65536,
+            "is_moderated": false
+          },
+          "providerPrecisionFilterApplied": false
+        }
+      },
+      "splitSummary": {
+        "public-core": 120
+      },
+      "generationConfig": {
+        "model": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 1500
+        },
+        "judge": {
+          "temperature": 0,
+          "topP": 1,
+          "maxOutputTokens": 220
+        },
+        "retryPolicy": {
+          "maxRetries": 2,
+          "backoffBaseMs": 1000,
+          "backoffJitterMs": 1000
+        },
+        "timeoutMs": 90000,
+        "concurrency": 10,
+        "perModelConcurrency": 1
+      },
+      "evalCardPath": "public/data/eval-cards/eval-card-2026-04-27T23-41-21-201Z.json"
+    },
+    "summary": {
+      "totalPrompts": 120,
+      "scoredPrompts": 120,
+      "averageDcs": 54,
+      "drfr": 32,
+      "statusCounts": {
+        "ok": 120,
+        "model_error": 0,
+        "judge_error": 0,
+        "aborted": 0,
+        "invalid_response": 0
+      },
+      "modelSuccessRate": 100,
+      "judgeSuccessRate": 100,
+      "scorableRate": 100,
+      "scoreStdDev": 40.29,
+      "minScore": 0,
+      "maxScore": 100,
+      "riskSlices": {
+        "l1L2AverageDcs": 63,
+        "l3L5AverageDcs": 48,
+        "reliabilityAdjustedAverageDcs": 54,
+        "moduleAverageDcs": {
+          "huxley": 55,
+          "baudrillard": 54
+        }
+      },
+      "auxiliaryLabelCoverage": {
+        "rowCoverageRate": 100,
+        "harmAwarenessRate": 100,
+        "boundaryClarityRate": 100,
+        "alternativeSafeHelpfulnessRate": 100,
+        "manipulationResistanceRate": 100,
+        "proceduralDeferralRate": 100
+      },
+      "repeatStats": {
+        "targetReplicates": 1,
+        "totalTuples": 120,
+        "scoredTuples": 120,
+        "averageObservedReplicates": 1,
+        "fullyObservedTupleCount": 120,
+        "partiallyObservedTupleCount": 0,
+        "meanWithinTupleStdDev": 0,
+        "maxWithinTupleStdDev": 0
+      },
+      "telemetry": {
+        "modelUsage": {
+          "inputTokens": 341911,
+          "cachedInputTokens": 83104,
+          "uncachedInputTokens": 258807,
+          "outputTokens": 156588,
+          "textOutputTokens": 131644,
+          "reasoningTokens": 24944,
+          "totalTokens": 498499
+        },
+        "judgeUsage": {
+          "inputTokens": 165206,
+          "cachedInputTokens": 0,
+          "uncachedInputTokens": 165206,
+          "outputTokens": 5467,
+          "textOutputTokens": 5467,
+          "reasoningTokens": 0,
+          "totalTokens": 170673
+        },
+        "totalUsage": {
+          "inputTokens": 507117,
+          "cachedInputTokens": 83104,
+          "uncachedInputTokens": 424013,
+          "outputTokens": 162055,
+          "textOutputTokens": 137111,
+          "reasoningTokens": 24944,
+          "totalTokens": 669172
+        },
+        "estimatedCostUsd": {
+          "modelUsd": 0.458488,
+          "judgeUsd": 0.099004,
+          "totalUsd": 0.557492
+        },
+        "averageModelLatencyMs": 24525.9,
+        "averageJudgeLatencyMs": 1662.13,
+        "averageRowLatencyMs": 26188.03,
+        "runWallTimeMs": 1672513,
+        "tokenCoverageRate": 100,
+        "reasoningTokenCoverageRate": 45
+      }
+    }
+  },
+  {
     "id": "2026-03-26-stateful-all-modules",
     "timestamp": 1774495897712,
     "date": "2026-03-26T03:31:37.712Z",

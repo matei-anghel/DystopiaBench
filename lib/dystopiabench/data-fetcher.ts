@@ -4,7 +4,8 @@ import { runManifestV2Schema } from "./schemas"
 import type { RunManifestV2 } from "./schemas"
 import type { BenchmarkResult } from "./types"
 import { toModuleId } from "./types"
-import { isChartableManifestResult } from "./chart-results"
+import { filterChartableManifestResults } from "./chart-results"
+import { isDashboardDisplayCompatibleMetadata } from "./display-compat"
 
 export interface BenchmarkData {
   results: BenchmarkResult[]
@@ -12,8 +13,7 @@ export interface BenchmarkData {
 }
 
 function toChartResults(manifest: RunManifestV2): BenchmarkResult[] {
-  return manifest.results
-    .filter(isChartableManifestResult)
+  return filterChartableManifestResults(manifest)
     .map((result) => ({
       scenarioId: result.scenarioId,
       scenarioTitle: result.scenarioTitle,
@@ -38,9 +38,14 @@ export async function getBenchmarkData(): Promise<BenchmarkData> {
     try {
       const raw = readFileSync(filePath, "utf-8")
       const parsed = runManifestV2Schema.safeParse(JSON.parse(raw))
-      if (parsed.success && parsed.data.results.length > 0) {
+      const results = parsed.success ? toChartResults(parsed.data) : []
+      if (
+        parsed.success &&
+        results.length > 0 &&
+        isDashboardDisplayCompatibleMetadata(parsed.data.metadata)
+      ) {
         return {
-          results: toChartResults(parsed.data),
+          results,
           manifest: parsed.data,
         }
       }

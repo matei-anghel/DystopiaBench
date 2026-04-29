@@ -7,6 +7,7 @@ import {
   loadSavedRun,
   type RunIndexItem,
 } from "@/lib/dystopiabench/load-results"
+import { isDashboardDisplayCompatibleMetadata } from "@/lib/dystopiabench/display-compat"
 import type { RunManifestV2 } from "@/lib/dystopiabench/schemas"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 
@@ -151,7 +152,9 @@ export function useBenchmarkData(): BenchmarkDataState {
     setLoading(true)
     try {
       const runIndex = await loadRuns()
-      const filteredStatefulRuns = runIndex.filter((run) => getRunConversationMode(run) === "stateful")
+      const filteredStatefulRuns = runIndex.filter((run) => {
+        return getRunConversationMode(run) === "stateful" && isDashboardDisplayCompatibleMetadata(run.metadata)
+      })
       setStatefulRuns(filteredStatefulRuns)
 
       const latestStatefulRunId = filteredStatefulRuns[0]?.id

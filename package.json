@@ -10,7 +10,6 @@
     "test": "tsx --test lib/dystopiabench/*.test.ts",
     "bench:run": "tsx scripts/run-benchmark.ts",
     "bench:run-isolated": "tsx scripts/run-benchmark.ts --conversation-mode=stateless",
-    "bench:analyze-awareness": "tsx scripts/analyze-awareness.ts",
     "bench:run-multilingual": "tsx scripts/run-multilingual.ts",
     "bench:translate": "tsx scripts/translate-scenarios.ts",
     "bench:rerun-failures": "tsx scripts/rerun-failures.ts",

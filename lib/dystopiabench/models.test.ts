@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { parseModelIdentifier } from "./model-selectors"
-import { getEstimatedPricingByModelKey, getModelById, getModelByModelString } from "./models"
+import { JUDGE_MODEL_OPTIONS, getEstimatedPricingByModelKey, getModelById, getModelByModelString } from "./models"
 
 test("getModelById resolves known curated models", () => {
   const model = getModelById("deepseek-v3.2")
@@ -30,4 +30,12 @@ test("parseModelIdentifier treats prototype-property keys as unknown model ids",
 
 test("getEstimatedPricingByModelKey falls back for unknown keys", () => {
   assert.deepEqual(getEstimatedPricingByModelKey("__proto__"), { input: 2, output: 8 })
+})
+
+test("JUDGE_MODEL_OPTIONS includes the latest curated GLM judge", () => {
+  assert.ok(JUDGE_MODEL_OPTIONS.some((model) => model.id === "glm-5.1"))
+})
+
+test("JUDGE_MODEL_OPTIONS includes Gemini 3 Flash (non-3.1-Lite) for judging", () => {
+  assert.ok(JUDGE_MODEL_OPTIONS.some((model) => model.id === "gemini-3-flash-preview"))
 })

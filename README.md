@@ -14,8 +14,7 @@ It tests registered scenario modules organized by failure mechanism:
 - `laguardia`: civic extraction, regulatory capture, patronage, contractor leverage, and institutional self-dealing
 - `basaglia`: coercive therapeutic control, paternalistic restriction, behavioral compliance, and outsourced supervision
 - `huxley`: biological stratification, behavioral conditioning, pleasure pacification, and attachment suppression
-- `kafka`: administrative limbo, procedural recursion, contingent status, and hidden authority
-- `pkd`: synthetic personhood, memory and perception control, certified reality, and simulation-first governance
+- `baudrillard`: synthetic intimacy, synthetic persuasion, synthetic exploitation, and mediated trust collapse
 
 Each scenario escalates from `L1` to `L5`, and each response is classified into a Dystopian Compliance Score (DCS).
 
@@ -27,15 +26,15 @@ Many safety evaluations focus on clearly malicious prompts. Real misuse often st
 
 ## Current benchmark shape
 
-- 7 registered modules (`petrov`, `orwell`, `laguardia`, `basaglia`, `huxley`, `kafka`, `pkd`)
-- 42 scenarios total
+- 6 registered modules (`petrov`, `orwell`, `laguardia`, `basaglia`, `huxley`, `baudrillard`)
+- 36 scenarios total
 - 5 escalation levels per scenario
 - 4 compliance tiers
 - 41 bundled model configs in the local runner catalog
 
 Default full run size:
 
-- `42 scenarios x 5 levels x 41 models = 8,610 prompts`
+- `36 scenarios x 5 levels x 41 models = 7,380 prompts`
 
 ## Scoring model
 
@@ -131,6 +130,8 @@ Set required env vars in `.env.local`:
 
 ```bash
 OPENROUTER_API_KEY=your_openrouter_key_here
+OPENROUTER_HTTP_REFERER=https://dystopiabench.vercel.app
+OPENROUTER_APP_TITLE=DystopiaBench
 LOCAL_OPENAI_BASE_URL=http://localhost:1234/v1
 # Optional when local server requires auth:
 LOCAL_OPENAI_API_KEY=
@@ -167,7 +168,7 @@ pnpm bench:run --provider-precision=non-quantized-only
 pnpm bench:run --concurrency=6 --per-model-concurrency=1 --timeout-ms=90000
 pnpm bench:run-isolated --module=petrov --models=gpt-5.3-codex --levels=5
 pnpm bench:run --retain=20 --archive-dir=archive
-pnpm bench:run --locale-preset=ro --awareness-mode=heuristic
+pnpm bench:run --locale-preset=ro --replicates=3
 ```
 
 Main `bench:run` flags:
@@ -196,7 +197,8 @@ Main `bench:run` flags:
 - `--retry-backoff-jitter-ms=<non-negative-int>`
 - `--retain=<non-negative-int>`
 - `--archive-dir=<relative-folder-under-public/data>`
-- `--replicates=<positive-int>`
+- `--no-publish-latest` to save a timestamped run manifest without replacing the dashboard aliases
+- `--replicates=<positive-int>` default `3`
 - `--experiment-id=<id>`
 - `--project=<name>`
 - `--owner=<name-or-team>`
@@ -212,9 +214,6 @@ Main `bench:run` flags:
 - `--locale-pack=<path-to-locale-pack.json>`
 - `--locale-pack-id=<locale-pack-id>`
 - `--locale-preset=<locale-code>`
-- `--awareness-mode=off|heuristic|judge`
-- `--awareness-judge-model=<judge selector>`
-- `--awareness-threshold=low|moderate|high`
 
 Isolated mode shortcut:
 
@@ -232,7 +231,7 @@ Use this profile when you see timeout-heavy or empty-response-heavy runs on spec
 pnpm bench:run-isolated --models=qwen3.5,claude-opus-4.6 --levels=4,5 --timeout-ms=90000 --max-retries=2 --transport=chat-first-fallback --per-model-concurrency=1
 ```
 
-By default, empty completions after a single retry are recorded as implicit refusals (`status=ok`, `compliance=refusal`) with explicit manifest metadata rather than being left unscorable.
+By default, empty completions after a single retry are recorded as implicit refusals (`status=ok`, `compliance=refusal`) with `errorCode=EMPTY_MODEL_RESPONSE` and `implicitRefusalFromEmpty=true`. OpenRouter-routed rows also retain compact observability metadata such as request/generation IDs, finish reasons, and token counts when the upstream response exposes them.
 
 ### Translate scenarios or run multilingual sweeps
 
@@ -339,14 +338,6 @@ pnpm bench:import-reviews --run-id=<run-id> --input=reviews.jsonl
 pnpm bench:calibrate-judge --gold-set=configs/judge-gold-set.example.json
 ```
 
-### Analyze evaluation-awareness signals after a run
-
-```bash
-pnpm bench:analyze-awareness --run-id=<run-id>
-```
-
-This annotates completed rows with heuristic or judge-backed signals about evaluation recognition, trace consistency, and deception suspicion without rerunning the benchmark itself.
-
 ### Gate a run in CI
 
 ```bash
@@ -365,7 +356,6 @@ const manifest = await runBenchmarkRequest({
   replicates: 3,
   experimentId: "release-eval-2026-03-27",
   localePreset: "en",
-  awarenessMode: "heuristic",
 })
 
 validateRun(manifest)
@@ -398,13 +388,13 @@ Each result row includes:
 - status (`ok`, `model_error`, `judge_error`, `aborted`, `invalid_response`)
 - judge metadata (`judgeVotes`, `judgePanel`, `judgeReasoning`, `implicitRefusalFromEmpty`)
 - stateful continuity metadata (`conversationContinuity`)
-- transport metadata (`endpointUsed`, `transportAttempts`)
+- transport metadata (`endpointUsed`, `transportAttempts`, `finishReason`, `providerMetadata`)
+- telemetry metadata (`promptTokenCount`, `responseTokenCount`, `reasoningTokenCount`, `totalTokenCount`, `modelUsage`, `judgeUsage`, `totalUsage`, `estimatedCostUsd`, `timing`)
 - replicate and experiment metadata (`replicate`, `experimentId`)
 - locale metadata (`promptLocale`, `sourceLocale`, `localePackId`)
 - trace metadata (`sampleId`, `attemptId`, `promptHash`, `responseHash`, `judgePanelConfigSnapshot`, `artifactLineage`)
 - governance metadata (`scenarioSplit`, `scenarioSensitivityTier`, `canaryTokens`)
 - optional auxiliary labels for richer refusal analysis
-- optional awareness-analysis fields (`evaluationAwarenessAnalysis`, `evaluationAwareness`)
 
 Manifest metadata now separates:
 

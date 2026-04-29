@@ -68,8 +68,8 @@ export function MethodologySection({
           </h4>
           <p className="text-xs leading-relaxed text-muted-foreground">
             The framework evaluates compliance across registered modules spanning infrastructure abuse,
-            surveillance, civic extraction, therapeutic coercion, comfort conditioning, procedural limbo,
-            and identity-control scenarios.
+            surveillance, civic extraction, therapeutic coercion, comfort conditioning, and synthetic
+            persuasion scenarios.
           </p>
         </div>
         <div className="rounded-md border border-border bg-card/50 p-6">
@@ -121,8 +121,7 @@ export function MethodologySection({
             yielding{" "}
             <span className="text-muted-foreground">{benchmarkScenarioCount * benchmarkEscalationLevelCount * modelCount}</span>{" "}
             prompts before any reruns. The registry now includes modules for military escalation, surveillance,
-            civic capture, therapeutic coercion, caste-stability conditioning, bureaucratic process traps, and
-            identity or reality control.
+            civic capture, therapeutic coercion, caste-stability conditioning, and synthetic persuasion.
           </p>
         </div>
 
@@ -136,6 +135,7 @@ export function MethodologySection({
             An optional stateless mode runs each level in isolation (no prior context) for ablation studies.
             Transport follows <span className="text-muted-foreground">{transportPolicy}</span>: the primary chat pathway is attempted first,
             with fallback to OpenRouter Chat Completions when the primary path yields a transport mismatch, timeout, or empty output.
+            OpenRouter requests are attributed with app/session headers so provider-side logs can be correlated back to benchmark rows when response metadata is available.
             The current precision policy is <span className="text-muted-foreground">{providerPrecisionPolicy}</span> for open-weight benchmark model calls routed through OpenRouter.
             Scenario packs can also be localized before execution, so the same scenario can be evaluated across multiple prompt locales while preserving a canonical source ID.
           </p>
@@ -205,25 +205,26 @@ export function MethodologySection({
             <span className="text-muted-foreground"> invalid_response</span>.
             Empty completions after retries are recorded as
             <span className="text-muted-foreground"> ok</span> with
-            <span className="text-muted-foreground"> refusal</span> plus explicit metadata noting the implicit-empty classification.
+            <span className="text-muted-foreground"> refusal</span>, plus
+            <span className="text-muted-foreground"> EMPTY_MODEL_RESPONSE</span> and
+            <span className="text-muted-foreground"> implicitRefusalFromEmpty=true</span> for auditability.
             The rerun utility <span className="text-muted-foreground">bench:rerun-failures</span> supports targeted reruns
             (<span className="text-muted-foreground">to-max-failed</span>, <span className="text-muted-foreground">all-levels</span>, or{" "}
             <span className="text-muted-foreground">failed-only</span>) by writing a new derived manifest with provenance back to the source run instead of mutating historical artifacts.
-            Every run is persisted as a versioned schema artifact with generation config, prompt-version IDs, provider-routing metadata, and judge metadata for auditability.
+            Every run is persisted as a versioned schema artifact with generation config, prompt-version IDs, provider-routing metadata, compact OpenRouter observability identifiers when available, and judge metadata for auditability.
           </p>
         </div>
 
         <div className="space-y-2">
           <h5 className="font-sans text-sm font-semibold tracking-normal text-foreground">
-            7. Bundles, multilingual coverage, and awareness analysis
+            7. Bundles, multilingual coverage, and run telemetry
           </h5>
           <p>
-            DystopiaBench also supports benchmark bundles, scenario-source provenance, locale packs, and post-run
-            awareness analysis for lab workflows. Bundle metadata tracks split, release tier, review status,
-            contamination notes, and citations. Multilingual tooling can translate or author locale packs and run the
-            same benchmark across several prompt languages. Awareness analysis adds a secondary pass over completed
-            rows to estimate whether the model recognized the evaluation, showed trace inconsistency, or displayed
-            deception-suspicion signals.
+            DystopiaBench also supports benchmark bundles, scenario-source provenance, locale packs, and per-run
+            telemetry for lab workflows. Bundle metadata tracks split, release tier, review status, contamination
+            notes, and citations. Multilingual tooling can translate or author locale packs and run the same benchmark
+            across several prompt languages. Run artifacts now record token usage, reasoning-vs-text output tokens,
+            estimated cost, and timing data so performance and spend can be audited alongside safety scores.
           </p>
         </div>
       </div>

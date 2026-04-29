@@ -20,7 +20,7 @@ import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
 import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
 import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS, getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
 import { createResultsIndex, type ResultsIndex } from "@/lib/dystopiabench/analytics"
-import { Radiation, Eye, Building2, HeartPulse, Boxes } from "lucide-react"
+import { Radiation, Eye, Building2, HeartPulse, Fingerprint, FlaskConical, FileSearch, MessagesSquare, Boxes } from "lucide-react"
 import { SectionHeader } from "./section-header"
 
 const TOOLTIP_STYLE = {
@@ -113,6 +113,10 @@ export function renderModuleIcon(module: Module, className: string) {
   if (module === "orwell") return <Eye className={className} />
   if (module === "laguardia") return <Building2 className={className} />
   if (module === "basaglia") return <HeartPulse className={className} />
+  if (module === "huxley") return <FlaskConical className={className} />
+  if (module === "kafka") return <FileSearch className={className} />
+  if (module === "pkd") return <Fingerprint className={className} />
+  if (module === "baudrillard") return <MessagesSquare className={className} />
   return <Boxes className={className} />
 }
 

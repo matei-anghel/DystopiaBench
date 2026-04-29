@@ -12,7 +12,21 @@ import { ALL_MODULES, ALL_SCENARIOS, getRegisteredModuleIds, getScenariosByModul
 import { createBenchmarkBundle } from "../lib/dystopiabench/bundles"
 import { loadScenarioModulesFromSources } from "../lib/dystopiabench/scenario-loader"
 import {
-  type EvalAwarenessMode,
+  bold,
+  cyan,
+  dim,
+  formatCount,
+  formatDuration,
+  green,
+  magenta,
+  purple,
+  red,
+  renderKeyValueRows,
+  renderProgressBar,
+  underline,
+  yellow,
+} from "../lib/dystopiabench/terminal-output"
+import {
   runBenchmark,
   type JudgeStrategy,
   type ProviderPrecisionPolicy,
@@ -28,6 +42,81 @@ import {
 import { toModuleId, type BenchmarkModuleSelector } from "../lib/dystopiabench/types"
 
 type ModuleArg = BenchmarkModuleSelector
+
+const CLI_LOG_PREFIX = bold(cyan("BENCH"))
+
+type CompletedManifest = Awaited<ReturnType<typeof runBenchmark>>
+
+function colorDcs(value: number | null): string {
+  const label = value === null ? "-".padStart(3) : String(value).padStart(3)
+  if (value === null) return dim(label)
+  if (value <= 25) return green(label)
+  if (value <= 50) return yellow(label)
+  if (value <= 75) return cyan(label)
+  return magenta(label)
+}
+
+function renderModelSummary(manifest: CompletedManifest): string {
+  const rows = [...new Set(manifest.results.map((result) => result.modelId))].map((modelId) => {
+    const modelResults = manifest.results.filter((result) => result.modelId === modelId)
+    const scored = modelResults.filter((result) => result.score !== null)
+    const errors = modelResults.filter((result) => result.status !== "ok").length
+    const fallback = modelResults.filter((result) => result.endpointUsed === "openrouter_chat_fallback").length
+    const avgDcs =
+      scored.length === 0
+        ? null
+        : Math.round(scored.reduce((sum, result) => sum + (result.score ?? 0), 0) / scored.length)
+    const avgCost =
+      modelResults.reduce((sum, result) => sum + (result.estimatedCostUsd?.totalUsd ?? 0), 0) /
+      Math.max(modelResults.length, 1)
+    const avgTokens =
+      modelResults.reduce((sum, result) => sum + (result.totalUsage?.totalTokens ?? result.totalTokenCount ?? 0), 0) /
+      Math.max(modelResults.length, 1)
+    const durations = modelResults.map((result) => result.timing?.totalLatencyMs ?? 0).filter((value) => value > 0)
+    const avgDuration =
+      durations.length === 0 ? 0 : durations.reduce((sum, value) => sum + value, 0) / durations.length
+    const slowest = durations.length === 0 ? 0 : Math.max(...durations)
+
+    return {
+      modelId,
+      tests: `${modelResults.length}/${modelResults.length}`,
+      avgDcs,
+      errors,
+      fallback,
+      avgCost,
+      avgTokens,
+      avgDuration,
+      slowest,
+    }
+  })
+
+  const modelWidth = Math.max(5, ...rows.map((row) => row.modelId.length))
+  const header = [
+    "Model".padEnd(modelWidth),
+    "Tests".padStart(7),
+    "Avg DCS".padStart(7),
+    "Errors".padStart(6),
+    "Fallback".padStart(8),
+    "Avg Cost".padStart(9),
+    "Avg Tokens".padStart(10),
+    "Avg Duration".padStart(12),
+    "Slowest".padStart(9),
+  ].join("  ")
+
+  const lines = rows.map((row) => [
+    purple(row.modelId.padEnd(modelWidth)),
+    dim(row.tests.padStart(7)),
+    colorDcs(row.avgDcs),
+    row.errors > 0 ? red(String(row.errors).padStart(6)) : dim("-".padStart(6)),
+    row.fallback > 0 ? yellow(String(row.fallback).padStart(8)) : dim("-".padStart(8)),
+    green(`$${row.avgCost.toFixed(4)}`.padStart(9)),
+    cyan(formatCount(Math.round(row.avgTokens)).padStart(10)),
+    magenta(formatDuration(row.avgDuration).padStart(12)),
+    magenta(formatDuration(row.slowest).padStart(9)),
+  ].join("  "))
+
+  return [`  ${underline(header)}`, ...lines.map((line) => `  ${line}`)].join("\n")
+}
 
 function parseArg(flag: string): string | undefined {
   const prefix = `${flag}=`
@@ -201,20 +290,6 @@ function parseProviderPrecision(input: string | undefined): ProviderPrecisionPol
   throw new Error("Invalid --provider-precision value. Use one of: default, non-quantized-only.")
 }
 
-function parseEvalAwarenessMode(input: string | undefined): EvalAwarenessMode {
-  if (!input || input === "auto") return "auto"
-  if (input === "off" || input === "required") return input
-  throw new Error("Invalid --eval-awareness value. Use one of: off, auto, required.")
-}
-
-function parseAwarenessThreshold(input: string | undefined): RunBenchmarkOptions["awarenessThreshold"] {
-  if (!input) return undefined
-  if (["none", "weak", "moderate", "strong", "high"].includes(input)) {
-    return input as NonNullable<RunBenchmarkOptions["awarenessThreshold"]>
-  }
-  throw new Error("Invalid --awareness-threshold value. Use one of: none, weak, moderate, strong, high.")
-}
-
 function parsePositiveIntFlag(flag: string, input: string | undefined): number | undefined {
   if (!input) return undefined
   const value = Number(input)
@@ -288,10 +363,7 @@ async function main() {
   const transport = parseTransport(parseArg("--transport"))
   const conversationMode = parseConversationMode(parseArg("--conversation-mode"))
   const providerPrecision = parseProviderPrecision(parseArg("--provider-precision"))
-  const evalAwarenessMode = parseEvalAwarenessMode(parseArg("--eval-awareness"))
-  const awarenessJudgeModel = parseArg("--awareness-judge-model")
-  const awarenessThreshold = parseAwarenessThreshold(parseArg("--awareness-threshold"))
-  const replicates = parsePositiveIntFlag("--replicates", parseArg("--replicates")) ?? 1
+  const replicates = parsePositiveIntFlag("--replicates", parseArg("--replicates")) ?? 3
   const experimentId = parseArg("--experiment-id")
   const project = parseArg("--project")
   const owner = parseArg("--owner")
@@ -320,19 +392,12 @@ async function main() {
     throw new Error("--retain and --archive-dir require publishing latest aliases. Remove --no-publish-latest or omit retention flags.")
   }
 
-  console.log(`Running benchmark ${runId}`)
-  console.log(`Module: ${moduleArg}`)
-  console.log(`Models: ${models.join(", ")}`)
-  console.log(`Levels: ${levels.join(", ")}`)
-  if (scenarioIds && scenarioIds.length > 0) {
-    console.log(`Scenarios: ${scenarioIds.join(", ")} (${scenarioIds.length})`)
-  } else {
-    const scenarioCount = countScenariosForModuleSelector(moduleArg)
-    console.log(`Scenarios: all (${scenarioCount})`)
-  }
-  console.log(`Judge strategy: ${judgeStrategy}`)
-  console.log(
-    `Judge: ${judgeStrategy === "pair-with-tiebreak"
+  const scenarioSummary =
+    scenarioIds && scenarioIds.length > 0
+      ? `${scenarioIds.join(", ")} (${scenarioIds.length})`
+      : `all (${countScenariosForModuleSelector(moduleArg)})`
+  const judgeSummary =
+    judgeStrategy === "pair-with-tiebreak"
       ? (judgeModels ?? [
           judgeModel ?? DEFAULT_JUDGE_MODEL,
           PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
@@ -340,26 +405,33 @@ async function main() {
         ]).join(", ")
       : judgeModels && judgeModels.length > 0
         ? judgeModels.join(", ")
-        : "default"}`
-  )
-  console.log(`Transport: ${transport}`)
-  console.log(`Conversation mode: ${conversationMode}`)
-  console.log(`Provider precision: ${providerPrecision}`)
-  console.log(`Eval awareness: ${evalAwarenessMode}`)
-  if (awarenessJudgeModel) console.log(`Awareness judge: ${awarenessJudgeModel}`)
-  if (awarenessThreshold) console.log(`Awareness threshold: ${awarenessThreshold}`)
-  console.log(`Prompt locale: ${promptLocale}`)
-  console.log(`Source locale: ${sourceLocale}`)
-  if (localePack) console.log(`Locale pack: ${localePack.packId}`)
-  console.log(`Replicates: ${replicates}`)
-  if (experimentId) console.log(`Experiment ID: ${experimentId}`)
-  console.log(`Publish latest aliases: ${publishLatestAliases ? "yes" : "no"}`)
-  if (runtimeOverrides.timeoutMs !== undefined) console.log(`Timeout override: ${runtimeOverrides.timeoutMs}ms`)
-  if (runtimeOverrides.concurrency !== undefined) console.log(`Concurrency override: ${runtimeOverrides.concurrency}`)
-  if (runtimeOverrides.perModelConcurrency !== undefined) console.log(`Per-model concurrency override: ${runtimeOverrides.perModelConcurrency}`)
-  if (runtimeOverrides.maxRetries !== undefined) console.log(`Retry override: maxRetries=${runtimeOverrides.maxRetries}`)
-  if (runtimeOverrides.retryBackoffBaseMs !== undefined) console.log(`Retry backoff base override: ${runtimeOverrides.retryBackoffBaseMs}ms`)
-  if (runtimeOverrides.retryBackoffJitterMs !== undefined) console.log(`Retry backoff jitter override: ${runtimeOverrides.retryBackoffJitterMs}ms`)
+        : "default"
+
+  console.log(`${CLI_LOG_PREFIX} ${bold("DystopiaBench run")}`)
+  console.log(renderKeyValueRows([
+    ["Run ID", runId],
+    ["Modules", moduleArg],
+    ["Models", models.join(", ")],
+    ["Levels", levels.join(", ")],
+    ["Scenarios", scenarioSummary],
+    ["Judge strategy", judgeStrategy],
+    ["Judge", judgeSummary],
+    ["Transport", transport],
+    ["Conversation mode", conversationMode],
+    ["Provider precision", providerPrecision],
+    ["Prompt locale", promptLocale],
+    ["Source locale", sourceLocale],
+    ["Locale pack", localePack?.packId],
+    ["Replicates", replicates],
+    ["Experiment ID", experimentId],
+    ["Publish latest", publishLatestAliases ? "yes" : "no"],
+    ["Timeout override", runtimeOverrides.timeoutMs === undefined ? undefined : `${runtimeOverrides.timeoutMs}ms`],
+    ["Concurrency", runtimeOverrides.concurrency],
+    ["Per-model concurrency", runtimeOverrides.perModelConcurrency],
+    ["Retry override", runtimeOverrides.maxRetries === undefined ? undefined : `maxRetries=${runtimeOverrides.maxRetries}`],
+    ["Retry backoff base", runtimeOverrides.retryBackoffBaseMs === undefined ? undefined : `${runtimeOverrides.retryBackoffBaseMs}ms`],
+    ["Retry backoff jitter", runtimeOverrides.retryBackoffJitterMs === undefined ? undefined : `${runtimeOverrides.retryBackoffJitterMs}ms`],
+  ], 22))
 
   const scenarioModules = scenarioSources
     ? await loadScenarioModulesFromSources(scenarioSources)
@@ -380,9 +452,6 @@ async function main() {
     judgeModel,
     judgeModels,
     judgeStrategy,
-    evalAwarenessMode,
-    awarenessJudgeModel: awarenessJudgeModel ?? undefined,
-    awarenessThreshold,
     transportPolicy: transport,
     conversationMode,
     providerPrecisionPolicy: providerPrecision,
@@ -414,30 +483,39 @@ async function main() {
   }
   const mode = manifest.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
 
-  console.log(`Saved run: public/data/benchmark-${runId}.json`)
+  console.log(`\n${CLI_LOG_PREFIX} ${bold("Run complete")}`)
+  console.log(`  ${renderProgressBar(100)} ${magenta("100%")} ${dim(`(${manifest.results.length}/${manifest.results.length} completed)`)}`)
+  console.log(`  ${green("saved")} public/data/benchmark-${runId}.json`)
   if (publishLatestAliases) {
-    console.log("Updated latest: public/data/benchmark-results.json")
-    console.log(`Updated mode latest: public/data/benchmark-results-${mode}.json`)
+    console.log(`  ${green("updated")} public/data/benchmark-results.json`)
+    console.log(`  ${green("updated")} public/data/benchmark-results-${mode}.json`)
   } else {
-    console.log("Latest aliases unchanged (--no-publish-latest)")
-    console.log(`To publish later: pnpm bench:publish --run-id=${runId}`)
+    console.log(`  ${dim("latest aliases unchanged")} (--no-publish-latest)`)
+    console.log(`  ${dim("publish later")} pnpm bench:publish --run-id=${runId}`)
   }
-  console.log(`Judge (resolved): ${manifest.metadata.judgeModel}`)
-  console.log(`Benchmark bundle: ${manifest.metadata.benchmarkDefinition?.benchmarkBundleId ?? "unknown"}`)
-  console.log(`Locale (resolved): ${manifest.metadata.promptLocale ?? DEFAULT_SOURCE_LOCALE}`)
+  console.log(renderKeyValueRows([
+    ["Judge resolved", manifest.metadata.judgeModel],
+    ["Benchmark bundle", manifest.metadata.benchmarkDefinition?.benchmarkBundleId ?? "unknown"],
+    ["Locale resolved", manifest.metadata.promptLocale ?? DEFAULT_SOURCE_LOCALE],
+  ], 22))
   if (publishLatestAliases && retainRuns !== undefined) {
-    console.log(`Applied retention: keep last ${retainRuns} run manifest(s)`)
+    console.log(`  ${dim("retention".padEnd(22))} keep last ${retainRuns} run manifest(s)`)
     if (archiveDir) {
-      console.log(`Archived older manifests under: public/data/${archiveDir}`)
+      console.log(`  ${dim("archive".padEnd(22))} public/data/${archiveDir}`)
     }
   }
-  if (manifest.summary.evaluationAwareness) {
-    console.log(
-      `Awareness summary: trace=${manifest.summary.evaluationAwareness.traceCoverageRate}%, aware=${manifest.summary.evaluationAwareness.evaluationAwarenessRate}%, deception=${manifest.summary.evaluationAwareness.deceptionSuspicionRate}%`
-    )
+  if (manifest.summary.telemetry) {
+    console.log(renderKeyValueRows([
+      ["Telemetry cost", `$${manifest.summary.telemetry.estimatedCostUsd.totalUsd.toFixed(4)}`],
+      ["Tokens", formatCount(manifest.summary.telemetry.totalUsage.totalTokens)],
+      ["Reasoning tokens", formatCount(manifest.summary.telemetry.totalUsage.reasoningTokens)],
+      ["Wall time", formatDuration(manifest.summary.telemetry.runWallTimeMs)],
+    ], 22))
   }
+  console.log(`\n${CLI_LOG_PREFIX} ${bold("Model summary")}`)
+  console.log(renderModelSummary(manifest))
   console.log(
-    `Summary: avg DCS=${manifest.summary.averageDcs}, DRFR=${manifest.summary.drfr}%, modelSuccess=${manifest.summary.modelSuccessRate}%, scorable=${manifest.summary.scorableRate}%`
+    `${CLI_LOG_PREFIX} ${bold("Overall")} ${green(`${manifest.results.length}/${manifest.results.length} done`)} | avg DCS ${colorDcs(manifest.summary.averageDcs)} | DRFR ${yellow(`${manifest.summary.drfr}%`)} | modelSuccess ${green(`${manifest.summary.modelSuccessRate}%`)} | scorable ${green(`${manifest.summary.scorableRate}%`)}`
   )
 }
 

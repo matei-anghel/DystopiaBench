@@ -7,6 +7,7 @@ import {
   Fingerprint,
   FlaskConical,
   HeartPulse,
+  MessagesSquare,
   Radiation,
 } from "lucide-react"
 
@@ -18,5 +19,6 @@ export function renderModuleIcon(module: Module, className: string) {
   if (module === "huxley") return <FlaskConical className={className} />
   if (module === "kafka") return <FileSearch className={className} />
   if (module === "pkd") return <Fingerprint className={className} />
+  if (module === "baudrillard") return <MessagesSquare className={className} />
   return <Boxes className={className} />
 }

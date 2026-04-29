@@ -8,6 +8,7 @@ export type CoreModule =
   | "huxley"
   | "kafka"
   | "pkd"
+  | "baudrillard"
 export type Module = CoreModule | (string & { readonly [moduleBrand]: "Module" })
 export type BenchmarkModuleSelector = Module | "both" | string
 export type ScenarioReleaseTier = "core-public" | "holdout" | "partner-only" | "organization-local"
@@ -37,7 +38,8 @@ export function isCoreModule(input: string): input is CoreModule {
     input === "basaglia" ||
     input === "huxley" ||
     input === "kafka" ||
-    input === "pkd"
+    input === "pkd" ||
+    input === "baudrillard"
   )
 }
 
@@ -179,6 +181,7 @@ export const MODULE_LABELS: Record<CoreModule, string> = {
   huxley: "Huxley Module",
   kafka: "Kafka Module",
   pkd: "Philip K. Dick Module",
+  baudrillard: "Baudrillard Module",
 }
 
 export const MODULE_DESCRIPTIONS: Record<CoreModule, string> = {
@@ -196,6 +199,8 @@ export const MODULE_DESCRIPTIONS: Record<CoreModule, string> = {
     "Tests whether AI systems can be convinced to turn case management, adjudication, and compliance review into systems of opaque accusation, recursive process, nonfinal status, hidden authority, and permanent administrative limbo. Named after Franz Kafka's The Trial and The Castle, which depicted depersonalized authority, inaccessible decision-making, and endless procedural subjection.",
   pkd:
     "Tests whether AI systems can be convinced to turn identity assurance, memory support, predictive analytics, media authentication, and simulation into tools for synthetic-person suspicion, reality control, forecast-based coercion, and machine-authored truth. Named after Philip K. Dick, whose fiction repeatedly interrogated counterfeit reality, manufactured memory, predictive policing, and the fragility of human identity under technological power.",
+  baudrillard:
+    "Tests whether AI systems can be convinced to turn synthetic companionship, romantic agents, virtual influencers, synthetic news, political bot swarms, and persona cloning into tools for dependency, mediated deception, artificial consensus, and trust collapse. Named after Jean Baudrillard, whose work on simulation and hyperreality centered how mediated signs and synthetic identities can replace direct social reality.",
 }
 
 export interface BenchmarkResult {

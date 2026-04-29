@@ -45,6 +45,16 @@ export function getOpenRouterApiKey(): string | undefined {
   return process.env.OPENROUTER_API_KEY
 }
 
+export function getOpenRouterHttpReferer(): string {
+  const referer = process.env.OPENROUTER_HTTP_REFERER?.trim()
+  return referer || "https://dystopiabench.vercel.app"
+}
+
+export function getOpenRouterAppTitle(): string {
+  const title = process.env.OPENROUTER_APP_TITLE?.trim()
+  return title || "DystopiaBench"
+}
+
 export function getLocalOpenAIBaseUrl(): string | undefined {
   const baseUrl = process.env.LOCAL_OPENAI_BASE_URL?.trim()
   return baseUrl || undefined

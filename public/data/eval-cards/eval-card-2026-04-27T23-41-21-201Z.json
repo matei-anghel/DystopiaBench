@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-04-28T00:09:14.448Z",
+  "runId": "2026-04-27T23-41-21-201Z",
+  "benchmark": {
+    "benchmarkId": "dystopiabench-core",
+    "benchmarkBundleId": "dystopiabench-core@1.0.0",
+    "benchmarkBundleVersion": "1.0.0",
+    "datasetBundleVersion": "dystopiabench-core@1.0.0",
+    "releaseTier": "core-public",
+    "splitSummary": {
+      "public-core": 120
+    }
+  },
+  "scenarioCounts": {
+    "total": 120,
+    "bySplit": {
+      "public-core": 120
+    },
+    "bySensitivityTier": {
+      "public": 120
+    }
+  },
+  "judge": {
+    "judgeModel": "gemini-3-flash-preview",
+    "judgeModels": [
+      "gemini-3-flash-preview"
+    ],
+    "judgeStrategy": "single"
+  },
+  "contamination": {
+    "notes": [],
+    "limitations": [
+      "Public scenarios may be susceptible to contamination from public training corpora."
+    ]
+  },
+  "gating": {
+    "verdict": "not-evaluated",
+    "summary": "No gating verdict recorded for this artifact."
+  },
+  "artifactPolicy": {
+    "visibility": "public",
+    "publicSafe": true
+  }
+}

@@ -31,6 +31,7 @@ type EscalationLevel = 1 | 2 | 3 | 4 | 5
 interface FailedPairPlan {
   scenarioId: string
   modelId: string
+  replicate: number
   module: Module
   failedLevels: EscalationLevel[]
   rerunLevels: EscalationLevel[]
@@ -113,12 +114,12 @@ function parseRuntimeOverrides(): Pick<
   }
 }
 
-function resultKey(row: Pick<BenchmarkResultV2, "scenarioId" | "modelId" | "level">): string {
-  return `${row.scenarioId}::${row.modelId}::${row.level}`
+function resultKey(row: Pick<BenchmarkResultV2, "scenarioId" | "modelId" | "level" | "replicate" | "sampleId">): string {
+  return row.sampleId ?? `${row.scenarioId}::${row.modelId}::${row.level}::r${row.replicate ?? 1}`
 }
 
-function pairKey(row: Pick<BenchmarkResultV2, "scenarioId" | "modelId">): string {
-  return `${row.scenarioId}::${row.modelId}`
+function pairKey(row: Pick<BenchmarkResultV2, "scenarioId" | "modelId" | "replicate">): string {
+  return `${row.scenarioId}::${row.modelId}::r${row.replicate ?? 1}`
 }
 
 function isFailedRow(row: BenchmarkResultV2): boolean {
@@ -186,6 +187,7 @@ function buildPlan(manifest: RunManifestV2, scope: RerunScope): {
       byPair.set(key, {
         scenarioId: row.scenarioId,
         modelId: row.modelId,
+        replicate: row.replicate ?? 1,
         module: toModuleId(row.module),
         failedLevels: [level],
         rerunLevels: [],
@@ -205,7 +207,11 @@ function buildPlan(manifest: RunManifestV2, scope: RerunScope): {
       }
     })
     .sort((a, b) => {
-      if (a.scenarioId === b.scenarioId) return a.modelId.localeCompare(b.modelId)
+      if (a.scenarioId === b.scenarioId) {
+        const modelDiff = a.modelId.localeCompare(b.modelId)
+        if (modelDiff !== 0) return modelDiff
+        return a.replicate - b.replicate
+      }
       return a.scenarioId.localeCompare(b.scenarioId)
     })
 
@@ -336,6 +342,7 @@ async function main() {
   for (const plan of plans) {
     console.log(
       `  - ${plan.modelId} | ${plan.scenarioId} | failed L${plan.failedLevels.join(",L")} | rerun L${plan.rerunLevels.join(",L")}`
+        + ` | replicate ${plan.replicate}`
     )
   }
 
@@ -363,7 +370,7 @@ async function main() {
     limit(async () => {
       const startedAt = Date.now()
       console.log(
-        `[Rerun ${index + 1}/${plans.length}] ${plan.modelId} | ${plan.scenarioId} | levels=${plan.rerunLevels.join(",")}`
+        `[Rerun ${index + 1}/${plans.length}] ${plan.modelId} | ${plan.scenarioId} | r${plan.replicate} | levels=${plan.rerunLevels.join(",")}`
       )
 
       let rerun: RunManifestV2
@@ -390,6 +397,7 @@ async function main() {
           maxRetries: runtimeOverrides.maxRetries,
           retryBackoffBaseMs: runtimeOverrides.retryBackoffBaseMs,
           retryBackoffJitterMs: runtimeOverrides.retryBackoffJitterMs,
+          replicates: plan.replicate,
         })
       } catch (error) {
         pairRunFailures += 1
@@ -399,7 +407,8 @@ async function main() {
         return
       }
 
-      const rerunFailedRows = rerun.results.filter(isFailedRow)
+      const rerunRowsForReplicate = rerun.results.filter((row) => (row.replicate ?? 1) === plan.replicate)
+      const rerunFailedRows = rerunRowsForReplicate.filter(isFailedRow)
       if (rerunFailedRows.length > 0) {
         console.warn(`  Pair still has ${rerunFailedRows.length} failed row(s) after rerun.`)
         for (const row of rerunFailedRows) {
@@ -409,7 +418,7 @@ async function main() {
 
       await mergeLimit(async () => {
         const replacementByKey = new Map<string, BenchmarkResultV2>()
-        for (const row of rerun.results) {
+        for (const row of rerunRowsForReplicate) {
           replacementByKey.set(resultKey(row), row)
         }
 
@@ -446,7 +455,11 @@ async function main() {
         completedPairs += 1
 
         const pairStillFailed = workingManifest.results.filter(
-          (row) => row.scenarioId === plan.scenarioId && row.modelId === plan.modelId && isFailedRow(row)
+          (row) =>
+            row.scenarioId === plan.scenarioId &&
+            row.modelId === plan.modelId &&
+            (row.replicate ?? 1) === plan.replicate &&
+            isFailedRow(row)
         ).length
         const elapsedSec = Math.round((Date.now() - startedAt) / 1000)
         console.log(

@@ -5,9 +5,12 @@ import laguardiaModule from "./scenario-data/modules/laguardia.json"
 import huxleyModule from "./scenario-data/modules/huxley.json"
 import kafkaModule from "./scenario-data/modules/kafka.json"
 import pkdModule from "./scenario-data/modules/pkd.json"
+import baudrillardModule from "./scenario-data/modules/baudrillard.json"
 import { createScenarioCatalogVersion } from "./scenario-manifest"
 import { validateScenarioModules } from "./scenario-schema"
 import type { CoreModule, Module, Scenario, ScenarioModule } from "./types"
+
+export const TEMP_DISABLED_CORE_MODULE_IDS = new Set<CoreModule>(["kafka", "pkd"])
 
 function withCoreProvenance(rawModule: unknown): unknown {
   if (!rawModule || typeof rawModule !== "object") return rawModule
@@ -67,7 +70,7 @@ function withCoreProvenance(rawModule: unknown): unknown {
   }
 }
 
-export const CORE_REGISTERED_MODULES = validateScenarioModules([
+const FULL_CORE_REGISTERED_MODULES = validateScenarioModules([
   withCoreProvenance(petrovModule),
   withCoreProvenance(orwellModule),
   withCoreProvenance(laguardiaModule),
@@ -75,7 +78,12 @@ export const CORE_REGISTERED_MODULES = validateScenarioModules([
   withCoreProvenance(huxleyModule),
   withCoreProvenance(kafkaModule),
   withCoreProvenance(pkdModule),
+  withCoreProvenance(baudrillardModule),
 ])
+
+export const CORE_REGISTERED_MODULES = FULL_CORE_REGISTERED_MODULES.filter(
+  (module) => !TEMP_DISABLED_CORE_MODULE_IDS.has(module.id as CoreModule),
+)
 
 const REGISTERED_MODULES = CORE_REGISTERED_MODULES
 

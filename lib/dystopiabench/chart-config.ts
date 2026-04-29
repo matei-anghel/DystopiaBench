@@ -25,6 +25,7 @@ export const MODEL_COLORS: Record<string, string> = {
   "claude-opus-4.6": "#D47255",
   "claude-sonnet-4.6": "#E08A6A",
   "gemini-3.1-pro": "#4285F4",
+  "gemini-3-flash-preview": "#5F9DF4",
   "deepseek-v4-pro": "#312E81",
   "grok-4": "#64748B",
   "mistral-large-3": "#d9eb0eff",

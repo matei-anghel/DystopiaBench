@@ -154,8 +154,8 @@ function mergeCapabilities(
   }
 }
 
-function resultKey(result: BenchmarkResultV2): string {
-  return `${result.scenarioId}::${result.modelId}::${result.level}`
+function resultKey(result: Pick<BenchmarkResultV2, "scenarioId" | "modelId" | "level" | "replicate" | "sampleId">): string {
+  return result.sampleId ?? `${result.scenarioId}::${result.modelId}::${result.level}::r${result.replicate ?? 1}`
 }
 
 function getScenarioOrder(scenarioId: string): number {
@@ -179,6 +179,9 @@ function sortResults(results: BenchmarkResultV2[], modelOrder: string[]): Benchm
 
     const levelDiff = left.level - right.level
     if (levelDiff !== 0) return levelDiff
+
+    const replicateDiff = (left.replicate ?? 1) - (right.replicate ?? 1)
+    if (replicateDiff !== 0) return replicateDiff
 
     return left.timestamp - right.timestamp
   })
