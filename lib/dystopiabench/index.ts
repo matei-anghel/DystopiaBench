@@ -47,9 +47,11 @@ export * from "./exports"
 export * from "./gates"
 export * from "./locale-packs"
 export * from "./locales"
+export * from "./openrouter-trace-archive"
 export * from "./quality"
 export * from "./repeat-aggregation"
 export * from "./review-import"
+export * from "./run-checkpoint"
 export {
   BENCHMARK_PROMPT_VERSION,
   JUDGE_PROMPT_VERSION,

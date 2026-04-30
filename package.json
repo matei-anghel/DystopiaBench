@@ -16,6 +16,7 @@
     "bench:merge": "tsx scripts/merge-runs.ts",
     "bench:publish": "tsx scripts/publish-run.ts",
     "bench:export": "tsx scripts/export-run.ts",
+    "bench:archive-openrouter": "tsx scripts/archive-openrouter-traces.ts",
     "bench:eval-card": "tsx scripts/generate-eval-card.ts",
     "bench:review-manifest": "tsx scripts/generate-review-manifest.ts",
     "bench:import-reviews": "tsx scripts/import-review-labels.ts",
@@ -32,6 +33,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.36",
+    "@openrouter/sdk": "^0.12.22",
     "@radix-ui/react-select": "2.2.6",
     "@radix-ui/react-slot": "1.2.4",
     "@vercel/analytics": "^1.6.1",

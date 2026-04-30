@@ -176,6 +176,10 @@ export interface RunBenchmarkOptions {
   scenarioModules?: ScenarioModule[]
   benchmarkBundle?: BenchmarkBundle
   judgeCalibration?: RunSummaryV2["judgeCalibration"]
+  existingResults?: BenchmarkResultV2[]
+  abortSignal?: AbortSignal
+  onSetup?: (payload: { total: number }) => void | Promise<void>
+  onResult?: (payload: { row: BenchmarkResultV2; completed: number; total: number }) => void | Promise<void>
 }
 
 // ---------------------------------------------------------------------------
@@ -305,6 +309,10 @@ export function extractTextFromModelResult(modelResult: unknown): string {
 
   const direct = extractTextFromUnknownContent(obj)
   return direct
+}
+
+function benchmarkResultKey(row: Pick<BenchmarkResultV2, "sampleId" | "scenarioId" | "modelId" | "level" | "replicate">): string {
+  return row.sampleId ?? `${row.scenarioId}::${row.modelId}::${row.level}::r${row.replicate ?? 1}`
 }
 
 function parseJudgeOutput(rawText: string): z.infer<typeof complianceSchema> {
@@ -2154,7 +2162,9 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const scenarios = requestedScenarioIds
     ? allScenarios.filter((scenario) => requestedScenarioIds.has(scenario.id))
     : allScenarios
-  const results: BenchmarkResultV2[] = []
+  const existingResults = (options.existingResults ?? []).map((row) => ({ ...row }))
+  const existingResultByKey = new Map(existingResults.map((row) => [benchmarkResultKey(row), row]))
+  const results: BenchmarkResultV2[] = [...existingResults]
 
   // Sort the requested levels so that within each conversation we escalate in order
   const sortedLevels = [...options.levels].sort((a, b) => a - b)
@@ -2163,7 +2173,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const total = scenarios.reduce((acc, s) => {
     return acc + resolvedTestModels.length * replicates * sortedLevels.filter((lvl) => s.escalationPrompts.some((p) => p.level === lvl)).length
   }, 0)
-  let completed = 0
+  let completed = existingResults.length
   const startedAt = Date.now()
 
   const STATUS_ICON: Record<string, string> = {
@@ -2236,6 +2246,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   ].join("  ")
   console.log(`\n${RUN_LOG_PREFIX} ${bold("Progress")}`)
   console.log(`  ${underline(progressHeader)}`)
+  await options.onSetup?.({ total })
 
   for (const scenario of scenarios) {
     const levelsForScenario = sortedLevels.filter((lvl) =>
@@ -2247,6 +2258,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
       for (let replicate = 1; replicate <= replicates; replicate++) {
         tasks.push(
           limit(async () => {
+            if (options.abortSignal?.aborted) return
             await getModelLimiter(model.id)(async () => {
             // Conversation history that accumulates across levels
             const conversationMessages: ModelMessage[] = []
@@ -2254,8 +2266,29 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
             const providerOverride = capabilities.providerOverridesByModelString.get(model.modelString)
 
             for (const level of levelsForScenario) {
+              if (options.abortSignal?.aborted) return
               const escalationPrompt = scenario.escalationPrompts.find((prompt) => prompt.level === level)
               if (!escalationPrompt) continue
+              const benchmarkPrompt = buildBenchmarkPrompt(escalationPrompt.prompt)
+              const sampleId = buildStableSampleId({
+                scenarioId: scenario.id,
+                modelId: model.id,
+                level,
+                replicate,
+              })
+              const attemptId = `${options.runId}:${sampleId}`
+              const existingRow = existingResultByKey.get(sampleId)
+              if (existingRow) {
+                if (conversationMode === "stateful" && existingRow.response.trim()) {
+                  conversationMessages.push({ role: "user", content: benchmarkPrompt })
+                  conversationMessages.push({ role: "assistant", content: existingRow.response })
+                }
+                if (conversationMode === "stateful" && (existingRow.status === "model_error" || existingRow.status === "aborted")) {
+                  conversationMessages.length = 0
+                  conversationContinuity = "reset_after_failure"
+                }
+                continue
+              }
 
               let response = ""
               let compliance: ComplianceRating = "hesitant"
@@ -2279,7 +2312,6 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
               let judgeLatencyMs = 0
               let responseTokenCount: number | undefined
               let providerMetadata: Record<string, unknown> | undefined
-              const benchmarkPrompt = buildBenchmarkPrompt(escalationPrompt.prompt)
               const trace = buildOpenRouterTrace({
                 runId: options.runId,
                 scenarioId: scenario.id,
@@ -2473,13 +2505,6 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                 `  ${statusBadge(status)}  ${dim(progressLabel)}  ${cyan(modelLabel)}  ${scenarioLabel}  ${bold(`L${level}`.padEnd(2))}  ${String(replicate).padEnd(3)}  ${complianceBadge(compliance)}  ${scoreText(compliance, scoreLabel)}  ${epLabel}  ${purple(elapsedStr().padStart(8))}\n`
               )
 
-              const sampleId = buildStableSampleId({
-                scenarioId: scenario.id,
-                modelId: model.id,
-                level,
-                replicate,
-              })
-              const attemptId = `${options.runId}:${sampleId}`
               const promptHash = sha256(benchmarkPrompt)
               const responseHash = sha256(response)
               const judgePanelConfigSnapshot = {
@@ -2491,7 +2516,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
               const scenarioSplit = scenario.provenance?.split
               const scenarioSensitivityTier = scenario.provenance?.sensitivityTier
 
-              results.push({
+              const row: BenchmarkResultV2 = {
                 scenarioId: scenario.id,
                 canonicalScenarioId: scenario.id,
                 scenarioTitle: scenario.title,
@@ -2577,7 +2602,10 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                 auxiliaryLabels: inferAuxiliaryLabels(response, compliance),
                 artifactLineage: undefined,
                 timestamp: Date.now(),
-              })
+              }
+              results.push(row)
+              existingResultByKey.set(sampleId, row)
+              await options.onResult?.({ row, completed, total })
 
               // If the model call failed entirely, reset conversation and continue to next level
               // so that every prompt is always attempted and recorded.

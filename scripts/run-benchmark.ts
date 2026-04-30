@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs"
+import { getOpenRouterApiKey } from "../lib/dystopiabench/env"
 import {
   AVAILABLE_MODELS,
   DEFAULT_JUDGE_MODEL,
@@ -11,6 +12,20 @@ import { DEFAULT_SOURCE_LOCALE, normalizeLocaleTag } from "../lib/dystopiabench/
 import { ALL_MODULES, ALL_SCENARIOS, getRegisteredModuleIds, getScenariosByModule } from "../lib/dystopiabench/scenarios"
 import { createBenchmarkBundle } from "../lib/dystopiabench/bundles"
 import { loadScenarioModulesFromSources } from "../lib/dystopiabench/scenario-loader"
+import {
+  archiveAndWriteOpenRouterTracesForManifest,
+  collectOpenRouterArchiveTargets,
+} from "../lib/dystopiabench/openrouter-trace-archive"
+import {
+  buildResumePrefixRows,
+  checkpointResultKey,
+  createRunCheckpoint,
+  hasRunCheckpoint,
+  readRunCheckpoint,
+  writeRunCheckpoint,
+  type RunCheckpoint,
+  type RunCheckpointConfig,
+} from "../lib/dystopiabench/run-checkpoint"
 import {
   bold,
   cyan,
@@ -36,6 +51,7 @@ import {
 import {
   makeRunId,
   publishLatest,
+  readRunManifest,
   sanitizeRunId,
   writeRunManifest,
 } from "../lib/dystopiabench/storage"
@@ -46,6 +62,27 @@ type ModuleArg = BenchmarkModuleSelector
 const CLI_LOG_PREFIX = bold(cyan("BENCH"))
 
 type CompletedManifest = Awaited<ReturnType<typeof runBenchmark>>
+type OpenRouterArchiveStatus =
+  | {
+      kind: "archived"
+      relativePath: string
+      uniqueGenerationCount: number
+      rowsMissingGenerationId: number
+      metadataRetrievedCount: number
+      contentRetrievedCount: number
+    }
+  | {
+      kind: "skipped"
+      reason: string
+      openrouterRowCount?: number
+      rowsMissingGenerationId?: number
+    }
+  | {
+      kind: "failed"
+      reason: string
+      openrouterRowCount: number
+      uniqueGenerationCount: number
+    }
 
 function colorDcs(value: number | null): string {
   const label = value === null ? "-".padStart(3) : String(value).padStart(3)
@@ -218,6 +255,16 @@ function normalizeModelInputList(input: string | undefined): string[] {
     .filter(Boolean)
 }
 
+function hasUsableGenerationId(row: { providerMetadata?: Record<string, unknown> | undefined }): boolean {
+  const openrouter = row.providerMetadata?.openrouter
+  if (!openrouter || typeof openrouter !== "object") return false
+  const record = openrouter as Record<string, unknown>
+  return (
+    (typeof record.generationId === "string" && record.generationId.trim().length > 0) ||
+    (typeof record.responseId === "string" && record.responseId.startsWith("gen-"))
+  )
+}
+
 function isValidModelSpecifier(input: string): boolean {
   if (getModelById(input)) return true
   if (input.startsWith("openrouter:") || input.startsWith("local:")) return true
@@ -338,51 +385,99 @@ function parseLocalePack(input: string | undefined) {
 }
 
 async function main() {
-  const moduleArg = parseModule(parseArg("--module"))
-  const levels = parseLevels(parseArg("--levels"))
-  const models = parseModels(parseArg("--models"))
-  const judgeModel = parseArg("--judge-model")
-  const judgeStrategy = parseJudgeStrategy(parseArg("--judge-strategy"))
+  const resumeRequested = hasFlag("--resume")
+  const requestedRunId = parseArg("--run-id")
+  if (resumeRequested && !requestedRunId) {
+    throw new Error("Use --run-id=<existing-run-id> together with --resume.")
+  }
+
+  const runId = sanitizeRunId(requestedRunId ?? makeRunId())
+  if (resumeRequested && !hasRunCheckpoint(runId)) {
+    throw new Error(`No checkpoint exists for run ${runId}.`)
+  }
+  if (!resumeRequested && hasRunCheckpoint(runId)) {
+    throw new Error(`Checkpoint already exists for run ${runId}. Use --resume to continue it.`)
+  }
+
+  const checkpoint = resumeRequested ? readRunCheckpoint(runId) : undefined
+  const checkpointConfig = checkpoint?.config
+
+  const moduleArg = parseArg("--module")
+    ? parseModule(parseArg("--module"))
+    : parseModule(checkpointConfig?.module)
+  const levels: Array<1 | 2 | 3 | 4 | 5> = parseArg("--levels")
+    ? parseLevels(parseArg("--levels"))
+    : checkpointConfig?.levels
+      ? [...checkpointConfig.levels] as Array<1 | 2 | 3 | 4 | 5>
+      : [1, 2, 3, 4, 5]
+  const models = parseArg("--models")
+    ? parseModels(parseArg("--models"))
+    : checkpointConfig?.modelIds ?? AVAILABLE_MODELS.map((model) => model.id)
+  const judgeModel = parseArg("--judge-model") ?? checkpointConfig?.judgeModel
+  const judgeStrategy = parseJudgeStrategy(parseArg("--judge-strategy") ?? checkpointConfig?.judgeStrategy)
   const judgeModelsArg = parseArg("--judge-models")
+  const judgeModels =
+    judgeStrategy === "single"
+      ? parseJudgeModels(judgeModelsArg ?? checkpointConfig?.judgeModels?.join(","), judgeModel)
+      : judgeModelsArg
+        ? parseJudgeModels(judgeModelsArg, undefined)
+        : checkpointConfig?.judgeModels
   if (judgeStrategy === "pair-with-tiebreak" && judgeModel && judgeModelsArg) {
     throw new Error("Use either --judge-model or --judge-models with --judge-strategy=pair-with-tiebreak, not both.")
   }
-  const judgeModels =
-    judgeStrategy === "single"
-      ? parseJudgeModels(judgeModelsArg, judgeModel)
-      : judgeModelsArg
-        ? parseJudgeModels(judgeModelsArg, undefined)
-        : undefined
   if (judgeStrategy === "pair-with-tiebreak" && judgeModels && judgeModels.length !== 3) {
     throw new Error("--judge-models must contain exactly three selectors for pair-with-tiebreak.")
   }
-  const scenarioIds = parseScenarioIds(parseArg("--scenario-ids"))
-  const runId = sanitizeRunId(parseArg("--run-id") ?? makeRunId())
-  const retainRuns = parseRetainRuns(parseArg("--retain"))
-  const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
-  const transport = parseTransport(parseArg("--transport"))
-  const conversationMode = parseConversationMode(parseArg("--conversation-mode"))
-  const providerPrecision = parseProviderPrecision(parseArg("--provider-precision"))
-  const replicates = parsePositiveIntFlag("--replicates", parseArg("--replicates")) ?? 3
-  const experimentId = parseArg("--experiment-id")
-  const project = parseArg("--project")
-  const owner = parseArg("--owner")
-  const purpose = parseArg("--purpose")
-  const modelSnapshot = parseArg("--model-snapshot")
-  const providerRegion = parseArg("--provider-region")
-  const policyVersion = parseArg("--policy-version")
-  const gitCommit = parseArg("--git-commit")
-  const datasetBundleVersion = parseArg("--dataset-bundle-version")
-  const benchmarkId = parseArg("--benchmark-id")
-  const benchmarkBundleVersion = parseArg("--benchmark-bundle-version")
-  const scenarioSources = parseScenarioSources(parseArg("--scenario-sources"))
-  const sourceLocale = normalizeLocaleTag(parseArg("--source-locale") ?? DEFAULT_SOURCE_LOCALE)
-  const localePack = parseLocalePack(parseArg("--locale-pack"))
-  const promptLocale = normalizeLocaleTag(parseArg("--locale") ?? localePack?.targetLocale ?? sourceLocale)
-  const localePreset = parseArg("--locale-preset")
-  const allowNonPublicPublish = hasFlag("--allow-nonpublic-publish")
-  const publishLatestAliases = !hasFlag("--no-publish-latest")
-  const runtimeOverrides = parseRuntimeOverrides()
+  const scenarioIds = parseArg("--scenario-ids")
+    ? parseScenarioIds(parseArg("--scenario-ids"))
+    : checkpointConfig?.scenarioIds
+  const retainRuns = parseArg("--retain")
+    ? parseRetainRuns(parseArg("--retain"))
+    : checkpointConfig?.retainRuns
+  const archiveDir = parseArg("--archive-dir")
+    ? parseArchiveDir(parseArg("--archive-dir"))
+    : checkpointConfig?.archiveDir
+  const transport = parseTransport(parseArg("--transport") ?? checkpointConfig?.transportPolicy)
+  const conversationMode = parseConversationMode(parseArg("--conversation-mode") ?? checkpointConfig?.conversationMode)
+  const providerPrecision = parseProviderPrecision(parseArg("--provider-precision") ?? checkpointConfig?.providerPrecisionPolicy)
+  const replicates = parsePositiveIntFlag("--replicates", parseArg("--replicates")) ?? checkpointConfig?.replicates ?? 3
+  const experimentId = parseArg("--experiment-id") ?? checkpointConfig?.experimentId
+  const project = parseArg("--project") ?? checkpointConfig?.project
+  const owner = parseArg("--owner") ?? checkpointConfig?.owner
+  const purpose = parseArg("--purpose") ?? checkpointConfig?.purpose
+  const modelSnapshot = parseArg("--model-snapshot") ?? checkpointConfig?.modelSnapshot
+  const providerRegion = parseArg("--provider-region") ?? checkpointConfig?.providerRegion
+  const policyVersion = parseArg("--policy-version") ?? checkpointConfig?.policyVersion
+  const gitCommit = parseArg("--git-commit") ?? checkpointConfig?.gitCommit
+  const datasetBundleVersion = parseArg("--dataset-bundle-version") ?? checkpointConfig?.datasetBundleVersion
+  const benchmarkId = parseArg("--benchmark-id") ?? checkpointConfig?.benchmarkId
+  const benchmarkBundleVersion = parseArg("--benchmark-bundle-version") ?? checkpointConfig?.benchmarkBundleVersion
+  const scenarioSources = parseArg("--scenario-sources")
+    ? parseScenarioSources(parseArg("--scenario-sources"))
+    : checkpointConfig?.scenarioSources
+  const sourceLocale = normalizeLocaleTag(parseArg("--source-locale") ?? checkpointConfig?.sourceLocale ?? DEFAULT_SOURCE_LOCALE)
+  const localePack = parseArg("--locale-pack")
+    ? parseLocalePack(parseArg("--locale-pack"))
+    : checkpointConfig?.localePack
+      ? validateScenarioLocalePack(checkpointConfig.localePack)
+      : undefined
+  const promptLocale = normalizeLocaleTag(parseArg("--locale") ?? checkpointConfig?.promptLocale ?? localePack?.targetLocale ?? sourceLocale)
+  const localePreset = parseArg("--locale-preset") ?? checkpointConfig?.localePreset
+  const allowNonPublicPublish = hasFlag("--allow-nonpublic-publish") || checkpointConfig?.allowNonPublicPublish === true
+  const publishLatestAliases = hasFlag("--no-publish-latest")
+    ? false
+    : checkpointConfig?.publishLatestAliases ?? true
+  const runtimeOverrides = {
+    timeoutMs: parsePositiveIntFlag("--timeout-ms", parseArg("--timeout-ms")) ?? checkpointConfig?.timeoutMs,
+    concurrency: parsePositiveIntFlag("--concurrency", parseArg("--concurrency")) ?? checkpointConfig?.concurrency,
+    perModelConcurrency:
+      parsePositiveIntFlag("--per-model-concurrency", parseArg("--per-model-concurrency")) ?? checkpointConfig?.perModelConcurrency,
+    maxRetries: parseNonNegativeIntFlag("--max-retries", parseArg("--max-retries")) ?? checkpointConfig?.maxRetries,
+    retryBackoffBaseMs:
+      parsePositiveIntFlag("--retry-backoff-base-ms", parseArg("--retry-backoff-base-ms")) ?? checkpointConfig?.retryBackoffBaseMs,
+    retryBackoffJitterMs:
+      parseNonNegativeIntFlag("--retry-backoff-jitter-ms", parseArg("--retry-backoff-jitter-ms")) ?? checkpointConfig?.retryBackoffJitterMs,
+  }
 
   if (localePack && promptLocale !== localePack.targetLocale) {
     throw new Error(`--locale (${promptLocale}) must match locale pack targetLocale (${localePack.targetLocale}).`)
@@ -410,6 +505,7 @@ async function main() {
   console.log(`${CLI_LOG_PREFIX} ${bold("DystopiaBench run")}`)
   console.log(renderKeyValueRows([
     ["Run ID", runId],
+    ["Resume", resumeRequested ? "yes" : "no"],
     ["Modules", moduleArg],
     ["Models", models.join(", ")],
     ["Levels", levels.join(", ")],
@@ -443,18 +539,23 @@ async function main() {
     modules: scenarioModules ?? ALL_MODULES,
   })
 
-  const manifest = await runBenchmark({
-    runId,
-    module: moduleArg,
+  const checkpointConfigValue: RunCheckpointConfig = {
+    module: String(moduleArg),
     modelIds: models,
     levels,
     scenarioIds,
-    judgeModel,
-    judgeModels,
+    judgeModel: judgeModel ?? undefined,
+    judgeModels: judgeModels ?? undefined,
     judgeStrategy,
     transportPolicy: transport,
     conversationMode,
     providerPrecisionPolicy: providerPrecision,
+    timeoutMs: runtimeOverrides.timeoutMs,
+    concurrency: runtimeOverrides.concurrency,
+    perModelConcurrency: runtimeOverrides.perModelConcurrency,
+    maxRetries: runtimeOverrides.maxRetries,
+    retryBackoffBaseMs: runtimeOverrides.retryBackoffBaseMs,
+    retryBackoffJitterMs: runtimeOverrides.retryBackoffJitterMs,
     replicates,
     experimentId: experimentId ?? undefined,
     project: project ?? undefined,
@@ -467,37 +568,257 @@ async function main() {
     customPrepromptUsed: hasFlag("--custom-preprompt-used"),
     gitCommit: gitCommit ?? undefined,
     datasetBundleVersion: datasetBundleVersion ?? undefined,
+    benchmarkId: benchmarkId ?? undefined,
+    benchmarkBundleVersion: benchmarkBundleVersion ?? undefined,
+    scenarioSources: scenarioSources ?? undefined,
     promptLocale,
     sourceLocale,
     localePack,
     localePackId: localePack?.packId,
     localePreset: localePreset ?? undefined,
-    scenarioModules: scenarioModules ?? undefined,
-    benchmarkBundle,
-    ...runtimeOverrides,
-  })
-
-  writeRunManifest(manifest)
-  if (publishLatestAliases) {
-    publishLatest(manifest, { retainRuns, archiveDir, allowNonPublicPublish })
+    retainRuns,
+    archiveDir,
+    allowNonPublicPublish,
+    publishLatestAliases,
   }
+
+  const workingCheckpoint: RunCheckpoint = checkpoint
+    ? {
+        ...checkpoint,
+        config: checkpointConfigValue,
+      }
+    : createRunCheckpoint({
+        runId,
+        config: checkpointConfigValue,
+      })
+  const checkpointRowIndex = new Map(workingCheckpoint.results.map((row, index) => [checkpointResultKey(row), index]))
+  const resumePrefixRows = resumeRequested ? buildResumePrefixRows(workingCheckpoint) : []
+  let checkpointWriteQueue = Promise.resolve()
+  let lastCheckpointWriteAt = 0
+  let rowsSinceCheckpointWrite = 0
+  let checkpointTotalPrompts = workingCheckpoint.totalPlannedPrompts
+  const checkpointWriteThresholdRows = 5
+  const checkpointWriteThresholdMs = 2000
+  const enqueueCheckpointWrite = (status: RunCheckpoint["status"], force = false) => {
+    workingCheckpoint.status = status
+    workingCheckpoint.totalPlannedPrompts = checkpointTotalPrompts
+    workingCheckpoint.completedPrompts = workingCheckpoint.results.length
+    const now = Date.now()
+    if (!force && rowsSinceCheckpointWrite < checkpointWriteThresholdRows && now - lastCheckpointWriteAt < checkpointWriteThresholdMs) {
+      return checkpointWriteQueue
+    }
+    checkpointWriteQueue = checkpointWriteQueue.then(async () => {
+      writeRunCheckpoint(workingCheckpoint)
+      lastCheckpointWriteAt = Date.now()
+      rowsSinceCheckpointWrite = 0
+    })
+    return checkpointWriteQueue
+  }
+
+  const abortController = new AbortController()
+  let interruptCount = 0
+  const handleSigint = () => {
+    interruptCount += 1
+    if (interruptCount === 1) {
+      console.log(`\n${CLI_LOG_PREFIX} ${yellow("Interrupt received")} stopping after in-flight requests and saving checkpoint...`)
+      abortController.abort()
+      void enqueueCheckpointWrite("interrupted", true)
+      return
+    }
+
+    console.log(`\n${CLI_LOG_PREFIX} ${red("Forcing exit")} checkpointing current progress...`)
+    void enqueueCheckpointWrite("interrupted", true).finally(() => {
+      process.exit(130)
+    })
+  }
+  process.on("SIGINT", handleSigint)
+
+  let manifest: CompletedManifest
+  try {
+    manifest = await runBenchmark({
+      runId,
+      module: moduleArg,
+      modelIds: models,
+      levels,
+      scenarioIds,
+      judgeModel,
+      judgeModels,
+      judgeStrategy,
+      transportPolicy: transport,
+      conversationMode,
+      providerPrecisionPolicy: providerPrecision,
+      replicates,
+      experimentId: experimentId ?? undefined,
+      project: project ?? undefined,
+      owner: owner ?? undefined,
+      purpose: purpose ?? undefined,
+      modelSnapshot: modelSnapshot ?? undefined,
+      providerRegion: providerRegion ?? undefined,
+      policyVersion: policyVersion ?? undefined,
+      systemPromptOverrideUsed: hasFlag("--system-prompt-override-used"),
+      customPrepromptUsed: hasFlag("--custom-preprompt-used"),
+      gitCommit: gitCommit ?? undefined,
+      datasetBundleVersion: datasetBundleVersion ?? undefined,
+      promptLocale,
+      sourceLocale,
+      localePack,
+      localePackId: localePack?.packId,
+      localePreset: localePreset ?? undefined,
+      scenarioModules: scenarioModules ?? undefined,
+      benchmarkBundle,
+      existingResults: resumePrefixRows,
+      abortSignal: abortController.signal,
+      onSetup: async ({ total }) => {
+        checkpointTotalPrompts = total
+        await enqueueCheckpointWrite("running", true)
+      },
+      onResult: async ({ row }) => {
+        const key = checkpointResultKey(row)
+        const existingIndex = checkpointRowIndex.get(key)
+        if (existingIndex === undefined) {
+          checkpointRowIndex.set(key, workingCheckpoint.results.length)
+          workingCheckpoint.results.push(row)
+        } else {
+          workingCheckpoint.results[existingIndex] = row
+        }
+        rowsSinceCheckpointWrite += 1
+        await enqueueCheckpointWrite("running")
+      },
+      ...runtimeOverrides,
+    })
+  } catch (error) {
+    await enqueueCheckpointWrite("interrupted", true)
+    process.off("SIGINT", handleSigint)
+    throw error
+  }
+  await checkpointWriteQueue
+
+  let openRouterArchiveStatus: OpenRouterArchiveStatus | undefined
+  const runInterrupted = abortController.signal.aborted || manifest.results.length < checkpointTotalPrompts
+  if (!runInterrupted && !hasFlag("--no-openrouter-archive")) {
+    const traceTargets = collectOpenRouterArchiveTargets(manifest)
+    if (traceTargets.openrouterRowCount === 0) {
+      openRouterArchiveStatus = {
+        kind: "skipped",
+        reason: "no OpenRouter-linked rows in this run",
+      }
+    } else if (traceTargets.targets.length === 0) {
+      openRouterArchiveStatus = {
+        kind: "skipped",
+        reason: "OpenRouter rows lacked usable generation IDs",
+        openrouterRowCount: traceTargets.openrouterRowCount,
+        rowsMissingGenerationId: traceTargets.rowsMissingGenerationId,
+      }
+    } else if (!getOpenRouterApiKey()) {
+      openRouterArchiveStatus = {
+        kind: "skipped",
+        reason: "OPENROUTER_API_KEY unavailable for archive fetch",
+        openrouterRowCount: traceTargets.openrouterRowCount,
+        rowsMissingGenerationId: traceTargets.rowsMissingGenerationId,
+      }
+    } else {
+      try {
+        const written = await archiveAndWriteOpenRouterTracesForManifest(manifest)
+        workingCheckpoint.openrouter = {
+          linkedRowCount: written.archive.summary.openrouterRowCount,
+          rowsMissingGenerationId: written.archive.summary.rowsMissingGenerationId,
+          archivePath: written.relativePath,
+        }
+        openRouterArchiveStatus = {
+          kind: "archived",
+          relativePath: written.relativePath,
+          uniqueGenerationCount: written.archive.summary.uniqueGenerationCount,
+          rowsMissingGenerationId: written.archive.summary.rowsMissingGenerationId,
+          metadataRetrievedCount: written.archive.summary.metadataRetrievedCount,
+          contentRetrievedCount: written.archive.summary.contentRetrievedCount,
+        }
+      } catch (error) {
+        openRouterArchiveStatus = {
+          kind: "failed",
+          reason: error instanceof Error ? error.message : String(error),
+          openrouterRowCount: traceTargets.openrouterRowCount,
+          uniqueGenerationCount: traceTargets.targets.length,
+        }
+      }
+    }
+  } else {
+    openRouterArchiveStatus = {
+      kind: "skipped",
+      reason: runInterrupted ? "run interrupted before final archive step" : "--no-openrouter-archive",
+    }
+  }
+
+  workingCheckpoint.results = manifest.results
+  checkpointRowIndex.clear()
+  manifest.results.forEach((row, index) => checkpointRowIndex.set(checkpointResultKey(row), index))
+  workingCheckpoint.totalPlannedPrompts = checkpointTotalPrompts
+
+  if (runInterrupted) {
+    await enqueueCheckpointWrite("interrupted", true)
+  } else {
+    workingCheckpoint.status = "completed"
+    await enqueueCheckpointWrite("completed", true)
+    writeRunManifest(manifest)
+    if (publishLatestAliases) {
+      publishLatest(manifest, { retainRuns, archiveDir, allowNonPublicPublish })
+    }
+  }
+  process.off("SIGINT", handleSigint)
   const mode = manifest.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
 
   console.log(`\n${CLI_LOG_PREFIX} ${bold("Run complete")}`)
-  console.log(`  ${renderProgressBar(100)} ${magenta("100%")} ${dim(`(${manifest.results.length}/${manifest.results.length} completed)`)}`)
-  console.log(`  ${green("saved")} public/data/benchmark-${runId}.json`)
-  if (publishLatestAliases) {
+  const progressPct = checkpointTotalPrompts === 0 ? 100 : Math.round((manifest.results.length / checkpointTotalPrompts) * 100)
+  console.log(`  ${renderProgressBar(progressPct)} ${magenta(`${progressPct}%`)} ${dim(`(${manifest.results.length}/${checkpointTotalPrompts} completed)`)}`)
+  if (runInterrupted) {
+    console.log(`  ${yellow("checkpoint saved")} interrupted run can be resumed with pnpm bench:run --run-id=${runId} --resume`)
+  } else {
+    console.log(`  ${green("saved")} public/data/benchmark-${runId}.json`)
+  }
+  if (openRouterArchiveStatus?.kind === "archived") {
+    console.log(`  ${green("archived")} ${openRouterArchiveStatus.relativePath}`)
+  } else if (openRouterArchiveStatus?.kind === "failed") {
+    console.log(`  ${yellow("archive failed")} ${openRouterArchiveStatus.reason}`)
+  } else if (openRouterArchiveStatus?.kind === "skipped") {
+    console.log(`  ${dim("archive skipped")} ${openRouterArchiveStatus.reason}`)
+  }
+  if (!runInterrupted && publishLatestAliases) {
     console.log(`  ${green("updated")} public/data/benchmark-results.json`)
     console.log(`  ${green("updated")} public/data/benchmark-results-${mode}.json`)
-  } else {
+  } else if (!runInterrupted) {
     console.log(`  ${dim("latest aliases unchanged")} (--no-publish-latest)`)
     console.log(`  ${dim("publish later")} pnpm bench:publish --run-id=${runId}`)
+  } else {
+    console.log(`  ${dim("latest aliases unchanged")} interrupted runs are checkpointed privately until resumed`)
   }
   console.log(renderKeyValueRows([
     ["Judge resolved", manifest.metadata.judgeModel],
     ["Benchmark bundle", manifest.metadata.benchmarkDefinition?.benchmarkBundleId ?? "unknown"],
     ["Locale resolved", manifest.metadata.promptLocale ?? DEFAULT_SOURCE_LOCALE],
   ], 22))
+  if (openRouterArchiveStatus?.kind === "archived") {
+    console.log(renderKeyValueRows([
+      ["OpenRouter archive", openRouterArchiveStatus.relativePath],
+      ["Archived generations", openRouterArchiveStatus.uniqueGenerationCount],
+      ["Archive metadata", `${openRouterArchiveStatus.metadataRetrievedCount}/${openRouterArchiveStatus.uniqueGenerationCount}`],
+      ["Archive content", `${openRouterArchiveStatus.contentRetrievedCount}/${openRouterArchiveStatus.uniqueGenerationCount}`],
+    ], 22))
+  } else if (openRouterArchiveStatus?.kind === "failed") {
+    console.log(renderKeyValueRows([
+      ["OpenRouter archive", "failed"],
+      ["Archive reason", openRouterArchiveStatus.reason],
+      ["Archive targets", openRouterArchiveStatus.uniqueGenerationCount],
+    ], 22))
+  } else if (
+    openRouterArchiveStatus?.kind === "skipped" &&
+    openRouterArchiveStatus.openrouterRowCount !== undefined
+  ) {
+    console.log(renderKeyValueRows([
+      ["OpenRouter archive", "skipped"],
+      ["Archive reason", openRouterArchiveStatus.reason],
+      ["OpenRouter rows", openRouterArchiveStatus.openrouterRowCount],
+      ["Missing generation IDs", openRouterArchiveStatus.rowsMissingGenerationId ?? 0],
+    ], 22))
+  }
   if (publishLatestAliases && retainRuns !== undefined) {
     console.log(`  ${dim("retention".padEnd(22))} keep last ${retainRuns} run manifest(s)`)
     if (archiveDir) {

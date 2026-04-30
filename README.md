@@ -68,6 +68,7 @@ Scenario content lives in JSON module files under `lib/dystopiabench/scenario-da
 - Awareness-analysis pass for evaluation-recognition and trace-consistency signals
 - Programmatic scenario loading from local, URL, and `npm:` JSON scenario sources
 - Export scripts for JSONL prompt rows, CSV summaries, parquet artifacts, Inspect-style logs, OpenAI-Evals-style JSONL, and eval cards
+- OpenRouter trace archiving via the official `@openrouter/sdk` for long-term private retention
 - Regression gate script for CI usage
 - Judge calibration script for gold-set evaluation
 - Review-manifest generation and reviewed-label import
@@ -102,6 +103,7 @@ scripts/                CLI entrypoints for run/rerun/publish/validation
 - Next.js 16 / React 19 / TypeScript
 - Tailwind CSS 4 / Recharts / Radix UI
 - AI SDK (`@ai-sdk/openai`) with OpenRouter
+- Official OpenRouter SDK (`@openrouter/sdk`) for generation trace archiving
 - Zod for schema validation
 - pnpm + tsx for CLI scripts
 
@@ -198,6 +200,8 @@ Main `bench:run` flags:
 - `--retain=<non-negative-int>`
 - `--archive-dir=<relative-folder-under-public/data>`
 - `--no-publish-latest` to save a timestamped run manifest without replacing the dashboard aliases
+- `--resume` with `--run-id=<existing-run-id>` to continue from the saved checkpoint after an interruption or rerun from the first failed/missing level onward for affected scenario-model pairs
+- `--no-openrouter-archive` to skip the final OpenRouter trace archive step
 - `--replicates=<positive-int>` default `3`
 - `--experiment-id=<id>`
 - `--project=<name>`
@@ -232,6 +236,41 @@ pnpm bench:run-isolated --models=qwen3.5,claude-opus-4.6 --levels=4,5 --timeout-
 ```
 
 By default, empty completions after a single retry are recorded as implicit refusals (`status=ok`, `compliance=refusal`) with `errorCode=EMPTY_MODEL_RESPONSE` and `implicitRefusalFromEmpty=true`. OpenRouter-routed rows also retain compact observability metadata such as request/generation IDs, finish reasons, and token counts when the upstream response exposes them.
+
+### Interruptions and resume
+
+Normal benchmark runs now checkpoint progress into `artifacts/private/run-checkpoints/checkpoint-<run-id>.json` while the run is active.
+
+- If you press `Ctrl-C` once, the runner stops scheduling new work, lets in-flight requests settle, writes the checkpoint, and exits without losing completed rows.
+- If connectivity fails or credits run out and some rows error, those rows remain in the checkpoint and can be retried later.
+- Resume with the same run id:
+
+```bash
+pnpm bench:run --run-id=<run-id> --resume
+```
+
+Resume skips the successful contiguous prefix of each scenario-model-replicate conversation and reruns from the first failed or missing level onward, which preserves stateful benchmark behavior more safely than blindly skipping every previously attempted row.
+
+### Archive OpenRouter traces locally
+
+If you enabled OpenRouter Observability `Input & Output Logging`, normal `pnpm bench:run` executions now automatically archive stored prompt/completion content and generation metadata into a private local artifact whenever the run contains OpenRouter-linked rows.
+
+You can still backfill older runs manually:
+
+```bash
+pnpm bench:archive-openrouter --run-id=2026-04-29T14-45-39-222Z
+```
+
+This writes `artifacts/private/openrouter-traces/openrouter-traces-<run-id>.json` by default. The archive is self-contained per generation:
+
+- local DystopiaBench row context (`scenarioId`, `modelId`, prompt, response, hashes)
+- compact OpenRouter linkage metadata already captured in the run manifest
+- OpenRouter generation metadata fetched via `generations.getGeneration`
+- stored prompt/completion content fetched via `generations.listGenerationContent`
+
+Use this when you want long-term local retention for website display or paper artifacts instead of relying on OpenRouter dashboard retention alone.
+`Broadcast` is not required for this workflow.
+Pass `--no-openrouter-archive` to `bench:run` only if you explicitly want to skip the automatic archive step.
 
 ### Translate scenarios or run multilingual sweeps
 
