@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Card } from "@/components/ui/card"
 import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
@@ -67,23 +67,7 @@ export function DashboardTabs({
   statefulManifest,
   isolatedManifest,
 }: DashboardTabsProps) {
-  if (statefulResults.length === 0 && isolatedResults.length === 0) {
-    return (
-      <Card className="border-border bg-card p-6">
-        <p className="mb-3 font-mono text-xs text-muted-foreground uppercase">
-          No published results match the current scenario catalog.
-        </p>
-        <p className="mb-2 text-sm leading-relaxed text-muted-foreground">
-          Historical run manifests are still preserved in <code>public/data/benchmark-*.json</code>. Publish a new
-          full run to repopulate the dashboard.
-        </p>
-        <p className="mb-2 font-mono text-[10px] text-muted-foreground uppercase">Command</p>
-        <code className="block whitespace-pre-wrap font-mono text-xs text-foreground">
-          pnpm bench:run
-        </code>
-      </Card>
-    )
-  }
+  const hasNoResults = statefulResults.length === 0 && isolatedResults.length === 0
 
   const moduleTabs = useMemo(
     () => ALL_MODULES.map((module) => ({
@@ -105,7 +89,7 @@ export function DashboardTabs({
     [moduleTabs],
   )
 
-  const [activeTab, setActiveTab] = useState<string>(
+  const [requestedActiveTab, setActiveTab] = useState<string>(
     statefulResults.length > 0 ? "aggregate" : "prompt_no_escalation",
   )
   const [hasInteracted, setHasInteracted] = useState(false)
@@ -133,15 +117,11 @@ export function DashboardTabs({
     [isolatedResults, selectedSet],
   )
 
+  const activeTab =
+    statefulResults.length === 0 && isolatedResults.length > 0 ? "prompt_no_escalation" : requestedActiveTab
   const activeResults = activeTab === "prompt_no_escalation" ? filteredIsolatedResults : filteredStatefulResults
   const scenarioCount = new Set(activeResults.map((row) => row.scenarioId)).size
   const activeManifest = activeTab === "prompt_no_escalation" ? isolatedManifest : statefulManifest
-
-  useEffect(() => {
-    if (statefulResults.length === 0 && isolatedResults.length > 0 && activeTab !== "prompt_no_escalation") {
-      setActiveTab("prompt_no_escalation")
-    }
-  }, [activeTab, isolatedResults.length, statefulResults.length])
 
   const toggleModel = (modelId: string) => {
     setHasInteracted(true)
@@ -159,6 +139,24 @@ export function DashboardTabs({
       if (next.length === availableModelIds.length) return []
       return availableModelIds
     })
+  }
+
+  if (hasNoResults) {
+    return (
+      <Card className="border-border bg-card p-6">
+        <p className="mb-3 font-mono text-xs text-muted-foreground uppercase">
+          No published results match the current scenario catalog.
+        </p>
+        <p className="mb-2 text-sm leading-relaxed text-muted-foreground">
+          Historical run manifests are still preserved in <code>public/data/benchmark-*.json</code>. Publish a new
+          full run to repopulate the dashboard.
+        </p>
+        <p className="mb-2 font-mono text-[10px] text-muted-foreground uppercase">Command</p>
+        <code className="block whitespace-pre-wrap font-mono text-xs text-foreground">
+          pnpm bench:run
+        </code>
+      </Card>
+    )
   }
 
   return (

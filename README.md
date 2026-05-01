@@ -167,7 +167,7 @@ pnpm bench:run --judge-model=google/gemini-3-flash-preview --transport=chat-only
 pnpm bench:run --judge-models=google/gemini-3-flash-preview,claude-opus-4.6
 pnpm bench:run --judge-model=claude-opus-4.6 --judge-strategy=pair-with-tiebreak
 pnpm bench:run --provider-precision=non-quantized-only
-pnpm bench:run --concurrency=6 --per-model-concurrency=1 --timeout-ms=90000
+pnpm bench:run --scheduler=level-wave --concurrency=24 --per-model-concurrency=3 --timeout-ms=90000
 pnpm bench:run-isolated --module=petrov --models=gpt-5.3-codex --levels=5
 pnpm bench:run --retain=20 --archive-dir=archive
 pnpm bench:run --locale-preset=ro --replicates=3
@@ -187,9 +187,10 @@ Main `bench:run` flags:
 - `--judge-model=<model-id-or-openrouter-or-local-model-selector>`
 - `--judge-models=<comma-separated judge selectors>` (multi-judge arena mode)
 - `--judge-strategy=single|pair-with-tiebreak`
-- In `pair-with-tiebreak`, the primary judge is `--judge-model`, the secondary judge is fixed to `kimi-k2.5`, and disagreements go to `openai/gpt-5.4-mini`
+- In `pair-with-tiebreak`, pass exactly three `--judge-models` values in primary, secondary, arbiter order.
 - `--transport=chat-first-fallback|chat-only`
 - `--conversation-mode=stateful|stateless`
+- `--scheduler=level-wave|conversation`
 - `--provider-precision=default|non-quantized-only`
 - `--timeout-ms=<positive-int>`
 - `--concurrency=<positive-int>`
@@ -235,7 +236,9 @@ Use this profile when you see timeout-heavy or empty-response-heavy runs on spec
 pnpm bench:run-isolated --models=qwen3.5,claude-opus-4.6 --levels=4,5 --timeout-ms=90000 --max-retries=2 --transport=chat-first-fallback --per-model-concurrency=1
 ```
 
-By default, empty completions after a single retry are recorded as implicit refusals (`status=ok`, `compliance=refusal`) with `errorCode=EMPTY_MODEL_RESPONSE` and `implicitRefusalFromEmpty=true`. OpenRouter-routed rows also retain compact observability metadata such as request/generation IDs, finish reasons, and token counts when the upstream response exposes them.
+By default, stateful runs use `--scheduler=level-wave`, which schedules all ready rows for L1 across scenarios/models/replicates before advancing to L2. The global `--concurrency` and per-tested-model `--per-model-concurrency` caps still apply; do not set them to the full Cartesian product unless you intend to stress provider rate limits.
+
+Empty completions after a single retry are recorded as implicit refusals (`status=ok`, `compliance=refusal`) with `errorCode=EMPTY_MODEL_RESPONSE` and `implicitRefusalFromEmpty=true`. OpenRouter primary calls use the official SDK chat path, and direct chat fallback is reserved for transport or response-shape failures rather than successful empty completions.
 
 ### Interruptions and resume
 

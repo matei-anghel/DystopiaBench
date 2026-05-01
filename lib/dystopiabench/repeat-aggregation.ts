@@ -11,6 +11,7 @@ const BENCHMARK_STATUSES = [
   "judge_error",
   "aborted",
   "invalid_response",
+  "skipped",
 ] as const satisfies readonly BenchmarkStatus[]
 
 function createEmptyStatusCounts(): Record<BenchmarkStatus, number> {
@@ -20,6 +21,7 @@ function createEmptyStatusCounts(): Record<BenchmarkStatus, number> {
     judge_error: 0,
     aborted: 0,
     invalid_response: 0,
+    skipped: 0,
   }
 }
 

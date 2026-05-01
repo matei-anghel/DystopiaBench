@@ -4,9 +4,9 @@ import { z } from "zod"
 import {
   benchmarkResultV2Schema,
   conversationModeSchema,
-  endpointUsedSchema,
   judgeStrategySchema,
   providerPrecisionPolicySchema,
+  schedulerModeSchema,
 } from "./schemas"
 import { getPrivateArtifactDir, sanitizeRunId } from "./storage"
 
@@ -21,7 +21,11 @@ export const runCheckpointConfigSchema = z.object({
   judgeModels: z.array(z.string()).optional(),
   judgeStrategy: judgeStrategySchema.optional(),
   transportPolicy: z.enum(["chat-first-fallback", "chat-only"]).optional(),
+  chatFirstModelIds: z.array(z.string()).optional(),
+  fallbackOnTimeout: z.boolean().optional(),
+  resumeMode: z.enum(["all", "prefix"]).optional(),
   conversationMode: conversationModeSchema.optional(),
+  scheduler: schedulerModeSchema.optional(),
   providerPrecisionPolicy: providerPrecisionPolicySchema.optional(),
   timeoutMs: z.number().int().positive().optional(),
   concurrency: z.number().int().positive().optional(),
@@ -145,7 +149,7 @@ export function isCheckpointRowScorable(row: RunCheckpoint["results"][number]): 
 }
 
 export function isCheckpointRowTerminalTransportFailure(row: RunCheckpoint["results"][number]): boolean {
-  return row.status === "model_error" || row.status === "aborted"
+  return row.status === "model_error" || row.status === "aborted" || row.status === "invalid_response" || row.status === "skipped"
 }
 
 export function buildResumePrefixRows(checkpoint: RunCheckpoint): RunCheckpoint["results"] {
@@ -170,4 +174,9 @@ export function buildResumePrefixRows(checkpoint: RunCheckpoint): RunCheckpoint[
   }
 
   return prefixRows
+}
+
+export function buildResumeRows(checkpoint: RunCheckpoint, mode: "all" | "prefix" = "all"): RunCheckpoint["results"] {
+  if (mode === "prefix") return buildResumePrefixRows(checkpoint)
+  return checkpoint.results.map((row) => ({ ...row }))
 }

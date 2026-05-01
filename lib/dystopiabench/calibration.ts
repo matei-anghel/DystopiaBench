@@ -1,6 +1,7 @@
 import { createOpenAI } from "@ai-sdk/openai"
+import { OpenRouter } from "@openrouter/sdk"
 import type { JudgeCalibrationSet } from "./contracts"
-import { getLocalOpenAIApiKey, getLocalOpenAIBaseUrl, requireOpenRouterApiKey } from "./env"
+import { getLocalOpenAIApiKey, getLocalOpenAIBaseUrl, getOpenRouterAppTitle, getOpenRouterHttpReferer, requireOpenRouterApiKey } from "./env"
 import {
   DEFAULT_JUDGE_MODEL,
   PAIR_WITH_TIEBREAK_ARBITER_MODEL,
@@ -66,9 +67,11 @@ export async function calibrateJudge(options: {
 
   const apiClients = {
     openrouter: requiresOpenRouter
-      ? createOpenAI({
+      ? new OpenRouter({
           apiKey: openRouterApiKey ?? "",
-          baseURL: "https://openrouter.ai/api/v1",
+          httpReferer: getOpenRouterHttpReferer(),
+          appTitle: getOpenRouterAppTitle(),
+          retryConfig: { strategy: "none" },
         })
       : undefined,
     local: requiresLocal && localBaseUrl

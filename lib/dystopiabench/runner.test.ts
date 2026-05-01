@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { createOpenAI } from "@ai-sdk/openai"
+import { OpenRouter } from "@openrouter/sdk"
 import {
   DEFAULT_JUDGE_MODEL,
   PAIR_WITH_TIEBREAK_ARBITER_MODEL,
@@ -21,17 +21,60 @@ import {
   summarizeResults,
 } from "./runner"
 import { runManifestV2Schema } from "./schemas"
+import { toModuleId, type ScenarioModule } from "./types"
 
 interface PendingJudgeFetch {
   model: string
   resolve: (content: string) => void
 }
 
+function chatCompletionResponse(model: string, content: string) {
+  return new Response(
+    JSON.stringify({
+      id: "chatcmpl-test",
+      object: "chat.completion",
+      created: 1,
+      model,
+      system_fingerprint: null,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content,
+          },
+          finish_reason: "stop",
+        },
+      ],
+      usage: {
+        prompt_tokens: 1,
+        completion_tokens: content ? 2 : 0,
+        total_tokens: content ? 3 : 1,
+      },
+    }),
+    {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    },
+  )
+}
+
+async function readJsonRequestBody(input: RequestInfo | URL, init?: RequestInit): Promise<Record<string, unknown>> {
+  if (typeof init?.body === "string") {
+    return JSON.parse(init.body) as Record<string, unknown>
+  }
+  if (input instanceof Request) {
+    return JSON.parse(await input.clone().text()) as Record<string, unknown>
+  }
+  return {}
+}
+
 function createJudgeTestApiClients() {
   return {
-    openrouter: createOpenAI({
+    openrouter: new OpenRouter({
       apiKey: "test-key",
-      baseURL: "https://judges.test/v1",
+      serverURL: "https://judges.test/v1",
+      retryConfig: { strategy: "none" },
     }),
   }
 }
@@ -41,8 +84,8 @@ function installMockJudgeFetch() {
   const started: string[] = []
   const pending: PendingJudgeFetch[] = []
 
-  globalThis.fetch = (async (_input, init) => {
-    const body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as { model?: string }
+  globalThis.fetch = (async (input, init) => {
+    const body = await readJsonRequestBody(input, init) as { model?: string }
     const model = body.model ?? "unknown"
     started.push(model)
 
@@ -50,28 +93,7 @@ function installMockJudgeFetch() {
       pending.push({
         model,
         resolve: (content: string) =>
-          resolve(
-            new Response(
-              JSON.stringify({
-                id: "chatcmpl-test",
-                object: "chat.completion",
-                choices: [
-                  {
-                    index: 0,
-                    message: {
-                      role: "assistant",
-                      content,
-                    },
-                    finish_reason: "stop",
-                  },
-                ],
-              }),
-              {
-                status: 200,
-                headers: { "content-type": "application/json" },
-              },
-            ),
-          ),
+          resolve(chatCompletionResponse(model, content)),
       })
     })
   }) as typeof fetch
@@ -98,6 +120,45 @@ function resolvePendingJudgeCall(pending: PendingJudgeFetch[], model: string, co
   const index = pending.findIndex((request) => request.model === model)
   assert.notEqual(index, -1, `Expected a pending judge request for ${model}`)
   pending.splice(index, 1)[0].resolve(content)
+}
+
+function createSchedulerTestModule(): ScenarioModule {
+  const moduleId = toModuleId("scheduler-test")
+  return {
+    id: moduleId,
+    label: "Scheduler Test",
+    description: "Synthetic module for runner scheduling tests.",
+    scenarios: [
+      {
+        id: "sched-a",
+        module: moduleId,
+        title: "Scheduler A",
+        category: "test",
+        description: "A",
+        escalationPrompts: [
+          { level: 1 as const, label: "L1", prompt: "A-L1" },
+          { level: 2 as const, label: "L2", prompt: "A-L2" },
+          { level: 3 as const, label: "L3", prompt: "A-L3" },
+          { level: 4 as const, label: "L4", prompt: "A-L4" },
+          { level: 5 as const, label: "L5", prompt: "A-L5" },
+        ],
+      },
+      {
+        id: "sched-b",
+        module: moduleId,
+        title: "Scheduler B",
+        category: "test",
+        description: "B",
+        escalationPrompts: [
+          { level: 1 as const, label: "L1", prompt: "B-L1" },
+          { level: 2 as const, label: "L2", prompt: "B-L2" },
+          { level: 3 as const, label: "L3", prompt: "B-L3" },
+          { level: 4 as const, label: "L4", prompt: "B-L4" },
+          { level: 5 as const, label: "L5", prompt: "B-L5" },
+        ],
+      },
+    ],
+  }
 }
 
 test("resolveJudgeModels returns the default judge model when input is undefined", () => {
@@ -258,6 +319,339 @@ test("aggregateJudgeVotes uses score-based tie breaking across split judge votes
   assert.equal(result.score, 33)
 })
 
+test("runBenchmark level-wave schedules all L1 rows before L2 and preserves stateful history", async () => {
+  const originalFetch = globalThis.fetch
+  const modelCalls: Array<{ prompt: string; assistantHistory: string[] }> = []
+
+  globalThis.fetch = (async (input, init) => {
+    const body = await readJsonRequestBody(input, init) as {
+      model?: string
+      messages?: Array<{ role: string; content: string }>
+      max_tokens?: number
+    }
+    const lastUser = [...(body.messages ?? [])].reverse().find((message) => message.role === "user")?.content ?? ""
+
+    if (body.max_tokens === 1500) {
+      modelCalls.push({
+        prompt: lastUser,
+        assistantHistory: (body.messages ?? [])
+          .filter((message) => message.role === "assistant")
+          .map((message) => message.content),
+      })
+      return chatCompletionResponse(body.model ?? "model", `response:${lastUser}`)
+    }
+
+    return chatCompletionResponse(
+      body.model ?? "judge",
+      JSON.stringify({ compliance: "refusal", reasoning: "Fixture judge." }),
+    )
+  }) as typeof fetch
+
+  try {
+    await runBenchmark({
+      runId: "level-wave-scheduler-test",
+      module: "scheduler-test",
+      modelIds: ["gpt-5.3-codex"],
+      levels: [1, 2],
+      judgeModel: "gpt-5.4-mini",
+      judgeStrategy: "single",
+      transportPolicy: "chat-only",
+      conversationMode: "stateful",
+      scheduler: "level-wave",
+      scenarioModules: [createSchedulerTestModule()],
+      skipModelValidation: true,
+      replicates: 1,
+      concurrency: 10,
+      perModelConcurrency: 10,
+      maxRetries: 0,
+    })
+
+    assert.deepEqual(modelCalls.map((call) => call.prompt), ["A-L1", "B-L1", "A-L2", "B-L2"])
+    assert.deepEqual(modelCalls[2]?.assistantHistory, ["response:A-L1"])
+    assert.deepEqual(modelCalls[3]?.assistantHistory, ["response:B-L1"])
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test("runBenchmark skips downstream stateful levels after a chain-breaking model failure", async () => {
+  const originalFetch = globalThis.fetch
+  const modelPrompts: string[] = []
+
+  globalThis.fetch = (async (input, init) => {
+    const body = await readJsonRequestBody(input, init) as {
+      model?: string
+      messages?: Array<{ role: string; content: string }>
+      max_tokens?: number
+    }
+    const lastUser = [...(body.messages ?? [])].reverse().find((message) => message.role === "user")?.content ?? ""
+
+    if (body.max_tokens === 1500) {
+      modelPrompts.push(lastUser)
+      if (lastUser === "A-L2") {
+        return new Response(JSON.stringify({ error: { message: "fixture model failure" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        })
+      }
+      return chatCompletionResponse(body.model ?? "model", `response:${lastUser}`)
+    }
+
+    return chatCompletionResponse(
+      body.model ?? "judge",
+      JSON.stringify({ compliance: "refusal", reasoning: "Fixture judge." }),
+    )
+  }) as typeof fetch
+
+  try {
+    const scenarioModule = createSchedulerTestModule()
+    const manifest = await runBenchmark({
+      runId: "stateful-skip-after-failure-test",
+      module: "scheduler-test",
+      modelIds: ["gpt-5.3-codex"],
+      levels: [1, 2, 3],
+      judgeModel: "gpt-5.4-mini",
+      judgeStrategy: "single",
+      transportPolicy: "chat-only",
+      conversationMode: "stateful",
+      scheduler: "level-wave",
+      scenarioModules: [{
+        ...scenarioModule,
+        scenarios: [scenarioModule.scenarios[0]],
+      }],
+      skipModelValidation: true,
+      replicates: 1,
+      concurrency: 1,
+      perModelConcurrency: 1,
+      maxRetries: 0,
+    })
+
+    assert.deepEqual(modelPrompts, ["A-L1", "A-L2"])
+    assert.deepEqual(manifest.results.map((row) => row.status), ["ok", "model_error", "skipped"])
+    assert.equal(manifest.results[2]?.errorCode, "STATEFUL_CHAIN_BROKEN")
+    assert.equal(manifest.results[2]?.conversationContinuity, "reset_after_failure")
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test("runBenchmark records repeated SDK empty responses without direct chat fallback", async () => {
+  const originalFetch = globalThis.fetch
+  let modelCalls = 0
+
+  globalThis.fetch = (async (input, init) => {
+    const body = await readJsonRequestBody(input, init) as {
+      model?: string
+      max_tokens?: number
+    }
+
+    if (body.max_tokens === 1500) {
+      modelCalls += 1
+      return chatCompletionResponse(body.model ?? "model", "")
+    }
+
+    return chatCompletionResponse(
+      body.model ?? "judge",
+      JSON.stringify({ compliance: "refusal", reasoning: "Fixture judge." }),
+    )
+  }) as typeof fetch
+
+  try {
+    const manifest = await runBenchmark({
+      runId: "sdk-empty-no-fallback-test",
+      module: "scheduler-test",
+      modelIds: ["gpt-5.3-codex"],
+      levels: [1],
+      judgeModel: "gpt-5.4-mini",
+      transportPolicy: "chat-first-fallback",
+      conversationMode: "stateful",
+      scheduler: "level-wave",
+      scenarioModules: [createSchedulerTestModule()],
+      skipModelValidation: true,
+      replicates: 1,
+      concurrency: 1,
+      perModelConcurrency: 1,
+      maxRetries: 0,
+      retryBackoffBaseMs: 1,
+      retryBackoffJitterMs: 0,
+    })
+
+    assert.equal(modelCalls, 4)
+    assert.equal(manifest.results.length, 2)
+    assert.ok(manifest.results.every((row) => row.errorCode === "EMPTY_MODEL_RESPONSE"))
+    assert.ok(manifest.results.every((row) => row.endpointUsed === "ai_sdk_chat"))
+    assert.ok(manifest.results.every((row) => row.transportAttempts === 2))
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test("runBenchmark falls back to direct chat only after SDK transport failure", async () => {
+  const originalFetch = globalThis.fetch
+  let modelCalls = 0
+
+  globalThis.fetch = (async (input, init) => {
+    const body = await readJsonRequestBody(input, init) as {
+      model?: string
+      max_tokens?: number
+    }
+
+    if (body.max_tokens === 1500) {
+      modelCalls += 1
+      if (modelCalls === 1) {
+        return new Response(JSON.stringify({ error: { message: "upstream failed" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        })
+      }
+      return chatCompletionResponse(body.model ?? "model", "model response after fallback")
+    }
+
+    return chatCompletionResponse(
+      body.model ?? "judge",
+      JSON.stringify({ compliance: "refusal", reasoning: "Fixture judge." }),
+    )
+  }) as typeof fetch
+
+  try {
+    const manifest = await runBenchmark({
+      runId: "sdk-transport-fallback-test",
+      module: "scheduler-test",
+      modelIds: ["gpt-5.3-codex"],
+      levels: [1],
+      judgeModel: "gpt-5.4-mini",
+      transportPolicy: "chat-first-fallback",
+      conversationMode: "stateful",
+      scheduler: "level-wave",
+      scenarioModules: [{
+        ...createSchedulerTestModule(),
+        scenarios: [createSchedulerTestModule().scenarios[0]],
+      }],
+      skipModelValidation: true,
+      replicates: 1,
+      concurrency: 1,
+      perModelConcurrency: 1,
+      maxRetries: 0,
+    })
+
+    assert.equal(modelCalls, 2)
+    assert.equal(manifest.results[0]?.endpointUsed, "openrouter_chat_fallback")
+    assert.equal(manifest.results[0]?.transportAttempts, 2)
+    assert.equal(manifest.results[0]?.status, "ok")
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test("runBenchmark sends configured chat-first models directly to OpenRouter chat", async () => {
+  const originalFetch = globalThis.fetch
+  const modelRoutes: string[] = []
+
+  globalThis.fetch = (async (input, init) => {
+    const body = await readJsonRequestBody(input, init) as {
+      model?: string
+      max_tokens?: number
+    }
+
+    if (body.max_tokens === 1500) {
+      modelRoutes.push(input instanceof Request ? "sdk" : "direct")
+      return chatCompletionResponse(body.model ?? "model", "direct model response")
+    }
+
+    return chatCompletionResponse(
+      body.model ?? "judge",
+      JSON.stringify({ compliance: "refusal", reasoning: "Fixture judge." }),
+    )
+  }) as typeof fetch
+
+  try {
+    const manifest = await runBenchmark({
+      runId: "chat-first-model-test",
+      module: "scheduler-test",
+      modelIds: ["gpt-5.3-codex"],
+      chatFirstModelIds: ["gpt-5.3-codex"],
+      levels: [1],
+      judgeModel: "gpt-5.4-mini",
+      transportPolicy: "chat-first-fallback",
+      conversationMode: "stateful",
+      scheduler: "level-wave",
+      scenarioModules: [{
+        ...createSchedulerTestModule(),
+        scenarios: [createSchedulerTestModule().scenarios[0]],
+      }],
+      skipModelValidation: true,
+      replicates: 1,
+      concurrency: 1,
+      perModelConcurrency: 1,
+      maxRetries: 0,
+    })
+
+    assert.deepEqual(modelRoutes, ["direct"])
+    assert.equal(manifest.results[0]?.endpointUsed, "openrouter_chat_primary")
+    assert.equal(manifest.results[0]?.transportAttempts, 1)
+    assert.equal(
+      (manifest.results[0]?.providerMetadata?.openrouter as Record<string, unknown> | undefined)?.transportMode,
+      "chat-first",
+    )
+    assert.deepEqual(manifest.metadata.chatFirstModelIds, ["gpt-5.3-codex"])
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test("runBenchmark records direct chat socket failures as row-level model errors", async () => {
+  const originalFetch = globalThis.fetch
+  let directModelCalls = 0
+
+  globalThis.fetch = (async (input, init) => {
+    const body = await readJsonRequestBody(input, init) as {
+      model?: string
+      max_tokens?: number
+    }
+
+    if (body.max_tokens === 1500) {
+      directModelCalls += 1
+      const cause = Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" })
+      throw Object.assign(new TypeError("terminated"), { cause })
+    }
+
+    return chatCompletionResponse(
+      body.model ?? "judge",
+      JSON.stringify({ compliance: "refusal", reasoning: "Fixture judge." }),
+    )
+  }) as typeof fetch
+
+  try {
+    const manifest = await runBenchmark({
+      runId: "direct-chat-socket-error-test",
+      module: "scheduler-test",
+      modelIds: ["gpt-5.3-codex"],
+      chatFirstModelIds: ["gpt-5.3-codex"],
+      levels: [1],
+      judgeModel: "gpt-5.4-mini",
+      transportPolicy: "chat-only",
+      conversationMode: "stateful",
+      scheduler: "level-wave",
+      scenarioModules: [{
+        ...createSchedulerTestModule(),
+        scenarios: [createSchedulerTestModule().scenarios[0]],
+      }],
+      skipModelValidation: true,
+      replicates: 1,
+      concurrency: 1,
+      perModelConcurrency: 1,
+      maxRetries: 0,
+    })
+
+    assert.equal(directModelCalls, 1)
+    assert.equal(manifest.results[0]?.status, "model_error")
+    assert.equal(manifest.results[0]?.errorCode, "MODEL_FAILED")
+    assert.match(manifest.results[0]?.errorMessage ?? "", /terminated/)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test("evaluateResponseWithJudges starts pair judges before awaiting either result", async () => {
   const fetchMock = installMockJudgeFetch()
   const primaryJudge = parseModelIdentifier("gpt-5.3-codex")
@@ -300,6 +694,59 @@ test("evaluateResponseWithJudges starts pair judges before awaiting either resul
     const result = await evaluationPromise
     assert.equal(result.compliance, "refusal")
     assert.deepEqual(result.judgeVotes.map((vote) => vote.judge), [primaryJudge.id, secondaryJudge.id])
+  } finally {
+    fetchMock.restore()
+  }
+})
+
+test("evaluateResponseWithJudges preserves pair votes when arbiter returns empty output", async () => {
+  const fetchMock = installMockJudgeFetch()
+  const primaryJudge = parseModelIdentifier("gpt-5.3-codex")
+  const secondaryJudge = parseModelIdentifier("claude-opus-4.6")
+  const arbiterJudge = parseModelIdentifier(PAIR_WITH_TIEBREAK_ARBITER_MODEL)
+
+  try {
+    const evaluationPromise = evaluateResponseWithJudges({
+      apiClients: createJudgeTestApiClients(),
+      openRouterApiKey: "test-key",
+      judgeStrategy: "pair-with-tiebreak",
+      judgeModels: [primaryJudge, secondaryJudge, arbiterJudge],
+      benchmarkPrompt: "Benchmark prompt",
+      modelResponse: "Model response",
+      scenarioId: "fixture-scenario",
+      transportPolicy: "chat-only",
+      timeoutMs: 1_000,
+      providerOverridesByModelString: new Map(),
+    })
+
+    await waitFor(
+      () => fetchMock.started.length === 2,
+      "Expected the primary and secondary judge calls to start.",
+    )
+    resolvePendingJudgeCall(
+      fetchMock.pending,
+      primaryJudge.modelString,
+      JSON.stringify({ compliance: "refusal", reasoning: "Primary judge refused." }),
+    )
+    resolvePendingJudgeCall(
+      fetchMock.pending,
+      secondaryJudge.modelString,
+      JSON.stringify({ compliance: "compliant", reasoning: "Secondary judge complied." }),
+    )
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await waitFor(
+        () => fetchMock.pending.some((request) => request.model === arbiterJudge.modelString),
+        "Expected an arbiter request.",
+      )
+      resolvePendingJudgeCall(fetchMock.pending, arbiterJudge.modelString, "")
+    }
+
+    const result = await evaluationPromise
+    assert.equal(result.compliance, "hesitant")
+    assert.deepEqual(result.judgeVotes.map((vote) => vote.judge), [primaryJudge.id, secondaryJudge.id])
+    assert.match(result.reasoning, /Arbiter .* failed/)
+    assert.match(result.reasoning, /deterministic aggregate fallback/)
   } finally {
     fetchMock.restore()
   }

@@ -17,7 +17,7 @@ import {
   collectOpenRouterArchiveTargets,
 } from "../lib/dystopiabench/openrouter-trace-archive"
 import {
-  buildResumePrefixRows,
+  buildResumeRows,
   checkpointResultKey,
   createRunCheckpoint,
   hasRunCheckpoint,
@@ -45,13 +45,12 @@ import {
   runBenchmark,
   type JudgeStrategy,
   type ProviderPrecisionPolicy,
-  type RunBenchmarkOptions,
+  type SchedulerMode,
   type TransportPolicy,
 } from "../lib/dystopiabench/runner"
 import {
   makeRunId,
   publishLatest,
-  readRunManifest,
   sanitizeRunId,
   writeRunManifest,
 } from "../lib/dystopiabench/storage"
@@ -255,16 +254,6 @@ function normalizeModelInputList(input: string | undefined): string[] {
     .filter(Boolean)
 }
 
-function hasUsableGenerationId(row: { providerMetadata?: Record<string, unknown> | undefined }): boolean {
-  const openrouter = row.providerMetadata?.openrouter
-  if (!openrouter || typeof openrouter !== "object") return false
-  const record = openrouter as Record<string, unknown>
-  return (
-    (typeof record.generationId === "string" && record.generationId.trim().length > 0) ||
-    (typeof record.responseId === "string" && record.responseId.startsWith("gen-"))
-  )
-}
-
 function isValidModelSpecifier(input: string): boolean {
   if (getModelById(input)) return true
   if (input.startsWith("openrouter:") || input.startsWith("local:")) return true
@@ -280,6 +269,15 @@ function parseModels(input: string | undefined): string[] {
     throw new Error(`Unknown model id(s): ${invalid.join(", ")}`)
   }
   return requested
+}
+
+function parseChatFirstModelIds(input: string | undefined): string[] {
+  const requested = normalizeModelInputList(input)
+  const invalid = requested.filter((id) => !isValidModelSpecifier(id))
+  if (invalid.length > 0) {
+    throw new Error(`Unknown chat-first model id(s): ${invalid.join(", ")}`)
+  }
+  return Array.from(new Set(requested))
 }
 
 function isValidJudgeModelSpecifier(input: string): boolean {
@@ -325,6 +323,28 @@ function parseConversationMode(input: string | undefined): "stateful" | "statele
   throw new Error("Invalid --conversation-mode value. Use one of: stateful, stateless.")
 }
 
+function parseScheduler(
+  input: string | undefined,
+  conversationMode: "stateful" | "stateless",
+  resumeDefault?: string,
+): SchedulerMode {
+  if (!input) {
+    if (resumeDefault === "level-wave" || resumeDefault === "conversation") return resumeDefault
+    return conversationMode === "stateful" ? "level-wave" : "conversation"
+  }
+  if (input === "level-wave" || input === "conversation") return input
+  throw new Error("Invalid --scheduler value. Use one of: level-wave, conversation.")
+}
+
+function parseResumeMode(input: string | undefined, resumeDefault?: string): "all" | "prefix" {
+  if (!input) {
+    if (resumeDefault === "all" || resumeDefault === "prefix") return resumeDefault
+    return "all"
+  }
+  if (input === "all" || input === "prefix") return input
+  throw new Error("Invalid --resume-mode value. Use one of: all, prefix.")
+}
+
 function parseJudgeStrategy(input: string | undefined): JudgeStrategy {
   if (!input || input === "single") return "single"
   if (input === "pair-with-tiebreak") return "pair-with-tiebreak"
@@ -353,25 +373,6 @@ function parseNonNegativeIntFlag(flag: string, input: string | undefined): numbe
     throw new Error(`Invalid ${flag} value. Use a non-negative integer.`)
   }
   return value
-}
-
-function parseRuntimeOverrides(): Pick<
-  RunBenchmarkOptions,
-  | "timeoutMs"
-  | "concurrency"
-  | "perModelConcurrency"
-  | "maxRetries"
-  | "retryBackoffBaseMs"
-  | "retryBackoffJitterMs"
-> {
-  return {
-    timeoutMs: parsePositiveIntFlag("--timeout-ms", parseArg("--timeout-ms")),
-    concurrency: parsePositiveIntFlag("--concurrency", parseArg("--concurrency")),
-    perModelConcurrency: parsePositiveIntFlag("--per-model-concurrency", parseArg("--per-model-concurrency")),
-    maxRetries: parseNonNegativeIntFlag("--max-retries", parseArg("--max-retries")),
-    retryBackoffBaseMs: parsePositiveIntFlag("--retry-backoff-base-ms", parseArg("--retry-backoff-base-ms")),
-    retryBackoffJitterMs: parseNonNegativeIntFlag("--retry-backoff-jitter-ms", parseArg("--retry-backoff-jitter-ms")),
-  }
 }
 
 function parseScenarioSources(input: string | undefined): string[] | undefined {
@@ -438,7 +439,17 @@ async function main() {
     ? parseArchiveDir(parseArg("--archive-dir"))
     : checkpointConfig?.archiveDir
   const transport = parseTransport(parseArg("--transport") ?? checkpointConfig?.transportPolicy)
+  const chatFirstModelIds = parseArg("--chat-first-models")
+    ? parseChatFirstModelIds(parseArg("--chat-first-models"))
+    : checkpointConfig?.chatFirstModelIds ?? []
+  const fallbackOnTimeout = hasFlag("--no-timeout-fallback") ? false : checkpointConfig?.fallbackOnTimeout ?? true
   const conversationMode = parseConversationMode(parseArg("--conversation-mode") ?? checkpointConfig?.conversationMode)
+  const scheduler = parseScheduler(
+    parseArg("--scheduler"),
+    conversationMode,
+    resumeRequested ? checkpointConfig?.scheduler ?? "conversation" : undefined,
+  )
+  const resumeMode = parseResumeMode(parseArg("--resume-mode"), checkpointConfig?.resumeMode)
   const providerPrecision = parseProviderPrecision(parseArg("--provider-precision") ?? checkpointConfig?.providerPrecisionPolicy)
   const replicates = parsePositiveIntFlag("--replicates", parseArg("--replicates")) ?? checkpointConfig?.replicates ?? 3
   const experimentId = parseArg("--experiment-id") ?? checkpointConfig?.experimentId
@@ -513,7 +524,11 @@ async function main() {
     ["Judge strategy", judgeStrategy],
     ["Judge", judgeSummary],
     ["Transport", transport],
+    ["Chat-first models", chatFirstModelIds.length > 0 ? chatFirstModelIds.join(", ") : undefined],
+    ["Timeout fallback", fallbackOnTimeout ? "yes" : "no"],
     ["Conversation mode", conversationMode],
+    ["Scheduler", scheduler],
+    ["Resume mode", resumeRequested ? resumeMode : undefined],
     ["Provider precision", providerPrecision],
     ["Prompt locale", promptLocale],
     ["Source locale", sourceLocale],
@@ -548,7 +563,11 @@ async function main() {
     judgeModels: judgeModels ?? undefined,
     judgeStrategy,
     transportPolicy: transport,
+    chatFirstModelIds,
+    fallbackOnTimeout,
+    resumeMode,
     conversationMode,
+    scheduler,
     providerPrecisionPolicy: providerPrecision,
     timeoutMs: runtimeOverrides.timeoutMs,
     concurrency: runtimeOverrides.concurrency,
@@ -592,7 +611,7 @@ async function main() {
         config: checkpointConfigValue,
       })
   const checkpointRowIndex = new Map(workingCheckpoint.results.map((row, index) => [checkpointResultKey(row), index]))
-  const resumePrefixRows = resumeRequested ? buildResumePrefixRows(workingCheckpoint) : []
+  const resumeRows = resumeRequested ? buildResumeRows(workingCheckpoint, resumeMode) : []
   let checkpointWriteQueue = Promise.resolve()
   let lastCheckpointWriteAt = 0
   let rowsSinceCheckpointWrite = 0
@@ -633,6 +652,48 @@ async function main() {
   }
   process.on("SIGINT", handleSigint)
 
+  const isRecoverableProcessRejection = (reason: unknown): boolean => {
+    const searchable = reason instanceof Error
+      ? [
+          reason.name,
+          reason.message,
+          String((reason as { code?: unknown }).code ?? ""),
+          String((reason as { cause?: { code?: unknown; message?: unknown } }).cause?.code ?? ""),
+          String((reason as { cause?: { code?: unknown; message?: unknown } }).cause?.message ?? ""),
+        ].join(" ")
+      : String(reason)
+    const normalized = searchable.toLowerCase()
+    return [
+      "timeout",
+      "aborterror",
+      "operation was aborted",
+      "this operation was aborted",
+      "aborted",
+      "terminated",
+      "und_err_socket",
+      "other side closed",
+      "socket closed",
+      "fetch failed",
+      "econnreset",
+    ].some((pattern) => normalized.includes(pattern))
+  }
+
+  const handleUnhandledRejection = (reason: unknown) => {
+    if (isRecoverableProcessRejection(reason)) {
+      const message = reason instanceof Error ? reason.message : String(reason)
+      console.warn(`\n${CLI_LOG_PREFIX} ${yellow("Recovered async provider error")} ${message}`)
+      void enqueueCheckpointWrite("running", true)
+      return
+    }
+
+    void enqueueCheckpointWrite("interrupted", true).finally(() => {
+      setImmediate(() => {
+        throw reason instanceof Error ? reason : new Error(String(reason))
+      })
+    })
+  }
+  process.on("unhandledRejection", handleUnhandledRejection)
+
   let manifest: CompletedManifest
   try {
     manifest = await runBenchmark({
@@ -645,7 +706,10 @@ async function main() {
       judgeModels,
       judgeStrategy,
       transportPolicy: transport,
+      chatFirstModelIds,
+      fallbackOnTimeout,
       conversationMode,
+      scheduler,
       providerPrecisionPolicy: providerPrecision,
       replicates,
       experimentId: experimentId ?? undefined,
@@ -666,7 +730,7 @@ async function main() {
       localePreset: localePreset ?? undefined,
       scenarioModules: scenarioModules ?? undefined,
       benchmarkBundle,
-      existingResults: resumePrefixRows,
+      existingResults: resumeRows,
       abortSignal: abortController.signal,
       onSetup: async ({ total }) => {
         checkpointTotalPrompts = total
@@ -689,6 +753,7 @@ async function main() {
   } catch (error) {
     await enqueueCheckpointWrite("interrupted", true)
     process.off("SIGINT", handleSigint)
+    process.off("unhandledRejection", handleUnhandledRejection)
     throw error
   }
   await checkpointWriteQueue
@@ -764,6 +829,7 @@ async function main() {
     }
   }
   process.off("SIGINT", handleSigint)
+  process.off("unhandledRejection", handleUnhandledRejection)
   const mode = manifest.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
 
   console.log(`\n${CLI_LOG_PREFIX} ${bold("Run complete")}`)

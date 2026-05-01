@@ -1,5 +1,7 @@
 ﻿import { createHash } from "node:crypto"
 import { createOpenAI } from "@ai-sdk/openai"
+import { OpenRouter } from "@openrouter/sdk"
+import type { ProviderPreferences } from "@openrouter/sdk/models"
 import { generateText, type ModelMessage } from "ai"
 import { z } from "zod"
 import { ALL_MODULES } from "./scenarios"
@@ -14,7 +16,7 @@ import {
   getEstimatedPricingByModelKey,
 } from "./models"
 import { parseModelIdentifier, resolveJudgeModels, type ResolvedModelSpec } from "./model-selectors"
-import { COMPLIANCE_SCORES, type BenchmarkModuleSelector, type ScenarioModule } from "./types"
+import { COMPLIANCE_SCORES, type BenchmarkModuleSelector, type Scenario, type ScenarioModule } from "./types"
 import {
   getLocalOpenAIApiKey,
   getLocalOpenAIBaseUrl,
@@ -40,6 +42,7 @@ import {
   type RunMetadataV2,
   type RunCostBreakdown,
   type RunSummaryV2,
+  type SchedulerMode as SchedulerModeSchema,
   type TelemetrySummary,
   type TokenUsageSummary,
 } from "./schemas"
@@ -133,7 +136,8 @@ export const NON_QUANTIZED_PROVIDER_QUANTIZATIONS = ["fp16", "bf16", "fp32"] as 
 
 export type TransportPolicy = "chat-first-fallback" | "chat-only"
 export type ConversationMode = "stateful" | "stateless"
-export type EndpointUsed = "ai_sdk_chat" | "openrouter_chat_fallback" | "local_chat"
+export type SchedulerMode = SchedulerModeSchema
+export type EndpointUsed = "ai_sdk_chat" | "openrouter_chat_primary" | "openrouter_chat_fallback" | "local_chat"
 export type JudgeStrategy = JudgeStrategySchema
 export type ProviderPrecisionPolicy = ProviderPrecisionPolicySchema
 
@@ -147,7 +151,10 @@ export interface RunBenchmarkOptions {
   judgeModels?: string[]
   judgeStrategy?: JudgeStrategy
   transportPolicy?: TransportPolicy
+  chatFirstModelIds?: string[]
+  fallbackOnTimeout?: boolean
   conversationMode?: ConversationMode
+  scheduler?: SchedulerMode
   providerPrecisionPolicy?: ProviderPrecisionPolicy
   timeoutMs?: number
   concurrency?: number
@@ -157,6 +164,7 @@ export interface RunBenchmarkOptions {
   retryBackoffJitterMs?: number
   skipModelValidation?: boolean
   replicates?: number
+  selectedReplicates?: number[]
   experimentId?: string
   project?: string
   owner?: string
@@ -670,11 +678,12 @@ function createEmptyStatusCounts(): Record<BenchmarkStatus, number> {
     judge_error: 0,
     aborted: 0,
     invalid_response: 0,
+    skipped: 0,
   }
 }
 
 interface OpenRouterProviderOverride {
-  quantizations: string[]
+  quantizations: NonNullable<ProviderPreferences["quantizations"]>
 }
 
 export function normalizeQuantization(value: string | undefined): string {
@@ -700,7 +709,7 @@ export function buildProviderOverride(
   }
 
   return {
-    quantizations: [...NON_QUANTIZED_PROVIDER_QUANTIZATIONS],
+    quantizations: [...NON_QUANTIZED_PROVIDER_QUANTIZATIONS] as NonNullable<ProviderPreferences["quantizations"]>,
   }
 }
 
@@ -750,6 +759,9 @@ const TRANSPORT_ERROR_PATTERNS = [
   "Unrecognized request argument",
   "is not supported",
   "provider returned error",
+  "Response validation failed",
+  "Unexpected Status or Content-Type",
+  "API error occurred",
 ]
 
 function isTransportError(message: string): boolean {
@@ -770,19 +782,87 @@ const TRANSIENT_NETWORK_ERROR_PATTERNS = [
   "fetch failed",
   "cannot connect to api",
   "econnrefused",
+  "terminated",
+  "und_err_socket",
+  "other side closed",
+  "socket closed",
 ]
+
+function errorToSearchableText(error: unknown, seen = new Set<unknown>()): string {
+  if (!error || seen.has(error)) return ""
+  seen.add(error)
+  if (typeof error === "string") return error
+  if (!(error instanceof Error)) {
+    if (typeof error === "object") {
+      const record = error as Record<string, unknown>
+      return [record.name, record.message, record.code, record.cause]
+        .map((value) => errorToSearchableText(value, seen))
+        .filter(Boolean)
+        .join(" ")
+    }
+    return String(error)
+  }
+
+  const withCode = error as Error & { code?: unknown; cause?: unknown }
+  return [
+    error.name,
+    error.message,
+    withCode.code,
+    withCode.cause,
+  ]
+    .map((value) => errorToSearchableText(value, seen))
+    .filter(Boolean)
+    .join(" ")
+}
 
 function isTimeoutLikeError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   if (error.name === "AbortError" || error.name === "TimeoutError") return true
-  const message = error.message.toLowerCase()
+  const message = errorToSearchableText(error).toLowerCase()
   return TIMEOUT_ERROR_PATTERNS.some((pattern) => message.includes(pattern))
 }
 
 function isTransientNetworkError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
-  const message = error.message.toLowerCase()
+  const message = errorToSearchableText(error).toLowerCase()
   return TRANSIENT_NETWORK_ERROR_PATTERNS.some((pattern) => message.includes(pattern))
+}
+
+function createTimeoutError(timeoutMs: number): Error {
+  const error = new Error(`The operation timed out after ${timeoutMs}ms`)
+  error.name = "TimeoutError"
+  return error
+}
+
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof Error && (error.name === "AbortError" || error.message.toLowerCase().includes("aborted"))
+}
+
+async function withAbortDeadline<T>(operation: (signal: AbortSignal) => PromiseLike<T>, timeoutMs: number): Promise<T> {
+  const controller = new AbortController()
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  let timedOut = false
+  const operationPromise = Promise.resolve().then(() => operation(controller.signal))
+  // If the deadline wins, the underlying provider request may still settle later.
+  // Attach a handler so that late SDK/fetch rejections do not become process-level unhandled rejections.
+  operationPromise.catch(() => undefined)
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+      reject(createTimeoutError(timeoutMs))
+    }, timeoutMs)
+  })
+  try {
+    return await Promise.race([operationPromise, timeoutPromise])
+  } catch (error) {
+    if (timedOut && isAbortLikeError(error)) {
+      throw createTimeoutError(timeoutMs)
+    }
+    throw error
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
 }
 
 const OPENROUTER_API_BASE_URL = "https://openrouter.ai/api/v1"
@@ -857,6 +937,7 @@ function buildOpenRouterTrace(params: {
 function compactOpenRouterMetadata(params: {
   trace?: OpenRouterRequestTrace
   endpointUsed: EndpointUsed
+  transportMode?: "sdk-first" | "chat-first"
   responseId?: string
   responseModelId?: string
   finishReason?: string
@@ -878,6 +959,7 @@ function compactOpenRouterMetadata(params: {
     traceId: params.trace?.traceId,
     generationName: params.trace?.generationName,
     endpointUsed: params.endpointUsed,
+    transportMode: params.transportMode,
     responseId: params.responseId,
     responseModelId: params.responseModelId,
     requestId,
@@ -919,6 +1001,44 @@ interface ChatCompletionMessage {
   content: string
 }
 
+interface OpenRouterSdkChatResult {
+  id?: string
+  model?: string
+  choices?: Array<{
+    message?: unknown
+    finishReason?: string | null
+  }>
+  usage?: {
+    promptTokens?: number
+    completionTokens?: number
+    totalTokens?: number
+    promptTokensDetails?: {
+      cachedTokens?: number
+    } | null
+    completionTokensDetails?: {
+      reasoningTokens?: number | null
+    } | null
+  }
+}
+
+function usageSummaryFromOpenRouterSdkChat(value?: OpenRouterSdkChatResult["usage"]): TokenUsageSummary {
+  const inputTokens = value?.promptTokens ?? 0
+  const cachedInputTokens = value?.promptTokensDetails?.cachedTokens ?? 0
+  const outputTokens = value?.completionTokens ?? 0
+  const reasoningTokens = value?.completionTokensDetails?.reasoningTokens ?? 0
+  const totalTokens = value?.totalTokens ?? inputTokens + outputTokens
+
+  return {
+    inputTokens,
+    cachedInputTokens,
+    uncachedInputTokens: Math.max(0, inputTokens - cachedInputTokens),
+    outputTokens,
+    textOutputTokens: Math.max(0, outputTokens - reasoningTokens),
+    reasoningTokens,
+    totalTokens,
+  }
+}
+
 function isOpenRouterModel(model: ResolvedModelSpec): model is ResolvedModelSpec & { backend: "openrouter" } {
   return model.backend === "openrouter"
 }
@@ -939,60 +1059,65 @@ async function openRouterChatFallback(
   timeoutMs: number,
   providerOverride?: OpenRouterProviderOverride,
   trace?: OpenRouterRequestTrace,
+  endpointUsed: Extract<EndpointUsed, "openrouter_chat_primary" | "openrouter_chat_fallback"> = "openrouter_chat_fallback",
+  transportMode: "sdk-first" | "chat-first" = "sdk-first",
 ): Promise<ModelCallResult> {
   if (!apiKey) {
     throw new Error("Missing OPENROUTER_API_KEY. Configure OPENROUTER_API_KEY for fallback usage.")
   }
 
   const startedAt = Date.now()
-  const response = await fetch(`${OPENROUTER_API_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      ...buildOpenRouterHeaders(trace?.sessionId),
-    },
-    body: JSON.stringify({
-      model: modelString,
-      messages,
-      temperature: config.temperature,
-      top_p: config.topP,
-      max_tokens: config.maxOutputTokens,
-      ...(trace
-        ? {
-            session_id: trace.sessionId,
-            trace: {
-              trace_id: trace.traceId,
-              trace_name: "DystopiaBench benchmark run",
-              generation_name: trace.generationName,
-            },
-          }
-        : {}),
-      ...(providerOverride ? { provider: providerOverride } : {}),
-    }),
-    signal: AbortSignal.timeout(timeoutMs),
-  })
+  const { json, responseHeaders } = await withAbortDeadline(async (signal) => {
+    const response = await fetch(`${OPENROUTER_API_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        ...buildOpenRouterHeaders(trace?.sessionId),
+      },
+      body: JSON.stringify({
+        model: modelString,
+        messages,
+        temperature: config.temperature,
+        top_p: config.topP,
+        max_tokens: config.maxOutputTokens,
+        ...(trace
+          ? {
+              session_id: trace.sessionId,
+              trace: {
+                trace_id: trace.traceId,
+                trace_name: "DystopiaBench benchmark run",
+                generation_name: trace.generationName,
+              },
+            }
+          : {}),
+        ...(providerOverride ? { provider: providerOverride } : {}),
+      }),
+      signal,
+    })
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => "")
-    throw new Error(`OpenRouter fallback HTTP ${response.status}: ${text}`)
-  }
-
-  const json = (await response.json()) as {
-    id?: string
-    model?: string
-    usage?: {
-      prompt_tokens?: number
-      completion_tokens?: number
-      total_tokens?: number
+    if (!response.ok) {
+      const text = await response.text().catch(() => "")
+      throw new Error(`OpenRouter fallback HTTP ${response.status}: ${text}`)
     }
-    choices?: Array<{
-      message?: unknown
-      finish_reason?: string
-    }>
-  }
 
-  const responseHeaders = Object.fromEntries(response.headers.entries())
+    const json = (await response.json()) as {
+      id?: string
+      model?: string
+      usage?: {
+        prompt_tokens?: number
+        completion_tokens?: number
+        total_tokens?: number
+      }
+      choices?: Array<{
+        message?: unknown
+        finish_reason?: string
+      }>
+    }
+
+    return { json, responseHeaders: Object.fromEntries(response.headers.entries()) }
+  }, timeoutMs)
+
   const message = json.choices?.[0]?.message
   const extracted = extractTextFromUnknownContent(message)
   const usage = usageSummaryFromRaw({
@@ -1002,7 +1127,7 @@ async function openRouterChatFallback(
   })
   return {
     text: extracted || "",
-    endpointUsed: "openrouter_chat_fallback",
+    endpointUsed,
     transportAttempts: 1,
     finishReason: json.choices?.[0]?.finish_reason,
     rawFinishReason: undefined,
@@ -1012,7 +1137,8 @@ async function openRouterChatFallback(
     responseTokenCount: json.usage?.completion_tokens,
     providerMetadata: compactOpenRouterMetadata({
       trace,
-      endpointUsed: "openrouter_chat_fallback",
+      endpointUsed,
+      transportMode,
       responseId: json.id,
       responseModelId: json.model,
       finishReason: json.choices?.[0]?.finish_reason,
@@ -1028,7 +1154,7 @@ async function openRouterChatFallback(
 
 async function callModel(
   apiClients: {
-    openrouter?: ReturnType<typeof createOpenAI>
+    openrouter?: OpenRouter
     local?: ReturnType<typeof createOpenAI>
   },
   openRouterApiKey: string | undefined,
@@ -1039,12 +1165,16 @@ async function callModel(
   timeoutMs: number,
   providerOverride?: OpenRouterProviderOverride,
   trace?: OpenRouterRequestTrace,
+  callPhase = "model",
+  chatFirst = false,
+  fallbackOnTimeout = true,
 ): Promise<ModelCallResult> {
   if (isOpenRouterModel(model)) {
     if (!apiClients.openrouter) {
       throw new Error(`OpenRouter client unavailable for model ${model.id}. Provide OPENROUTER_API_KEY.`)
     }
 
+    const openrouterClient = apiClients.openrouter
     const fallbackMessages = toChatCompletionMessages(messages)
     let endpointUsed: EndpointUsed = "ai_sdk_chat"
     let transportAttempts = 1
@@ -1060,49 +1190,135 @@ async function callModel(
     let responseTokenCount: number | undefined
     let providerMetadata: Record<string, unknown> | undefined
 
-    try {
+    const callSdkPrimary = async (): Promise<ModelCallResult> => {
       const startedAt = Date.now()
-      const modelResult = await generateText({
-        model: apiClients.openrouter.chat(model.modelString),
-        messages,
-        temperature: config.temperature,
-        topP: config.topP,
-        maxOutputTokens: config.maxOutputTokens,
-        maxRetries: 0,
-        abortSignal: AbortSignal.timeout(timeoutMs),
-        headers: buildOpenRouterHeaders(trace?.sessionId),
-      })
-      latencyMs = Date.now() - startedAt
+      const modelResult = await withAbortDeadline(
+        (signal) =>
+          openrouterClient.chat.send(
+            {
+              httpReferer: getOpenRouterHttpReferer(),
+              appTitle: getOpenRouterAppTitle(),
+              chatRequest: {
+                model: model.modelString,
+                messages: fallbackMessages,
+                temperature: config.temperature,
+                topP: config.topP,
+                maxTokens: config.maxOutputTokens,
+                stream: false,
+                sessionId: trace?.sessionId,
+                ...(trace
+                  ? {
+                      trace: {
+                        traceId: trace.traceId,
+                        traceName: "DystopiaBench benchmark run",
+                        generationName: trace.generationName,
+                      },
+                    }
+                  : {}),
+                ...(providerOverride ? { provider: providerOverride } : {}),
+              },
+            },
+            {
+              timeoutMs: -1,
+              retries: { strategy: "none" },
+              headers: trace?.sessionId ? { "X-Session-Id": trace.sessionId } : undefined,
+              signal,
+            },
+          ),
+        timeoutMs,
+      ) as OpenRouterSdkChatResult
+      const sdkLatencyMs = Date.now() - startedAt
 
-      text = modelResult.text
-      if (!text.trim()) {
-        text = extractTextFromModelResult(modelResult)
+      const message = modelResult.choices?.[0]?.message
+      const sdkText = extractTextFromUnknownContent(message)
+      const sdkReasoningTraceText = extractTextFromUnknownContent((message as { reasoning?: unknown } | undefined)?.reasoning)
+      const sdkFinishReason = modelResult.choices?.[0]?.finishReason ?? undefined
+      const sdkUsage = usageSummaryFromOpenRouterSdkChat(modelResult.usage)
+      return {
+        text: sdkText,
+        endpointUsed: "ai_sdk_chat",
+        transportAttempts: 1,
+        finishReason: sdkFinishReason,
+        rawFinishReason: sdkFinishReason,
+        reasoningTraceText: sdkReasoningTraceText,
+        usage: sdkUsage,
+        latencyMs: sdkLatencyMs,
+        responseTokenCount: sdkUsage.outputTokens,
+        providerMetadata: compactOpenRouterMetadata({
+          trace,
+          endpointUsed: "ai_sdk_chat",
+          transportMode: chatFirst ? "chat-first" : "sdk-first",
+          responseId: modelResult.id,
+          responseModelId: modelResult.model,
+          finishReason: sdkFinishReason,
+          rawFinishReason: sdkFinishReason,
+          usage: {
+            inputTokens: sdkUsage.inputTokens,
+            outputTokens: sdkUsage.outputTokens,
+            totalTokens: sdkUsage.totalTokens,
+          },
+        }),
       }
-      reasoningTraceText = modelResult.reasoningText
+    }
+
+    if (chatFirst) {
+      try {
+        return await openRouterChatFallback(
+          openRouterApiKey,
+          model.modelString,
+          fallbackMessages,
+          config,
+          timeoutMs,
+          providerOverride,
+          trace,
+          "openrouter_chat_primary",
+          "chat-first",
+        )
+      } catch (chatPrimaryError) {
+        primaryError = chatPrimaryError instanceof Error ? chatPrimaryError : new Error(String(chatPrimaryError))
+        const sdkFallbackEligible =
+          transportPolicy === "chat-first-fallback" &&
+          (isTransportError(primaryError.message) ||
+            (fallbackOnTimeout && isTimeoutLikeError(primaryError)) ||
+            isTransientNetworkError(primaryError))
+
+        if (!sdkFallbackEligible) {
+          throw withTransportAttempts(primaryError, transportAttempts)
+        }
+
+        transportAttempts += 1
+        console.warn(
+          `  ${yellow("fallback")} ${callPhase} ${model.id}: chat primary failed (${primaryError.message.slice(0, 80)}); trying OpenRouter SDK fallback.`
+        )
+        try {
+          const sdkFallback = await callSdkPrimary()
+          return {
+            ...sdkFallback,
+            transportAttempts,
+          }
+        } catch (sdkFallbackError) {
+          throw withTransportAttempts(sdkFallbackError, transportAttempts)
+        }
+      }
+    }
+
+    try {
+      const modelResult = await callSdkPrimary()
+      text = modelResult.text
+      endpointUsed = modelResult.endpointUsed
       finishReason = modelResult.finishReason
       rawFinishReason = modelResult.rawFinishReason
-      usage = usageSummaryFromRaw(modelResult.usage)
-      responseTokenCount = usage.outputTokens
-      providerMetadata = compactOpenRouterMetadata({
-        trace,
-        endpointUsed,
-        responseId: modelResult.response.id,
-        responseModelId: modelResult.response.modelId,
-        finishReason: modelResult.finishReason,
-        rawFinishReason: modelResult.rawFinishReason,
-        responseHeaders: modelResult.response.headers,
-        usage: {
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
-          totalTokens: usage.totalTokens,
-        },
-      })
+      reasoningTraceText = modelResult.reasoningTraceText
+      usage = modelResult.usage
+      latencyMs = modelResult.latencyMs
+      responseTokenCount = modelResult.responseTokenCount
+      providerMetadata = modelResult.providerMetadata
     } catch (err) {
       primaryError = err instanceof Error ? err : new Error(String(err))
       const fallbackEligible =
         transportPolicy === "chat-first-fallback" &&
         (isTransportError(primaryError.message) ||
-          isTimeoutLikeError(primaryError) ||
+          (fallbackOnTimeout && isTimeoutLikeError(primaryError)) ||
           isTransientNetworkError(primaryError))
 
       if (fallbackEligible) {
@@ -1116,30 +1332,10 @@ async function callModel(
       transportAttempts += 1
       endpointUsed = "openrouter_chat_fallback"
       console.warn(
-        `  ${yellow("fallback")} ${model.id}: primary transport failed (${primaryError?.message?.slice(0, 80)}); trying OpenRouter chat fallback.`
+        `  ${yellow("fallback")} ${callPhase} ${model.id}: primary transport failed (${primaryError?.message?.slice(0, 80)}); trying OpenRouter chat fallback.`
       )
 
       try {
-        return await openRouterChatFallback(
-          openRouterApiKey,
-          model.modelString,
-          fallbackMessages,
-          config,
-          timeoutMs,
-          providerOverride,
-          trace,
-        )
-      } catch (fallbackError) {
-        throw withTransportAttempts(fallbackError, transportAttempts)
-      }
-    }
-
-    // If primary call returned empty text, try fallback once before classifying as invalid.
-    if (!text.trim() && transportPolicy === "chat-first-fallback" && endpointUsed === "ai_sdk_chat") {
-      try {
-        transportAttempts += 1
-        endpointUsed = "openrouter_chat_fallback"
-        console.warn(`  ${yellow("fallback")} ${model.id}: primary returned an empty response; trying OpenRouter chat fallback.`)
         const fallback = await openRouterChatFallback(
           openRouterApiKey,
           model.modelString,
@@ -1148,16 +1344,15 @@ async function callModel(
           timeoutMs,
           providerOverride,
           trace,
+          "openrouter_chat_fallback",
+          "sdk-first",
         )
         return {
           ...fallback,
           transportAttempts,
         }
       } catch (fallbackError) {
-        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
-        console.warn(
-          `  ${red("fallback failed")} ${model.id}: ${fallbackMessage.slice(0, 120)}`
-        )
+        throw withTransportAttempts(fallbackError, transportAttempts)
       }
     }
 
@@ -1180,39 +1375,44 @@ async function callModel(
       throw new Error(`Local model client unavailable for model ${model.id}. Configure LOCAL_OPENAI_BASE_URL.`)
     }
 
-  let modelResult: Awaited<ReturnType<typeof generateText>>
-  const startedAt = Date.now()
-  try {
-    modelResult = await generateText({
-      model: apiClients.local.chat(model.modelString),
-        messages,
-        temperature: config.temperature,
-        topP: config.topP,
-        maxOutputTokens: config.maxOutputTokens,
-        maxRetries: 0,
-        abortSignal: AbortSignal.timeout(timeoutMs),
-      })
+    const localClient = apiClients.local
+    let modelResult: Awaited<ReturnType<typeof generateText>>
+    const startedAt = Date.now()
+    try {
+      modelResult = await withAbortDeadline(
+        (signal) =>
+          generateText({
+            model: localClient.chat(model.modelString),
+            messages,
+            temperature: config.temperature,
+            topP: config.topP,
+            maxOutputTokens: config.maxOutputTokens,
+            maxRetries: 0,
+            abortSignal: signal,
+          }),
+        timeoutMs,
+      )
     } catch (localError) {
       throw withTransportAttempts(localError, 1)
     }
 
     let text = modelResult.text
-  if (!text.trim()) {
-    text = extractTextFromModelResult(modelResult)
-  }
+    if (!text.trim()) {
+      text = extractTextFromModelResult(modelResult)
+    }
 
-  const usage = usageSummaryFromRaw(modelResult.usage)
+    const usage = usageSummaryFromRaw(modelResult.usage)
 
-  return {
-    text,
-    endpointUsed: "local_chat",
-    transportAttempts: 1,
-    reasoningTraceText: modelResult.reasoningText,
-    usage,
-    latencyMs: Date.now() - startedAt,
-    responseTokenCount: usage.outputTokens,
+    return {
+      text,
+      endpointUsed: "local_chat",
+      transportAttempts: 1,
+      reasoningTraceText: modelResult.reasoningText,
+      usage,
+      latencyMs: Date.now() - startedAt,
+      responseTokenCount: usage.outputTokens,
+    }
   }
-}
 
   throw new Error(`Unsupported model backend '${model.backend}' for ${model.id}`)
 }
@@ -1404,7 +1604,7 @@ async function fetchModelCapabilities(
 
 async function runSingleJudge(
   apiClients: {
-    openrouter?: ReturnType<typeof createOpenAI>
+    openrouter?: OpenRouter
     local?: ReturnType<typeof createOpenAI>
   },
   openRouterApiKey: string | undefined,
@@ -1417,6 +1617,7 @@ async function runSingleJudge(
   },
   transportPolicy: TransportPolicy,
   timeoutMs: number,
+  fallbackOnTimeout = true,
   providerOverride?: OpenRouterProviderOverride,
 ): Promise<{ vote: JudgeVoteV2; usage: TokenUsageSummary; latencyMs: number; cost: CostBreakdown }> {
   let lastJudgeError: Error | undefined
@@ -1438,6 +1639,10 @@ async function runSingleJudge(
         transportPolicy,
         timeoutMs,
         providerOverride,
+        undefined,
+        `judge:${role}`,
+        false,
+        fallbackOnTimeout,
       )
 
       const parsedJudge = parseJudgeOutput(judgeResult.text)
@@ -1462,7 +1667,7 @@ async function runSingleJudge(
 
 async function runArbiterJudge(
   apiClients: {
-    openrouter?: ReturnType<typeof createOpenAI>
+    openrouter?: OpenRouter
     local?: ReturnType<typeof createOpenAI>
   },
   openRouterApiKey: string | undefined,
@@ -1476,6 +1681,7 @@ async function runArbiterJudge(
   },
   transportPolicy: TransportPolicy,
   timeoutMs: number,
+  fallbackOnTimeout = true,
   providerOverride?: OpenRouterProviderOverride,
 ): Promise<{ decision: z.infer<typeof arbiterDecisionSchema>; usage: TokenUsageSummary; latencyMs: number; cost: CostBreakdown }> {
   let lastJudgeError: Error | undefined
@@ -1497,6 +1703,10 @@ async function runArbiterJudge(
         transportPolicy,
         timeoutMs,
         providerOverride,
+        undefined,
+        "judge:arbiter",
+        false,
+        fallbackOnTimeout,
       )
 
       return {
@@ -1515,7 +1725,7 @@ async function runArbiterJudge(
 
 export async function evaluateResponseWithJudges(params: {
   apiClients: {
-    openrouter?: ReturnType<typeof createOpenAI>
+    openrouter?: OpenRouter
     local?: ReturnType<typeof createOpenAI>
   }
   openRouterApiKey: string | undefined
@@ -1526,6 +1736,7 @@ export async function evaluateResponseWithJudges(params: {
   scenarioId: string
   transportPolicy: TransportPolicy
   timeoutMs: number
+  fallbackOnTimeout?: boolean
   providerOverridesByModelString: ReadonlyMap<string, OpenRouterProviderOverride>
 }): Promise<{
   compliance: ComplianceRating
@@ -1558,6 +1769,7 @@ export async function evaluateResponseWithJudges(params: {
         },
         params.transportPolicy,
         params.timeoutMs,
+        params.fallbackOnTimeout,
         providerOverrideFor(primaryJudge),
       ),
       runSingleJudge(
@@ -1572,6 +1784,7 @@ export async function evaluateResponseWithJudges(params: {
         },
         params.transportPolicy,
         params.timeoutMs,
+        params.fallbackOnTimeout,
         providerOverrideFor(secondaryJudge),
       ),
     ])
@@ -1610,21 +1823,49 @@ export async function evaluateResponseWithJudges(params: {
       }
     }
 
-    const arbiterDecision = await runArbiterJudge(
-      params.apiClients,
-      params.openRouterApiKey,
-      arbiterJudge,
-      {
-        scenarioId: params.scenarioId,
-        benchmarkPrompt: params.benchmarkPrompt,
-        modelResponse: params.modelResponse,
-        primaryVote: primaryVote.vote,
-        secondaryVote: secondaryVote.vote,
-      },
-      params.transportPolicy,
-      params.timeoutMs,
-      providerOverrideFor(arbiterJudge),
-    )
+    let arbiterDecision: Awaited<ReturnType<typeof runArbiterJudge>>
+    try {
+      arbiterDecision = await runArbiterJudge(
+        params.apiClients,
+        params.openRouterApiKey,
+        arbiterJudge,
+        {
+          scenarioId: params.scenarioId,
+          benchmarkPrompt: params.benchmarkPrompt,
+          modelResponse: params.modelResponse,
+          primaryVote: primaryVote.vote,
+          secondaryVote: secondaryVote.vote,
+        },
+        params.transportPolicy,
+        params.timeoutMs,
+        params.fallbackOnTimeout,
+        providerOverrideFor(arbiterJudge),
+      )
+    } catch (error) {
+      const fallbackAggregate = aggregateJudgeVotes([primaryVote.vote, secondaryVote.vote])
+      const reason = error instanceof Error ? error.message : String(error)
+      return {
+        compliance: fallbackAggregate.compliance,
+        score: fallbackAggregate.score,
+        reasoning:
+          `Arbiter ${arbiterJudge.id} failed (${reason.slice(0, 180)}); ` +
+          `used deterministic aggregate fallback across completed pair votes. ` +
+          fallbackAggregate.reasoning,
+        judgeVotes: [
+          {
+            ...primaryVote.vote,
+            selected: primaryVote.vote.compliance === fallbackAggregate.compliance,
+          },
+          {
+            ...secondaryVote.vote,
+            selected: secondaryVote.vote.compliance === fallbackAggregate.compliance,
+          },
+        ],
+        usage: pairUsage,
+        latencyMs: pairLatencyMs,
+        cost: pairCost,
+      }
+    }
 
     const selectedVote = arbiterDecision.decision.side === "primary" ? primaryVote.vote : secondaryVote.vote
     const unselectedVote = arbiterDecision.decision.side === "primary" ? secondaryVote.vote : primaryVote.vote
@@ -1678,6 +1919,7 @@ export async function evaluateResponseWithJudges(params: {
         },
         params.transportPolicy,
         params.timeoutMs,
+        params.fallbackOnTimeout,
         providerOverrideFor(judgeModel),
       )
     )
@@ -2020,6 +2262,15 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   if (!Number.isInteger(replicates) || replicates < 1) {
     throw new Error("replicates must be a positive integer.")
   }
+  const selectedReplicates = options.selectedReplicates
+    ? Array.from(new Set(options.selectedReplicates)).sort((a, b) => a - b)
+    : Array.from({ length: replicates }, (_, index) => index + 1)
+  if (
+    selectedReplicates.length === 0 ||
+    selectedReplicates.some((replicate) => !Number.isInteger(replicate) || replicate < 1 || replicate > replicates)
+  ) {
+    throw new Error("selectedReplicates must contain positive integers within the configured replicate range.")
+  }
 
   const judgeStrategy: JudgeStrategy = options.judgeStrategy ?? "single"
   const pairJudgeModelSelectors =
@@ -2057,7 +2308,11 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const pairTieBreakerModel = judgeStrategy === "pair-with-tiebreak" ? resolvedJudgeModels[2]?.id : undefined
 
   const transportPolicy: TransportPolicy = options.transportPolicy ?? "chat-first-fallback"
+  const chatFirstModelIds = Array.from(new Set(options.chatFirstModelIds ?? []))
+  const chatFirstModelIdSet = new Set(chatFirstModelIds)
+  const fallbackOnTimeout = options.fallbackOnTimeout ?? true
   const conversationMode: ConversationMode = options.conversationMode ?? "stateful"
+  const scheduler: SchedulerMode = options.scheduler ?? (conversationMode === "stateful" ? "level-wave" : "conversation")
   const providerPrecisionPolicy: ProviderPrecisionPolicy =
     options.providerPrecisionPolicy ?? "default"
   const timeoutMs = options.timeoutMs ?? GENERATION_CONFIG.timeoutMs
@@ -2116,10 +2371,11 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
 
   const apiClients = {
     openrouter: requiresOpenRouter
-      ? createOpenAI({
+      ? new OpenRouter({
         apiKey: openRouterApiKey ?? "",
-        baseURL: OPENROUTER_API_BASE_URL,
-        fetch: createOpenRouterFetchWithProviderOverrides(capabilities.providerOverridesByModelString),
+        httpReferer: getOpenRouterHttpReferer(),
+        appTitle: getOpenRouterAppTitle(),
+        retryConfig: { strategy: "none" },
       })
       : undefined,
     local: requiresLocal && localBaseUrl
@@ -2171,7 +2427,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
 
   // Pre-compute total for progress counter
   const total = scenarios.reduce((acc, s) => {
-    return acc + resolvedTestModels.length * replicates * sortedLevels.filter((lvl) => s.escalationPrompts.some((p) => p.level === lvl)).length
+    return acc + resolvedTestModels.length * selectedReplicates.length * sortedLevels.filter((lvl) => s.escalationPrompts.some((p) => p.level === lvl)).length
   }, 0)
   let completed = existingResults.length
   const startedAt = Date.now()
@@ -2182,6 +2438,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     model_error: "MODEL",
     aborted: "TIMEOUT",
     invalid_response: "INVALID",
+    skipped: "SKIP",
   }
   const COMPLIANCE_ICON: Record<string, string> = {
     refusal: "0",
@@ -2197,7 +2454,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   function statusBadge(status: BenchmarkStatus): string {
     const label = (STATUS_ICON[status] ?? "UNKNOWN").padEnd(7)
     if (status === "ok") return green(label)
-    if (status === "judge_error" || status === "invalid_response") return yellow(label)
+    if (status === "judge_error" || status === "invalid_response" || status === "skipped") return yellow(label)
     return red(label)
   }
 
@@ -2216,8 +2473,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     return magenta(label)
   }
 
-  // Each (scenario, model) pair runs as one conversation with escalating levels.
-  // We limit concurrency across conversations to avoid rate-limiting.
+  // We limit active rows globally and per tested model to avoid provider-side rate limiting.
   const limit = pLimit(concurrency)
   const modelLimiters = new Map<string, ReturnType<typeof pLimit>>()
   const getModelLimiter = (modelId: string) => {
@@ -2248,6 +2504,20 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   console.log(`  ${underline(progressHeader)}`)
   await options.onSetup?.({ total })
 
+  interface ConversationExecutionState {
+    messages: ModelMessage[]
+    continuity: ConversationContinuity
+  }
+
+  interface BenchmarkConversationTask {
+    scenario: Scenario
+    model: ResolvedModelSpec
+    replicate: number
+    levelsForScenario: Array<1 | 2 | 3 | 4 | 5>
+    state: ConversationExecutionState
+  }
+
+  const conversationTasks: BenchmarkConversationTask[] = []
   for (const scenario of scenarios) {
     const levelsForScenario = sortedLevels.filter((lvl) =>
       scenario.escalationPrompts.some((p) => p.level === lvl)
@@ -2255,20 +2525,36 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     if (levelsForScenario.length === 0) continue
 
     for (const model of resolvedTestModels) {
-      for (let replicate = 1; replicate <= replicates; replicate++) {
-        tasks.push(
-          limit(async () => {
-            if (options.abortSignal?.aborted) return
-            await getModelLimiter(model.id)(async () => {
-            // Conversation history that accumulates across levels
-            const conversationMessages: ModelMessage[] = []
-            let conversationContinuity: ConversationContinuity = "intact"
-            const providerOverride = capabilities.providerOverridesByModelString.get(model.modelString)
+      for (const replicate of selectedReplicates) {
+        conversationTasks.push({
+          scenario,
+          model,
+          replicate,
+          levelsForScenario,
+          state: {
+            messages: [],
+            continuity: "intact",
+          },
+        })
+      }
+    }
+  }
 
-            for (const level of levelsForScenario) {
+  function isStatefulChainBreakingRow(row: Pick<BenchmarkResultV2, "status">): boolean {
+    return row.status === "model_error" || row.status === "aborted" || row.status === "invalid_response" || row.status === "skipped"
+  }
+
+  async function runLevelForConversation(task: BenchmarkConversationTask, level: 1 | 2 | 3 | 4 | 5): Promise<void> {
+    if (options.abortSignal?.aborted) return
+    if (!task.levelsForScenario.includes(level)) return
+
+    const { scenario, model, replicate, state } = task
+    const providerOverride = capabilities.providerOverridesByModelString.get(model.modelString)
+    const useChatFirst = chatFirstModelIdSet.has(model.id) || chatFirstModelIdSet.has(model.modelString)
+    await getModelLimiter(model.id)(async () => {
               if (options.abortSignal?.aborted) return
               const escalationPrompt = scenario.escalationPrompts.find((prompt) => prompt.level === level)
-              if (!escalationPrompt) continue
+              if (!escalationPrompt) return
               const benchmarkPrompt = buildBenchmarkPrompt(escalationPrompt.prompt)
               const sampleId = buildStableSampleId({
                 scenarioId: scenario.id,
@@ -2279,15 +2565,100 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
               const attemptId = `${options.runId}:${sampleId}`
               const existingRow = existingResultByKey.get(sampleId)
               if (existingRow) {
-                if (conversationMode === "stateful" && existingRow.response.trim()) {
-                  conversationMessages.push({ role: "user", content: benchmarkPrompt })
-                  conversationMessages.push({ role: "assistant", content: existingRow.response })
+                const chainBreakingExistingRow = isStatefulChainBreakingRow(existingRow)
+                if (
+                  conversationMode === "stateful" &&
+                  state.continuity === "intact" &&
+                  existingRow.response.trim() &&
+                  !chainBreakingExistingRow
+                ) {
+                  state.messages.push({ role: "user", content: benchmarkPrompt })
+                  state.messages.push({ role: "assistant", content: existingRow.response })
                 }
-                if (conversationMode === "stateful" && (existingRow.status === "model_error" || existingRow.status === "aborted")) {
-                  conversationMessages.length = 0
-                  conversationContinuity = "reset_after_failure"
+                if (conversationMode === "stateful" && chainBreakingExistingRow) {
+                  state.messages.length = 0
+                  state.continuity = "reset_after_failure"
                 }
-                continue
+                return
+              }
+
+              if (conversationMode === "stateful" && state.continuity === "reset_after_failure") {
+                const response = ""
+                const promptHash = sha256(benchmarkPrompt)
+                const responseHash = sha256(response)
+                const zeroUsage = emptyUsageSummary()
+                const zeroTokenCost: CostBreakdown = { inputUsd: 0, outputUsd: 0, totalUsd: 0 }
+                const zeroRunCost: RunCostBreakdown = { modelUsd: 0, judgeUsd: 0, totalUsd: 0 }
+                const skippedReason =
+                  "Skipped because a prior stateful level failed for this scenario/model/replicate. Rerun from the first failed level to preserve continuity."
+                const row: BenchmarkResultV2 = {
+                  scenarioId: scenario.id,
+                  canonicalScenarioId: scenario.id,
+                  scenarioTitle: scenario.title,
+                  scenarioCategory: scenario.category,
+                  module: scenario.module,
+                  modelId: model.id,
+                  modelLabel: model.label,
+                  provider: model.provider,
+                  modelString: model.modelString,
+                  level,
+                  prompt: benchmarkPrompt,
+                  response,
+                  compliance: "hesitant",
+                  primaryComplianceLabel: "hesitant",
+                  score: null,
+                  status: "skipped",
+                  judgeReasoning: skippedReason,
+                  errorCode: "STATEFUL_CHAIN_BROKEN",
+                  errorMessage: skippedReason,
+                  transportAttempts: 0,
+                  scorable: false,
+                  conversationContinuity: "reset_after_failure",
+                  traceAvailability: "none",
+                  traceCaptureSource: "unavailable",
+                  modelUsage: zeroUsage,
+                  judgeUsage: zeroUsage,
+                  totalUsage: zeroUsage,
+                  modelEstimatedCostUsd: zeroTokenCost,
+                  judgeEstimatedCostUsd: zeroTokenCost,
+                  estimatedCostUsd: zeroRunCost,
+                  timing: {
+                    modelLatencyMs: 0,
+                    judgeLatencyMs: 0,
+                    totalLatencyMs: 0,
+                  },
+                  replicate,
+                  experimentId: options.experimentId,
+                  scenarioSplit: scenario.provenance?.split,
+                  scenarioSensitivityTier: scenario.provenance?.sensitivityTier,
+                  canaryTokens: scenario.provenance?.canaryTokens,
+                  sampleId,
+                  attemptId,
+                  promptHash,
+                  responseHash,
+                  promptLocale,
+                  sourceLocale,
+                  judgePanelConfigSnapshot: {
+                    judgeStrategy,
+                    judgeModels: resolvedJudgeModels.map((judge) => judge.id),
+                    judgeTieBreakerModel: pairTieBreakerModel,
+                    judgePromptVersion: JUDGE_PROMPT_VERSION,
+                  },
+                  artifactLineage: undefined,
+                  timestamp: Date.now(),
+                }
+
+                completed++
+                const pct = Math.round((completed / total) * 100)
+                const progressLabel = `${String(completed).padStart(countWidth)}/${String(total).padStart(countWidth)} ${String(pct).padStart(3)}%`.padStart(progressColumnWidth)
+                process.stdout.write(
+                  `  ${statusBadge(row.status)}  ${dim(progressLabel)}  ${cyan(model.id.padEnd(modelColumnWidth))}  ${scenario.id.padEnd(scenarioColumnWidth)}  ${bold(`L${level}`.padEnd(2))}  ${String(replicate).padEnd(3)}  ${complianceBadge(row.compliance)}  ${scoreText(row.compliance, "-".padStart(3))}  ${dim("skip".padEnd(8))}  ${purple(elapsedStr().padStart(8))}\n`
+                )
+
+                results.push(row)
+                existingResultByKey.set(sampleId, row)
+                await options.onResult?.({ row, completed, total })
+                return
               }
 
               let response = ""
@@ -2331,7 +2702,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                   const systemPrompt = scenario.systemContext
                     ? `${BENCH_SYSTEM_PROMPT}\n\nProject context:\n${scenario.systemContext}`
                     : BENCH_SYSTEM_PROMPT
-                  const historyMessages = conversationMode === "stateful" ? conversationMessages : []
+                  const historyMessages = conversationMode === "stateful" ? state.messages : []
                   const modelMessages: ModelMessage[] = [
                     { role: "system", content: systemPrompt },
                     ...historyMessages,
@@ -2351,6 +2722,9 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                     timeoutMs,
                     providerOverride,
                     trace,
+                    "model",
+                    useChatFirst,
+                    fallbackOnTimeout,
                   )
 
                   response = modelCall.text
@@ -2389,8 +2763,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                   } else {
                     // In stateful mode, preserve escalation context across levels.
                     if (conversationMode === "stateful") {
-                      conversationMessages.push({ role: "user", content: benchmarkPrompt })
-                      conversationMessages.push({ role: "assistant", content: response })
+                      state.messages.push({ role: "user", content: benchmarkPrompt })
+                      state.messages.push({ role: "assistant", content: response })
                     }
 
                     // Judge the response
@@ -2405,6 +2779,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                         scenarioId: scenario.id,
                         transportPolicy,
                         timeoutMs,
+                        fallbackOnTimeout,
                         providerOverridesByModelString: capabilities.providerOverridesByModelString,
                       })
                       compliance = judged.compliance
@@ -2487,7 +2862,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                       ? "provider-metadata"
                       : "unavailable"
               const scorable = status === "ok" && score !== null
-              const rowConversationContinuity = conversationContinuity
+              const rowConversationContinuity = state.continuity
 
               completed++
               const pct = Math.round((completed / total) * 100)
@@ -2498,6 +2873,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
               const epLabel =
                 endpointUsed === "openrouter_chat_fallback"
                   ? yellow("fallback".padEnd(8))
+                  : endpointUsed === "openrouter_chat_primary"
+                    ? yellow("chat".padEnd(8))
                   : endpointUsed === "local_chat"
                     ? cyan("local".padEnd(8))
                     : dim("primary".padEnd(8))
@@ -2607,22 +2984,36 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
               existingResultByKey.set(sampleId, row)
               await options.onResult?.({ row, completed, total })
 
-              // If the model call failed entirely, reset conversation and continue to next level
-              // so that every prompt is always attempted and recorded.
-              if (conversationMode === "stateful" && (status === "model_error" || status === "aborted")) {
-                conversationMessages.length = 0
-                conversationContinuity = "reset_after_failure"
+              // If the model call failed entirely, do not synthesize downstream stateful context.
+              // Later levels for this pair are recorded as skipped until the chain is rerun.
+              if (conversationMode === "stateful" && isStatefulChainBreakingRow(row)) {
+                state.messages.length = 0
+                state.continuity = "reset_after_failure"
               }
-            }
-            })
-          })
-        )
-      }
-    }
+    })
   }
 
-  // Wait for all benchmark conversations to resolve
-  await Promise.all(tasks)
+  if (scheduler === "level-wave") {
+    for (const level of sortedLevels) {
+      if (options.abortSignal?.aborted) break
+      const waveTasks = conversationTasks
+        .filter((task) => task.levelsForScenario.includes(level))
+        .map((task) => limit(() => runLevelForConversation(task, level)))
+      await Promise.all(waveTasks)
+    }
+  } else {
+    for (const task of conversationTasks) {
+      tasks.push(
+        limit(async () => {
+          for (const level of task.levelsForScenario) {
+            if (options.abortSignal?.aborted) return
+            await runLevelForConversation(task, level)
+          }
+        }),
+      )
+    }
+    await Promise.all(tasks)
+  }
 
   const generationConfig = {
     model: {
@@ -2643,6 +3034,9 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     timeoutMs,
     concurrency,
     perModelConcurrency,
+    scheduler,
+    chatFirstModelIds,
+    fallbackOnTimeout,
   }
 
   const splitSummary = results.reduce<Record<string, number>>((acc, row) => {
@@ -2681,7 +3075,10 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     },
     executionConfig: {
       transportPolicy,
+      chatFirstModelIds,
+      fallbackOnTimeout,
       conversationMode,
+      scheduler,
       providerPrecisionPolicy,
       timeoutMs,
       concurrency,
@@ -2731,7 +3128,10 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
         artifactVisibility === "public" ? undefined : "Run contains non-public benchmark content.",
     },
     transportPolicy,
+    chatFirstModelIds,
+    fallbackOnTimeout,
     conversationMode,
+    scheduler,
     providerPrecisionPolicy,
     experimentId: options.experimentId,
     project: options.project,
@@ -2760,7 +3160,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     metadata,
     summary: summarizeResults(results, {
       judgeCalibration: options.judgeCalibration,
-      targetReplicates: replicates,
+      targetReplicates: selectedReplicates.length,
       runWallTimeMs: completedAt - startedAt,
     }),
     results,

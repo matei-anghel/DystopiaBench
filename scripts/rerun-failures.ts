@@ -11,6 +11,7 @@ import {
   summarizeResults,
   type ConversationMode,
   type RunBenchmarkOptions,
+  type SchedulerMode,
   type TransportPolicy,
 } from "../lib/dystopiabench/runner"
 import {
@@ -23,6 +24,7 @@ import {
 import { buildScenarioSelectionMetadata } from "../lib/dystopiabench/scenario-manifest"
 import { SCENARIO_CATALOG_VERSION } from "../lib/dystopiabench/scenarios"
 import { toModuleId, type Module } from "../lib/dystopiabench/types"
+import { getModelById } from "../lib/dystopiabench/models"
 
 type RerunSource = "latest" | "run"
 type RerunScope = "to-max-failed" | "all-levels" | "failed-only"
@@ -75,6 +77,30 @@ function parseRunId(): string | undefined {
   const input = parseArg("--run-id")
   if (!input) return undefined
   return sanitizeRunId(input)
+}
+
+function normalizeModelInputList(input: string | undefined): string[] {
+  if (!input) return []
+  return input
+    .split(/[\s,]+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
+function isValidModelSpecifier(input: string): boolean {
+  if (getModelById(input)) return true
+  if (input.startsWith("openrouter:") || input.startsWith("local:")) return true
+  return input.includes("/")
+}
+
+function parseChatFirstModelIds(input: string | undefined): string[] | undefined {
+  if (!input) return undefined
+  const requested = normalizeModelInputList(input)
+  const invalid = requested.filter((id) => !isValidModelSpecifier(id))
+  if (invalid.length > 0) {
+    throw new Error(`Unknown chat-first model id(s): ${invalid.join(", ")}`)
+  }
+  return Array.from(new Set(requested))
 }
 
 function parsePositiveIntFlag(flag: string, input: string | undefined): number | undefined {
@@ -221,7 +247,7 @@ function buildPlan(manifest: RunManifestV2, scope: RerunScope): {
 }
 
 function formatStatusCounts(counts: RunManifestV2["summary"]["statusCounts"]): string {
-  return `ok=${counts.ok}, model_error=${counts.model_error}, judge_error=${counts.judge_error}, aborted=${counts.aborted}, invalid_response=${counts.invalid_response}`
+  return `ok=${counts.ok}, model_error=${counts.model_error}, judge_error=${counts.judge_error}, aborted=${counts.aborted}, invalid_response=${counts.invalid_response}, skipped=${counts.skipped ?? 0}`
 }
 
 function ensureUniqueResultKeys(results: BenchmarkResultV2[]): void {
@@ -250,6 +276,11 @@ function resolveConversationMode(
   mode: RunManifestV2["metadata"]["conversationMode"] | undefined,
 ): ConversationMode {
   return mode === "stateless" ? "stateless" : "stateful"
+}
+
+function resolveScheduler(manifest: RunManifestV2): SchedulerMode {
+  const scheduler = manifest.metadata.scheduler ?? manifest.metadata.executionConfig?.scheduler
+  return scheduler === "level-wave" || scheduler === "conversation" ? scheduler : "conversation"
 }
 
 function buildSelectionMetadataFromResults(results: BenchmarkResultV2[]) {
@@ -316,8 +347,15 @@ async function main() {
   const debug = hasFlag("--debug")
   const pairConcurrency = parsePositiveIntFlag("--pair-concurrency", parseArg("--pair-concurrency")) ?? 2
   const runtimeOverrides = parseRuntimeOverrides()
+  const chatFirstModelIdsOverride = parseChatFirstModelIds(parseArg("--chat-first-models"))
 
   const { manifest: baseManifest, sourcePath } = loadBaseManifest(source, requestedRunId)
+  const fallbackOnTimeout = hasFlag("--no-timeout-fallback")
+    ? false
+    : baseManifest.metadata.fallbackOnTimeout
+      ?? baseManifest.metadata.executionConfig?.fallbackOnTimeout
+      ?? baseManifest.metadata.generationConfig?.fallbackOnTimeout
+      ?? true
   const { failedRows, plans, plannedPrompts } = buildPlan(baseManifest, scope)
   const derivedRunId = sanitizeRunId(`rerun-${makeRunId()}`)
 
@@ -338,6 +376,12 @@ async function main() {
   if (runtimeOverrides.maxRetries !== undefined) console.log(`Retry override: maxRetries=${runtimeOverrides.maxRetries}`)
   if (runtimeOverrides.retryBackoffBaseMs !== undefined) console.log(`Retry backoff base override: ${runtimeOverrides.retryBackoffBaseMs}ms`)
   if (runtimeOverrides.retryBackoffJitterMs !== undefined) console.log(`Retry backoff jitter override: ${runtimeOverrides.retryBackoffJitterMs}ms`)
+  const chatFirstModelIds = chatFirstModelIdsOverride
+    ?? baseManifest.metadata.chatFirstModelIds
+    ?? baseManifest.metadata.executionConfig?.chatFirstModelIds
+    ?? []
+  if (chatFirstModelIds.length > 0) console.log(`Chat-first models: ${chatFirstModelIds.join(", ")}`)
+  console.log(`Timeout fallback: ${fallbackOnTimeout ? "yes" : "no"}`)
 
   for (const plan of plans) {
     console.log(
@@ -388,7 +432,10 @@ async function main() {
               : undefined,
           judgeStrategy: workingManifest.metadata.judgeStrategy,
           transportPolicy: (workingManifest.metadata.transportPolicy ?? "chat-first-fallback") as TransportPolicy,
+          chatFirstModelIds,
+          fallbackOnTimeout,
           conversationMode: resolveConversationMode(workingManifest.metadata.conversationMode),
+          scheduler: resolveScheduler(workingManifest),
           providerPrecisionPolicy: workingManifest.metadata.providerPrecisionPolicy,
           skipModelValidation: true,
           concurrency: runtimeOverrides.concurrency ?? 1,
@@ -398,6 +445,7 @@ async function main() {
           retryBackoffBaseMs: runtimeOverrides.retryBackoffBaseMs,
           retryBackoffJitterMs: runtimeOverrides.retryBackoffJitterMs,
           replicates: plan.replicate,
+          selectedReplicates: [plan.replicate],
         })
       } catch (error) {
         pairRunFailures += 1

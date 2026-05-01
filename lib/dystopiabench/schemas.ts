@@ -13,9 +13,11 @@ export const benchmarkStatusSchema = z.enum([
   "judge_error",
   "aborted",
   "invalid_response",
+  "skipped",
 ])
 
 export const conversationModeSchema = z.enum(["stateful", "stateless"])
+export const schedulerModeSchema = z.enum(["level-wave", "conversation"])
 export const judgeStrategySchema = z.enum(["single", "pair-with-tiebreak"])
 export const providerPrecisionPolicySchema = z.enum(["default", "non-quantized-only"])
 export const conversationContinuitySchema = z.enum(["intact", "reset_after_failure"])
@@ -38,7 +40,7 @@ export const adjudicationSourceSchema = z.enum([
   "imported-review",
 ])
 export const artifactVisibilitySchema = z.enum(["public", "private"])
-export const endpointUsedSchema = z.enum(["ai_sdk_chat", "openrouter_chat_fallback", "local_chat"])
+export const endpointUsedSchema = z.enum(["ai_sdk_chat", "openrouter_chat_primary", "openrouter_chat_fallback", "local_chat"])
 export const localeTagSchema = z.string().trim().min(2)
 
 export const GENERATION_CONFIG = {
@@ -285,7 +287,7 @@ export const benchmarkResultV2Schema = z.object({
   judgeEstimatedCostUsd: costBreakdownSchema.optional(),
   estimatedCostUsd: runCostBreakdownSchema.optional(),
   timing: rowTimingSchema.optional(),
-  finishReason: z.string().optional(),
+  finishReason: z.string().nullish().transform((value) => value ?? undefined),
   providerMetadata: z.record(z.string(), z.unknown()).optional(),
   judgePanelConfigSnapshot: judgePanelConfigSnapshotSchema.optional(),
   artifactLineage: z.object({
@@ -339,7 +341,10 @@ export const benchmarkDefinitionSchema = z.object({
 
 export const executionConfigSchema = z.object({
   transportPolicy: z.enum(["chat-first-fallback", "chat-only"]).optional(),
+  chatFirstModelIds: z.array(z.string()).optional(),
+  fallbackOnTimeout: z.boolean().optional(),
   conversationMode: conversationModeSchema.optional(),
+  scheduler: schedulerModeSchema.optional(),
   providerPrecisionPolicy: providerPrecisionPolicySchema.optional(),
   timeoutMs: z.number().int().positive(),
   concurrency: z.number().int().positive().optional(),
@@ -404,7 +409,10 @@ export const runMetadataV2Schema = z.object({
   judgePromptVersion: z.string().default("v1"),
   artifactPolicy: artifactPolicySchema.optional(),
   transportPolicy: z.enum(["chat-first-fallback", "chat-only"]).optional(),
+  chatFirstModelIds: z.array(z.string()).optional(),
+  fallbackOnTimeout: z.boolean().optional(),
   conversationMode: conversationModeSchema.optional(),
+  scheduler: schedulerModeSchema.optional(),
   providerPrecisionPolicy: providerPrecisionPolicySchema.optional(),
   derivedFromRunId: z.string().optional(),
   derivationKind: derivationKindSchema.optional(),
@@ -446,6 +454,9 @@ export const runMetadataV2Schema = z.object({
       timeoutMs: z.number().int().positive(),
       concurrency: z.number().int().positive().optional(),
       perModelConcurrency: z.number().int().positive().optional(),
+      scheduler: schedulerModeSchema.optional(),
+      chatFirstModelIds: z.array(z.string()).optional(),
+      fallbackOnTimeout: z.boolean().optional(),
     })
     .default(GENERATION_CONFIG),
 })
@@ -473,6 +484,7 @@ export const runIndexV2Schema = z.array(runIndexItemV2Schema)
 export type ComplianceRating = z.infer<typeof complianceRatingSchema>
 export type BenchmarkStatus = z.infer<typeof benchmarkStatusSchema>
 export type ConversationMode = z.infer<typeof conversationModeSchema>
+export type SchedulerMode = z.infer<typeof schedulerModeSchema>
 export type JudgeStrategy = z.infer<typeof judgeStrategySchema>
 export type ProviderPrecisionPolicy = z.infer<typeof providerPrecisionPolicySchema>
 export type ConversationContinuity = z.infer<typeof conversationContinuitySchema>

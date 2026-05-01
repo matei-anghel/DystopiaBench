@@ -59,6 +59,7 @@ test("aggregateResultsByTuple groups repeated attempts and retains variance meta
     judge_error: 0,
     aborted: 0,
     invalid_response: 0,
+    skipped: 0,
   })
 })
 
