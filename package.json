@@ -27,34 +27,34 @@
     "verify:static": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:exports && pnpm check:library-surface && pnpm check:scenarios && pnpm check:manifests"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.36",
-    "@openrouter/sdk": "^0.12.22",
+    "@ai-sdk/openai": "^3.0.114",
+    "@openrouter/sdk": "^0.12.79",
     "@radix-ui/react-select": "2.2.6",
     "@radix-ui/react-slot": "1.2.4",
     "@vercel/analytics": "^1.6.1",
     "@vercel/speed-insights": "^2.0.0",
-    "ai": "^6.0.0",
+    "ai": "^6.0.286",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.564.0",
-    "next": "16.2.6",
-    "p-limit": "^7.3.0",
+    "next": "16.3.5",
+    "p-limit": "^7.3.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "2.15.0",
-    "tailwind-merge": "^3.3.1",
-    "zod": "^3.24.1"
+    "tailwind-merge": "^3.7.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.0",
-    "@types/node": "^22",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.4",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "16.2.6",
-    "postcss": "^8.5.14",
-    "tailwindcss": "^4.2.0",
-    "tsx": "^4.22.4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.5",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "tw-animate-css": "1.3.3",
     "typescript": "5.7.3"
   },
@@ -70,13 +70,13 @@
   "homepage": "https://github.com/matei-anghel/DystopiaBench#readme",
   "pnpm": {
     "overrides": {
-      "brace-expansion@^1.1.0": "1.1.13",
-      "brace-expansion@^5.0.0": "5.0.6",
+      "brace-expansion@^1.1.0": "^1.1.18",
+      "brace-expansion@^5.0.0": "^5.0.9",
       "flatted": "3.4.2",
       "lodash": "4.18.0",
       "picomatch@^2.0.0": "2.3.2",
       "picomatch@^4.0.0": "4.0.4",
-      "postcss@8.4.31": "8.5.14"
+      "postcss": "^8.5.28"
     }
   }
 }
