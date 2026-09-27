@@ -9,11 +9,14 @@ import { ALL_MODULES } from "./scenarios"
 import { createBenchmarkBundle } from "./bundles"
 import { createScenarioRegistry } from "./scenario-registry"
 import {
+  AVAILABLE_MODELS,
   DEFAULT_JUDGE_MODEL,
   PAIR_WITH_TIEBREAK_ARBITER_MODEL,
   PAIR_WITH_TIEBREAK_SECONDARY_JUDGE_MODEL,
   getEstimatedPricingByModelKey,
 } from "./models"
+import { selectMinimumReasoningEffort, type MinimumReasoningEffort, type ReasoningCapabilities } from "./reasoning-policy"
+import { OpenRouterBatchSubmittedError, submitAndWaitForOpenRouterBatch } from "./openrouter-batch"
 import { parseModelIdentifier, resolveJudgeModels, type ResolvedModelSpec } from "./model-selectors"
 import type { BenchmarkModuleSelector, Scenario, ScenarioModule } from "./types"
 import {
@@ -162,7 +165,7 @@ export type TransportPolicy = "chat-first-fallback" | "chat-only"
 export type ConversationMode = "stateful" | "stateless"
 export type SchedulerMode = SchedulerModeSchema
 export type ModelSystemPromptMode = "standard" | "none"
-export type EndpointUsed = "ai_sdk_chat" | "openrouter_chat_primary" | "openrouter_chat_fallback" | "local_chat" | "litellm_chat"
+export type EndpointUsed = "ai_sdk_chat" | "openrouter_chat_primary" | "openrouter_chat_fallback" | "openrouter_batch" | "local_chat" | "litellm_chat"
 export type JudgeStrategy = JudgeStrategySchema
 export type ProviderPrecisionPolicy = ProviderPrecisionPolicySchema
 export type OpenRouterProviderRoutingOverride = Partial<ProviderPreferences> & {
@@ -521,8 +524,9 @@ function usageSummaryFromRaw(value?: {
 function calculateTokenCostUsd(
   usage: TokenUsageSummary,
   pricingModelKey: string,
+  pricingOverride?: { input: number; output: number },
 ): CostBreakdown {
-  const pricing = getEstimatedPricingByModelKey(pricingModelKey)
+  const pricing = pricingOverride ?? getEstimatedPricingByModelKey(pricingModelKey)
   const inputUsd = Number(((usage.inputTokens / 1_000_000) * pricing.input).toFixed(6))
   const outputUsd = Number(((usage.outputTokens / 1_000_000) * pricing.output).toFixed(6))
   return {
@@ -1109,7 +1113,6 @@ function compactLiteLLMMetadata(params: {
 
 type GenerationConfigOverride = {
   temperature: number
-  topP: number
 }
 
 const SILENT_EMPTY_REFUSAL_MAX_OUTPUT_TOKENS = 10
@@ -1380,6 +1383,7 @@ async function openRouterChatFallback(
   trace?: OpenRouterRequestTrace,
   endpointUsed: Extract<EndpointUsed, "openrouter_chat_primary" | "openrouter_chat_fallback"> = "openrouter_chat_fallback",
   transportMode: "sdk-first" | "chat-first" = "sdk-first",
+  reasoningEffort?: MinimumReasoningEffort,
 ): Promise<ModelCallResult> {
   if (!apiKey) {
     throw new Error("Missing OPENROUTER_API_KEY. Configure OPENROUTER_API_KEY for fallback usage.")
@@ -1398,8 +1402,8 @@ async function openRouterChatFallback(
         model: modelString,
         messages,
         temperature: config.temperature,
-        top_p: config.topP,
         ...(requestOverride ?? {}),
+        ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
         ...(trace
           ? {
               session_id: trace.sessionId,
@@ -1477,7 +1481,7 @@ async function openRouterChatFallback(
   }
 }
 
-function shouldOmitLiteLLMSamplingParams(modelString: string): boolean {
+function shouldOmitLiteLLMTemperature(modelString: string): boolean {
   return /(^|[/:-])claude|anthropic|fable/i.test(modelString)
 }
 
@@ -1496,10 +1500,9 @@ async function liteLLMChatCompletion(
       stream: false,
     }
 
-    // Some Anthropic-backed LiteLLM routes reject explicit sampling params.
-    if (!shouldOmitLiteLLMSamplingParams(modelString)) {
+    // Some Anthropic-backed LiteLLM routes reject explicit temperature.
+    if (!shouldOmitLiteLLMTemperature(modelString)) {
       requestBody.temperature = config.temperature
-      requestBody.top_p = config.topP
     }
 
     const response = await fetch(`${client.baseURL.replace(/\/+$/, "")}/chat/completions`, {
@@ -1590,7 +1593,60 @@ async function callModel(
   callPhase = "model",
   chatFirst = false,
   fallbackOnTimeout = true,
+  reasoningEffort?: MinimumReasoningEffort,
+  abortSignal?: AbortSignal,
 ): Promise<ModelCallResult> {
+  if (isOpenRouterModel(model) && model.modelString.endsWith(":batch")) {
+    if (!openRouterApiKey) throw new Error(`Missing OPENROUTER_API_KEY for batch model ${model.id}.`)
+    if (providerOverride) {
+      throw new Error(`Provider precision filters are not supported by OpenRouter Batch API for ${model.id}.`)
+    }
+    const startedAt = Date.now()
+    const batch = await submitAndWaitForOpenRouterBatch({
+      apiKey: openRouterApiKey,
+      batchModelString: model.modelString,
+      body: {
+        messages: toChatCompletionMessages(messages),
+        temperature: config.temperature,
+        ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
+      },
+      abortSignal,
+    })
+    const completion = batch.body as {
+      id?: string
+      model?: string
+      choices?: Array<{ message?: unknown; finish_reason?: string }>
+      usage?: {
+        prompt_tokens?: number
+        completion_tokens?: number
+        total_tokens?: number
+        completion_tokens_details?: { reasoning_tokens?: number | null }
+      }
+    }
+    const message = completion.choices?.[0]?.message
+    return {
+      text: extractTextFromUnknownContent(message),
+      endpointUsed: "openrouter_batch",
+      transportAttempts: 1,
+      finishReason: completion.choices?.[0]?.finish_reason,
+      reasoningTraceText: extractTextFromUnknownContent((message as { reasoning?: unknown } | undefined)?.reasoning),
+      usage: usageSummaryFromRaw({
+        inputTokens: completion.usage?.prompt_tokens,
+        outputTokens: completion.usage?.completion_tokens,
+        totalTokens: completion.usage?.total_tokens,
+        reasoningTokens: completion.usage?.completion_tokens_details?.reasoning_tokens ?? undefined,
+      }),
+      latencyMs: Date.now() - startedAt,
+      responseTokenCount: completion.usage?.completion_tokens,
+      providerMetadata: {
+        batchId: batch.batchId,
+        batchCostUsd: batch.costUsd,
+        responseId: completion.id,
+        responseModelId: completion.model,
+      },
+    }
+  }
+
   if (isOpenRouterModel(model)) {
     if (!apiClients.openrouter) {
       throw new Error(`OpenRouter client unavailable for model ${model.id}. Provide OPENROUTER_API_KEY.`)
@@ -1624,9 +1680,9 @@ async function callModel(
                 model: model.modelString,
                 messages: fallbackMessages,
                 temperature: config.temperature,
-                topP: config.topP,
                 stream: false,
                 ...(requestOverride ?? {}),
+                ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
                 sessionId: trace?.sessionId,
                 ...(trace
                   ? {
@@ -1697,6 +1753,7 @@ async function callModel(
           trace,
           "openrouter_chat_primary",
           "chat-first",
+          reasoningEffort,
         )
       } catch (chatPrimaryError) {
         primaryError = chatPrimaryError instanceof Error ? chatPrimaryError : new Error(String(chatPrimaryError))
@@ -1771,6 +1828,7 @@ async function callModel(
           trace,
           "openrouter_chat_fallback",
           "sdk-first",
+          reasoningEffort,
         )
         return {
           ...fallback,
@@ -1828,7 +1886,6 @@ async function callModel(
             model: client.chat(model.modelString),
             messages,
             temperature: config.temperature,
-            topP: config.topP,
             maxRetries: 0,
             abortSignal: signal,
           }),
@@ -1871,6 +1928,7 @@ interface OpenRouterModelEntry {
   architecture?: Record<string, unknown>
   top_provider?: Record<string, unknown>
   supported_parameters?: string[]
+  reasoning?: ReasoningCapabilities
 }
 
 interface OpenRouterEndpointEntry {
@@ -2008,6 +2066,7 @@ async function fetchModelCapabilities(
         ...(catalogEntry ? {
           context_length: catalogEntry.context_length,
           supported_parameters: catalogEntry.supported_parameters,
+          reasoning: catalogEntry.reasoning,
           architecture: catalogEntry.architecture,
           pricing: catalogEntry.pricing,
           top_provider: catalogEntry.top_provider,
@@ -2814,6 +2873,9 @@ export function summarizeResults(
 // ---------------------------------------------------------------------------
 
 export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunManifestV2> {
+  if (options.modelReasoningVariants?.length) {
+    throw new Error("Reasoning variants are incompatible with the fixed minimum reasoning policy.")
+  }
   const modelRequestOverridesByModelId = new Map<string, ModelReasoningVariant["openRouterRequest"]>()
   const resolvedTestModels =
     options.modelReasoningVariants && options.modelReasoningVariants.length > 0
@@ -2921,6 +2983,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     ...resolvedTestModels.filter(isOpenRouterModel),
     ...resolvedJudgeModels.filter(isOpenRouterModel),
   ])
+  const upcomingRosterModelStrings = new Set(AVAILABLE_MODELS.map((model) => model.modelString))
+  const selectedUpcomingModels = resolvedTestModels.filter((model) => upcomingRosterModelStrings.has(model.modelString))
   const precisionTargetModelStrings = new Set(
     resolvedTestModels
       .filter(isOpenRouterModel)
@@ -2934,7 +2998,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
     missing: [],
     providerOverridesByModelString: new Map(),
   }
-  if (openRouterCatalogModels.length > 0 && (!options.skipModelValidation || precisionTargetModelStrings.size > 0)) {
+  if (openRouterCatalogModels.length > 0 && (selectedUpcomingModels.length > 0 || !options.skipModelValidation || precisionTargetModelStrings.size > 0)) {
     console.log(`\n${RUN_LOG_PREFIX} ${bold("Pre-run checks")}`)
     console.log(`  ${dim("OpenRouter")} validating model catalog and provider availability...`)
     capabilities = await fetchModelCapabilities(
@@ -2948,6 +3012,28 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
       console.warn(`  ${yellow("warning")} models not found in OpenRouter: ${capabilities.missing.join(", ")}`)
     } else if (!options.skipModelValidation) {
       console.log(`  ${green("ok")} all model IDs validated`)
+    }
+  }
+
+  const minimumReasoningByModelString = new Map<string, MinimumReasoningEffort>()
+  const catalogPricingByModelString = new Map<string, { input: number; output: number }>()
+  for (const model of selectedUpcomingModels) {
+    const catalogModel = capabilities.snapshot[model.id] as {
+      reasoning?: ReasoningCapabilities
+      pricing?: { prompt?: string; completion?: string }
+    } | undefined
+    if (!catalogModel) {
+      throw new Error(`Cannot verify minimum reasoning for ${model.modelString}: model catalog entry unavailable.`)
+    }
+    if (!catalogModel.reasoning) {
+      throw new Error(`Cannot verify minimum reasoning for ${model.modelString}: model catalog has no reasoning metadata.`)
+    }
+    const effort = selectMinimumReasoningEffort(model.modelString, catalogModel.reasoning)
+    if (effort) minimumReasoningByModelString.set(model.modelString, effort)
+    const input = Number(catalogModel.pricing?.prompt) * 1_000_000
+    const output = Number(catalogModel.pricing?.completion) * 1_000_000
+    if (Number.isFinite(input) && Number.isFinite(output) && input >= 0 && output >= 0) {
+      catalogPricingByModelString.set(model.modelString, { input, output })
     }
   }
 
@@ -3273,7 +3359,9 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
               let errorName: string | undefined
               let scoreabilityReason: BenchmarkResultV2["scoreabilityReason"] | undefined
               let endpointUsed: EndpointUsed =
-                model.backend === "local"
+                model.modelString.endsWith(":batch") && model.backend === "openrouter"
+                  ? "openrouter_batch"
+                  : model.backend === "local"
                   ? "local_chat"
                   : model.backend === "litellm"
                     ? "litellm_chat"
@@ -3349,6 +3437,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                     "model",
                     useChatFirst,
                     fallbackOnTimeout,
+                    minimumReasoningByModelString.get(model.modelString),
+                    options.abortSignal,
                   )
 
                   response = modelCall.text
@@ -3357,7 +3447,11 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                   finishReason = modelCall.finishReason
                   reasoningTraceText = modelCall.reasoningTraceText
                   modelUsage = modelCall.usage
-                  modelEstimatedCostUsd = calculateTokenCostUsd(modelUsage, model.modelString)
+                  modelEstimatedCostUsd = calculateTokenCostUsd(
+                    modelUsage,
+                    model.modelString,
+                    catalogPricingByModelString.get(model.modelString),
+                  )
                   modelLatencyMs = modelCall.latencyMs
                   responseTokenCount = modelCall.responseTokenCount
                   providerMetadata = modelCall.providerMetadata
@@ -3454,12 +3548,16 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                   break // Success, exit retry loop
                 } catch (error) {
                   const errorObj = error instanceof Error ? error : new Error("Model call failed.")
+                  if (errorObj instanceof OpenRouterBatchSubmittedError) {
+                    providerMetadata = { batchId: errorObj.batchId }
+                  }
                   const message = errorObj.message || "Model call failed."
                   const errorTransportAttempts = getErrorTransportAttempts(errorObj)
                   if (errorTransportAttempts !== undefined) {
                     transportAttempts = attemptsBeforeCall + errorTransportAttempts
                   }
-                  const retryableError = isTimeoutLikeError(errorObj) || isTransientNetworkError(errorObj)
+                  const retryableError = !(errorObj instanceof OpenRouterBatchSubmittedError) &&
+                    (isTimeoutLikeError(errorObj) || isTransientNetworkError(errorObj))
 
                   // Exponential backoff
                   if (retryCount < maxRetries && retryableError) {
@@ -3477,7 +3575,7 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                   response = ""
                   compliance = undefined
                   score = null
-                  if (isTimeoutLikeError(errorObj)) {
+                  if (options.abortSignal?.aborted || isTimeoutLikeError(errorObj)) {
                     status = "aborted"
                     errorCode = "ABORTED"
                   } else if (isTransportError(message)) {
@@ -3528,6 +3626,8 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
                   ? yellow("fallback".padEnd(8))
                   : endpointUsed === "openrouter_chat_primary"
                     ? yellow("chat".padEnd(8))
+                  : endpointUsed === "openrouter_batch"
+                    ? cyan("batch".padEnd(8))
                   : endpointUsed === "local_chat"
                     ? cyan("local".padEnd(8))
                   : endpointUsed === "litellm_chat"
@@ -3668,11 +3768,9 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
   const generationConfig = {
     model: {
       temperature: GENERATION_CONFIG.model.temperature,
-      topP: GENERATION_CONFIG.model.topP,
     },
     judge: {
       temperature: GENERATION_CONFIG.judge.temperature,
-      topP: GENERATION_CONFIG.judge.topP,
     },
     retryPolicy: {
       maxRetries,
@@ -3730,11 +3828,9 @@ export async function runBenchmark(options: RunBenchmarkOptions): Promise<RunMan
       generationConfig: {
         model: {
           temperature: GENERATION_CONFIG.model.temperature,
-          topP: GENERATION_CONFIG.model.topP,
         },
         judge: {
           temperature: GENERATION_CONFIG.judge.temperature,
-          topP: GENERATION_CONFIG.judge.topP,
         },
       },
     },

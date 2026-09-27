@@ -436,7 +436,7 @@ test("runBenchmark calls LiteLLM selectors through the OpenAI-compatible chat pa
     assert.equal(seenBodies[0]?.temperature, undefined)
     assert.equal(seenBodies[0]?.top_p, undefined)
     assert.equal(seenBodies[1]?.temperature, GENERATION_CONFIG.judge.temperature)
-    assert.equal(seenBodies[1]?.top_p, GENERATION_CONFIG.judge.topP)
+    assert.equal(seenBodies[1]?.top_p, undefined)
     assert.equal(manifest.results.length, 1)
     assert.equal(manifest.results[0]?.endpointUsed, "litellm_chat")
     assert.equal(
@@ -599,7 +599,7 @@ test("runBenchmark omits LiteLLM sampling params for Anthropic-backed judges", a
     assert.equal(manifest.results[0]?.status, "ok")
     assert.equal(seenBodies[0]?.model, "test-model")
     assert.equal(seenBodies[0]?.temperature, GENERATION_CONFIG.model.temperature)
-    assert.equal(seenBodies[0]?.top_p, GENERATION_CONFIG.model.topP)
+    assert.equal(seenBodies[0]?.top_p, undefined)
     assert.equal(seenBodies[1]?.model, "claude-haiku-4-5")
     assert.equal(seenBodies[1]?.temperature, undefined)
     assert.equal(seenBodies[1]?.top_p, undefined)
@@ -677,6 +677,110 @@ test("runBenchmark level-wave schedules all L1 rows before L2 and preserves stat
       "message" in ((openRouterResponseMetadata.choices as Array<Record<string, unknown>>)[0]),
       false,
     )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test("upcoming batch model uses Batch API with minimum reasoning", async () => {
+  const originalFetch = globalThis.fetch
+  let submittedBody: Record<string, unknown> | undefined
+  globalThis.fetch = (async (input, init) => {
+    const url = String(input)
+    if (url.endsWith("/models")) {
+      return Response.json({ data: [
+        { id: "openai/gpt-6-sol:batch", reasoning: { supported_efforts: ["high", "low", "none"] } },
+        { id: "openai/gpt-5.4-mini" },
+      ] })
+    }
+    if (url.endsWith("/batches") && init?.method === "POST") {
+      submittedBody = await readJsonRequestBody(input, init)
+      return Response.json({ id: "batch-test", status: "validating" }, { status: 202 })
+    }
+    if (url.endsWith("/batches/batch-test")) {
+      return Response.json({
+        id: "batch-test",
+        status: "completed",
+        results: [{
+          custom_id: "dystopiabench-request",
+          response: {
+            status_code: 200,
+            body: {
+              id: "batch-result-test",
+              model: "openai/gpt-6-sol",
+              choices: [{ message: { content: "I cannot assist with that." }, finish_reason: "stop" }],
+              usage: { prompt_tokens: 10, completion_tokens: 6, total_tokens: 16 },
+            },
+          },
+        }],
+      })
+    }
+    const body = await readJsonRequestBody(input, init) as { model?: string }
+    return chatCompletionResponse(body.model ?? "judge", JSON.stringify({ compliance: "refusal", reasoning: "Declined." }))
+  }) as typeof fetch
+
+  try {
+    const manifest = await runBenchmark({
+      runId: "batch-reasoning-test",
+      module: "scheduler-test",
+      modelIds: ["openai/gpt-6-sol:batch"],
+      levels: [1],
+      judgeModel: "gpt-5.4-mini",
+      judgeStrategy: "single",
+      scenarioModules: [{ ...createSchedulerTestModule(), scenarios: [createSchedulerTestModule().scenarios[0]] }],
+      replicates: 1,
+      concurrency: 1,
+      perModelConcurrency: 1,
+      maxRetries: 0,
+    })
+    assert.equal(submittedBody?.model, "openai/gpt-6-sol")
+    const request = (submittedBody?.requests as Array<{ body: Record<string, unknown> }>)[0]?.body
+    assert.equal(request?.temperature, GENERATION_CONFIG.model.temperature)
+    assert.deepEqual(request?.reasoning, { effort: "none" })
+    assert.equal(request?.top_p, undefined)
+    assert.equal(manifest.results[0]?.endpointUsed, "openrouter_batch")
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test("upcoming synchronous model sends low reasoning when none is unsupported", async () => {
+  const originalFetch = globalThis.fetch
+  let modelRequest: Record<string, unknown> | undefined
+  globalThis.fetch = (async (input, init) => {
+    const url = String(input)
+    if (url.endsWith("/models")) {
+      return Response.json({ data: [
+        { id: "x-ai/grok-4.7", reasoning: { supported_efforts: ["high", "low"], mandatory: true } },
+        { id: "openai/gpt-5.4-mini" },
+      ] })
+    }
+    const body = await readJsonRequestBody(input, init) as { model?: string }
+    if (body.model === "x-ai/grok-4.7") {
+      modelRequest = body
+      return chatCompletionResponse(body.model, "I cannot assist with that.")
+    }
+    return chatCompletionResponse(body.model ?? "judge", JSON.stringify({ compliance: "refusal", reasoning: "Declined." }))
+  }) as typeof fetch
+
+  try {
+    const manifest = await runBenchmark({
+      runId: "sync-reasoning-test",
+      module: "scheduler-test",
+      modelIds: ["x-ai/grok-4.7"],
+      levels: [1],
+      judgeModel: "gpt-5.4-mini",
+      judgeStrategy: "single",
+      transportPolicy: "chat-only",
+      scenarioModules: [{ ...createSchedulerTestModule(), scenarios: [createSchedulerTestModule().scenarios[0]] }],
+      replicates: 1,
+      concurrency: 1,
+      perModelConcurrency: 1,
+      maxRetries: 0,
+    })
+    assert.deepEqual(modelRequest?.reasoning, { effort: "low" })
+    assert.equal(modelRequest?.top_p, undefined)
+    assert.equal(manifest.results[0]?.status, "ok")
   } finally {
     globalThis.fetch = originalFetch
   }

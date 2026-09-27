@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { parseModelIdentifier } from "./model-selectors"
 import {
+  AVAILABLE_MODELS,
   DEFAULT_JUDGE_MODEL,
   JUDGE_MODEL_OPTIONS,
   PAIR_WITH_TIEBREAK_ARBITER_MODEL,
@@ -10,6 +11,24 @@ import {
   getModelById,
   getModelByModelString,
 } from "./models"
+
+test("upcoming roster contains exactly the requested model slugs", () => {
+  assert.deepEqual(AVAILABLE_MODELS.map((model) => model.modelString), [
+    "anthropic/claude-fable-5.1:batch",
+    "anthropic/claude-opus-5.5:batch",
+    "anthropic/claude-sonnet-5:batch",
+    "openai/gpt-6-astra:batch",
+    "openai/gpt-6-sol:batch",
+    "openai/gpt-6-luna:batch",
+    "x-ai/grok-4.7",
+    "google/gemini-3.8-flash:batch",
+    "meta/muse-spark-1.3",
+    "moonshotai/kimi-k3",
+    "deepseek/deepseek-v4.1-flash",
+    "z-ai/glm-5.3",
+    "qwen/qwen3.8-max-0902",
+  ])
+})
 
 test("getModelById resolves known curated models", () => {
   const model = getModelById("deepseek-v3.2")

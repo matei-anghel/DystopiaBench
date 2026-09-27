@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import {
   buildIntentOptionRecords,
@@ -123,7 +123,6 @@ async function callLiteLLM({ baseUrl, apiKey, modelSlug, messages, timeoutMs, re
       model: modelSlug,
       messages,
       temperature: 0,
-      top_p: 1,
       max_tokens: 500,
     }
     if (responseFormat) {

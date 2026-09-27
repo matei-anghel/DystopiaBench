@@ -6,7 +6,8 @@ export const PAIR_WITH_TIEBREAK_ARBITER_MODEL = "gemini-3.5-flash"
 export const ESTIMATED_PRICING_SOURCE_LABEL = "OpenRouter Models API"
 export const ESTIMATED_PRICING_LAST_SYNC_DATE = "2026-06-13"
 
-export const AVAILABLE_MODELS: ModelConfig[] = [
+// Retained for historical results, pricing lookups, and explicit older run selectors.
+const LEGACY_MODELS: ModelConfig[] = [
   {
     id: "gpt-5.5",
     label: "GPT 5.5",
@@ -409,7 +410,23 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
 ]
 
-const ALL_CURATED_MODELS = [...AVAILABLE_MODELS]
+export const AVAILABLE_MODELS: ModelConfig[] = [
+  { id: "anthropic/claude-fable-5.1:batch", label: "Claude Fable 5.1", provider: "Anthropic", modelString: "anthropic/claude-fable-5.1:batch", weightClass: "closed" },
+  { id: "anthropic/claude-opus-5.5:batch", label: "Claude Opus 5.5", provider: "Anthropic", modelString: "anthropic/claude-opus-5.5:batch", weightClass: "closed" },
+  { id: "anthropic/claude-sonnet-5:batch", label: "Claude Sonnet 5", provider: "Anthropic", modelString: "anthropic/claude-sonnet-5:batch", weightClass: "closed" },
+  { id: "openai/gpt-6-astra:batch", label: "GPT 6 Astra", provider: "OpenAI", modelString: "openai/gpt-6-astra:batch", weightClass: "closed" },
+  { id: "openai/gpt-6-sol:batch", label: "GPT 6 Sol", provider: "OpenAI", modelString: "openai/gpt-6-sol:batch", weightClass: "closed" },
+  { id: "openai/gpt-6-luna:batch", label: "GPT 6 Luna", provider: "OpenAI", modelString: "openai/gpt-6-luna:batch", weightClass: "closed" },
+  { id: "x-ai/grok-4.7", label: "Grok 4.7", provider: "xAI", modelString: "x-ai/grok-4.7", weightClass: "closed" },
+  { id: "google/gemini-3.8-flash:batch", label: "Gemini 3.8 Flash", provider: "Google", modelString: "google/gemini-3.8-flash:batch", weightClass: "closed" },
+  { id: "meta/muse-spark-1.3", label: "Muse Spark 1.3", provider: "Meta", modelString: "meta/muse-spark-1.3", weightClass: "closed" },
+  { id: "moonshotai/kimi-k3", label: "Kimi K3", provider: "Moonshot", modelString: "moonshotai/kimi-k3", weightClass: "open_weight" },
+  { id: "deepseek/deepseek-v4.1-flash", label: "DeepSeek V4.1 Flash", provider: "DeepSeek", modelString: "deepseek/deepseek-v4.1-flash", weightClass: "open_weight" },
+  { id: "z-ai/glm-5.3", label: "GLM 5.3", provider: "Z.ai", modelString: "z-ai/glm-5.3", weightClass: "open_weight" },
+  { id: "qwen/qwen3.8-max-0902", label: "Qwen 3.8 Max 0902", provider: "Alibaba", modelString: "qwen/qwen3.8-max-0902", weightClass: "open_weight" },
+]
+
+export const ALL_CURATED_MODELS = [...AVAILABLE_MODELS, ...LEGACY_MODELS]
 const MODELS_BY_ID = new Map(ALL_CURATED_MODELS.map((model) => [model.id, model]))
 const MODELS_BY_MODEL_STRING = new Map(ALL_CURATED_MODELS.map((model) => [model.modelString, model]))
 

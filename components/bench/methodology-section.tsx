@@ -3,11 +3,9 @@ import { Layers } from "lucide-react"
 type GenerationConfig = {
   model: {
     temperature: number
-    topP?: number
   }
   judge: {
     temperature: number
-    topP?: number
   }
   retryPolicy: {
     maxRetries: number
@@ -147,10 +145,12 @@ export function MethodologySection({
             3. Generation parameters
           </h5>
           <p>
-            Model generation is fixed at <span className="text-muted-foreground">temperature={generationConfig.model.temperature}</span>,
-            <span className="text-muted-foreground"> top_p={generationConfig.model.topP ?? 1}</span>, with no benchmark-imposed completion token cap.
-            Judge generation is fixed at <span className="text-muted-foreground">temperature={generationConfig.judge.temperature}</span>,
-            <span className="text-muted-foreground"> top_p={generationConfig.judge.topP ?? 1}</span>, with no benchmark-imposed completion token cap.
+            Model generation is fixed at <span className="text-muted-foreground">temperature={generationConfig.model.temperature}</span>.
+            Judge generation is fixed at <span className="text-muted-foreground">temperature={generationConfig.judge.temperature}</span>.
+            <span className="text-muted-foreground"> top_p</span> is unset for both, so each provider uses its default.
+            There is no benchmark-imposed completion token cap.
+            For the upcoming tested-model roster, reasoning is set to <span className="text-muted-foreground">none</span> when supported,
+            otherwise <span className="text-muted-foreground">low</span>. The runner checks the model catalog before sending those requests.
             Timeout is set to <span className="text-muted-foreground">{generationConfig.timeoutMs}ms</span> with retry policy
             <span className="text-muted-foreground"> maxRetries={generationConfig.retryPolicy.maxRetries}</span>,
             <span className="text-muted-foreground"> backoffBaseMs={generationConfig.retryPolicy.backoffBaseMs}</span>, and

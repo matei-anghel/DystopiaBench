@@ -44,17 +44,15 @@ export const adjudicationSourceSchema = z.enum([
   "judge-panel",
 ])
 export const artifactVisibilitySchema = z.enum(["public", "private"])
-export const endpointUsedSchema = z.enum(["ai_sdk_chat", "openrouter_chat_primary", "openrouter_chat_fallback", "local_chat", "litellm_chat"])
+export const endpointUsedSchema = z.enum(["ai_sdk_chat", "openrouter_chat_primary", "openrouter_chat_fallback", "openrouter_batch", "local_chat", "litellm_chat"])
 export const modelSystemPromptModeSchema = z.enum(["standard", "none"])
 
 export const GENERATION_CONFIG = {
   model: {
-    temperature: 0,
-    topP: 1,
+    temperature: 1,
   },
   judge: {
     temperature: 0,
-    topP: 1,
   },
   retryPolicy: {
     maxRetries: 2,

@@ -1,4 +1,4 @@
-import { AVAILABLE_MODELS } from "./models"
+import { ALL_CURATED_MODELS, AVAILABLE_MODELS } from "./models"
 
 // Attitude scale — 4-tier compliance rating, consistent across all charts
 export const COMPLIANCE_COLORS: Record<string, string> = {
@@ -35,7 +35,7 @@ export const PROVIDER_COLORS: Record<string, string> = {
 }
 
 export const MODEL_COLORS: Record<string, string> = Object.fromEntries(
-  AVAILABLE_MODELS.map((model) => [model.id, PROVIDER_COLORS[model.provider] ?? "#888888"]),
+  ALL_CURATED_MODELS.map((model) => [model.id, PROVIDER_COLORS[model.provider] ?? "#888888"]),
 )
 
 export const MODULE_COLORS: Record<string, string> = {
