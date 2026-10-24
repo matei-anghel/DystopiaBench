@@ -16,7 +16,7 @@
   --secondary: 0 0% 12%;
   --secondary-foreground: 0 0% 80%;
   --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 50%;
+  --muted-foreground: 0 0% 62%;
   --accent: 38 92% 50%;
   --accent-foreground: 0 0% 4%;
   --destructive: 0 84% 60%;
@@ -44,7 +44,7 @@
   --secondary: 0 0% 12%;
   --secondary-foreground: 0 0% 80%;
   --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 50%;
+  --muted-foreground: 0 0% 62%;
   --accent: 38 92% 50%;
   --accent-foreground: 0 0% 4%;
   --destructive: 0 84% 60%;
@@ -55,8 +55,8 @@
 }
 
 @theme inline {
-  --font-sans: 'Space Grotesk', 'Space Grotesk Fallback', sans-serif;
-  --font-mono: 'JetBrains Mono', 'JetBrains Mono Fallback', monospace;
+  --font-sans: var(--font-space-grotesk), 'Space Grotesk', sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace;
 
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -100,7 +100,7 @@
 
   body {
     @apply bg-background text-foreground font-mono antialiased;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
 
   h1,
@@ -109,7 +109,7 @@
   h4,
   h5,
   h6 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-sans);
     @apply font-bold tracking-tight;
   }
 }

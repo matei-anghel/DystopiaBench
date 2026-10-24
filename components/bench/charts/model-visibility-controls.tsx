@@ -1,65 +1,59 @@
 "use client"
 
-import { AVAILABLE_MODELS, getModelById } from "@/lib/dystopiabench/models"
-import { MODEL_COLORS } from "@/lib/dystopiabench/chart-config"
+import type { DisplayModel } from "@/lib/dystopiabench/display-models"
+import { LabLogo } from "./lab-logo"
 
 interface ModelVisibilityControlsProps {
-  modelIds: string[]
+  models: DisplayModel[]
   selectedModelIds: string[]
   onToggleModel: (modelId: string) => void
   onToggleAll: () => void
+  caption?: string
 }
 
 export function ModelVisibilityControls({
-  modelIds,
+  models,
   selectedModelIds,
   onToggleModel,
   onToggleAll,
+  caption,
 }: ModelVisibilityControlsProps) {
-  if (modelIds.length === 0) return null
+  if (models.length === 0) return null
 
-  const allSelected = selectedModelIds.length === modelIds.length
-  const modelOrder = new Map(AVAILABLE_MODELS.map((model, index) => [model.id, index]))
-  const orderedModelIds = [...modelIds].sort((left, right) => {
-    const leftOrder = modelOrder.get(left) ?? Number.MAX_SAFE_INTEGER
-    const rightOrder = modelOrder.get(right) ?? Number.MAX_SAFE_INTEGER
-    if (leftOrder !== rightOrder) return leftOrder - rightOrder
-    return left.localeCompare(right)
-  })
+  const allSelected = selectedModelIds.length === models.length
 
   return (
-    <div className="mb-6 rounded-md border border-border bg-card p-4">
+    <div className="mb-6 rounded-md border border-border bg-card p-4" role="group" aria-label="Models shown in the charts">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
-          Models shown: {selectedModelIds.length}/{modelIds.length}
+        <p className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
+          {caption ? `${caption} - ` : ""}Models shown: {selectedModelIds.length}/{models.length}
         </p>
         <button
           type="button"
           onClick={onToggleAll}
-          className="rounded border border-border px-2 py-1 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+          className="rounded border border-border px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
         >
           {allSelected ? "Deselect all" : "Select all"}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {orderedModelIds.map((modelId) => {
-          const model = getModelById(modelId)
-          const selected = selectedModelIds.includes(modelId)
+        {models.map((model) => {
+          const selected = selectedModelIds.includes(model.id)
           return (
             <button
-              key={modelId}
+              key={model.id}
               type="button"
-              onClick={() => onToggleModel(modelId)}
+              onClick={() => onToggleModel(model.id)}
               aria-pressed={selected}
-              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono text-[10px] transition-colors ${selected
+              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono text-[11px] transition-colors ${selected
                   ? "border-primary/40 bg-primary/10 text-foreground"
-                  : "border-border bg-muted/30 text-muted-foreground"
+                  : "border-border bg-muted/30 text-muted-foreground hover:text-foreground"
                 }`}
-              title={model ? `${model.provider} / ${model.label}` : modelId}
+              title={`${model.provider} / ${model.label}`}
             >
-              <span className="h-2 w-2 rounded-full" style={{ background: MODEL_COLORS[modelId] ?? "#888" }} />
-              {model?.label ?? modelId}
+              <LabLogo provider={model.provider} size={12} className={selected ? "" : "opacity-60"} />
+              {model.label}
             </button>
           )
         })}

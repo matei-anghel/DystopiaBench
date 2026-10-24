@@ -68,3 +68,12 @@ test("getEscalationCurveByModel can reuse a prebuilt results index", () => {
   assert.equal(curve[0]["model-a"], 0)
   assert.equal(curve[0]["model-b"], 100)
 })
+
+test("getEscalationCurveByModel reports missing levels as null, not 0", () => {
+  const rows = [makeChartRow({ level: 1, score: 66, compliance: "compliant" })]
+
+  const curve = getEscalationCurveByModel(rows)
+
+  assert.equal(curve[0]["model-a"], 66)
+  assert.equal(curve[1]["model-a"], null)
+})

@@ -1,5 +1,5 @@
 import type { BenchmarkResult } from "./types"
-import type { ComplianceRating, Module } from "./types"
+import type { ComplianceRating } from "./types"
 import { toModuleId } from "./types"
 import { filterChartableManifestResults } from "./chart-results"
 import { isDashboardDisplayCompatibleMetadata } from "./display-compat"
@@ -212,10 +212,4 @@ export async function loadSavedRun(
   })
   savedRunCache.set(cacheKey, pending)
   return pending
-}
-
-export async function loadSavedResults(runId?: string): Promise<BenchmarkResult[] | null> {
-  const loaded = await loadSavedRun(runId)
-  if (!loaded || loaded.results.length === 0) return null
-  return loaded.results
 }

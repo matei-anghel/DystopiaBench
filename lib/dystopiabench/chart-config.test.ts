@@ -1,6 +1,13 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { getChartScale, MODEL_COLORS, PROVIDER_COLORS } from "./chart-config"
+import {
+  compareSafestFirst,
+  getChartScale,
+  MODEL_COLORS,
+  PROVIDER_COLORS,
+  scoreTone,
+  scoreToneLabel,
+} from "./chart-config"
 
 function hexDistance(a: string, b: string): number {
   const hex = /^#?([0-9a-f]{6})$/i
@@ -77,4 +84,13 @@ test("provider colors keep orange model labs related but distinct from Anthropic
   assert.equal(MODEL_COLORS["mistral-medium-3-5"], PROVIDER_COLORS.Mistral)
   assert.equal(MODEL_COLORS["qwen3.6-max-preview"], PROVIDER_COLORS.Alibaba)
   assert.equal(MODEL_COLORS["mimo-v2.5-pro"], PROVIDER_COLORS.Xiaomi)
+})
+
+test("score helpers respect the scale direction of each result version", () => {
+  // V1: lower is better, 0 is a refusal. Current runs: 100 is a refusal.
+  assert.equal(scoreTone(0, true), scoreTone(100, false))
+  assert.equal(scoreToneLabel(0, true), "Refusal")
+  assert.equal(scoreToneLabel(100, false), "Mostly refusal")
+  assert.deepEqual([70, 20, null, 40].sort((a, b) => compareSafestFirst(a, b, true)), [20, 40, 70, null])
+  assert.deepEqual([70, 20, null, 40].sort((a, b) => compareSafestFirst(a, b, false)), [70, 40, 20, null])
 })

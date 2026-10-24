@@ -1,4 +1,4 @@
-import type { Module, ComplianceRating, BenchmarkResult } from "./types"
+import type { ComplianceRating, BenchmarkResult } from "./types"
 
 export interface ResultsIndex {
   byModel: Map<string, BenchmarkResult[]>
@@ -73,26 +73,6 @@ function getResultsIndex(results: BenchmarkResult[], index?: ResultsIndex): Resu
   return index ?? createResultsIndex(results)
 }
 
-export function getChartShape(results: BenchmarkResult[]) {
-  const modelIds = new Set<string>()
-  const scenarioIds = new Set<string>()
-  const modules = new Set<Module>()
-
-  for (const result of results) {
-    modelIds.add(result.modelId)
-    scenarioIds.add(result.scenarioId)
-    modules.add(result.module)
-  }
-
-  return {
-    modelCount: modelIds.size,
-    scenarioCount: scenarioIds.size,
-    moduleCount: modules.size,
-    hasSingleModel: modelIds.size === 1,
-    hasMultiModel: modelIds.size > 1,
-  }
-}
-
 export function getAggregateByModel(results: BenchmarkResult[], resultsIndex?: ResultsIndex) {
   const index = getResultsIndex(results, resultsIndex)
 
@@ -116,16 +96,8 @@ export function getAggregateByModel(results: BenchmarkResult[], resultsIndex?: R
 }
 
 /**
- * DRFR = Directed Refusal to Failure Ratio
- * Percentage of test runs that resulted in a Refusal (DCS = 0).
- */
-export function getDRFR(results: BenchmarkResult[]): number {
-  if (results.length === 0) return 0
-  return Math.round((results.reduce((sum, row) => sum + getRowRefusalRate(row), 0) / results.length) * 100)
-}
-
-/**
- * DRFR per model.
+ * DRFR = Directed Refusal Rate: the percentage of scored responses (replicates included) that
+ * were rated Refusal (DCS = 0 on the V1 scale), per model.
  */
 export function getDRFRByModel(results: BenchmarkResult[], resultsIndex?: ResultsIndex) {
   const index = getResultsIndex(results, resultsIndex)
@@ -140,35 +112,18 @@ export function getDRFRByModel(results: BenchmarkResult[], resultsIndex?: Result
     .sort((a, b) => b.drfr - a.drfr)
 }
 
-export function getAggregateByModule(results: BenchmarkResult[]) {
-  const moduleMap = new Map<Module, number[]>()
-  for (const r of results) {
-    const scores = moduleMap.get(r.module)
-    if (scores) {
-      scores.push(r.score)
-    } else {
-      moduleMap.set(r.module, [r.score])
-    }
-  }
-
-  return Array.from(moduleMap.entries()).map(([mod, scores]) => ({
-    module: mod,
-    avgScore: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
-    totalTests: scores.length,
-  }))
-}
-
+// Missing data is null (rendered as a gap), never 0, which would read as a perfect V1 score.
 export function getEscalationCurveByModel(results: BenchmarkResult[], resultsIndex?: ResultsIndex) {
   const index = getResultsIndex(results, resultsIndex)
 
   return [1, 2, 3, 4, 5].map((level) => {
-    const row: Record<string, number | string> = { level: `L${level}` }
+    const row: Record<string, number | string | null> = { level: `L${level}` }
     for (const [modelId, modelRows] of index.byModel) {
       const levelRows = modelRows.filter((candidate) => candidate.level === level)
       row[modelId] =
         levelRows.length > 0
           ? Math.round(levelRows.reduce((sum, candidate) => sum + candidate.score, 0) / levelRows.length)
-          : 0
+          : null
     }
     return row
   })
@@ -183,7 +138,7 @@ export function getEscalationCurve(results: BenchmarkResult[]) {
       avgScore:
         levelRows.length > 0
           ? Math.round(levelRows.reduce((sum, candidate) => sum + candidate.score, 0) / levelRows.length)
-          : 0,
+          : null,
     }
   })
 }
@@ -212,7 +167,7 @@ export function getModelByScenarioHeatmap(results: BenchmarkResult[], resultsInd
 
   return index.scenarioIds.map((scenarioId) => {
     const scenarioRows = index.byScenario.get(scenarioId) ?? []
-    const row: Record<string, number | string> = { scenarioId }
+    const row: Record<string, number | string | null> = { scenarioId }
     row.scenarioTitle = scenarioRows[0]?.scenarioTitle ?? scenarioId
 
     for (const modelId of index.modelIds) {
@@ -220,22 +175,7 @@ export function getModelByScenarioHeatmap(results: BenchmarkResult[], resultsInd
       row[modelId] =
         modelRows.length > 0
           ? Math.round(modelRows.reduce((sum, candidate) => sum + candidate.score, 0) / modelRows.length)
-          : 0
-    }
-    return row
-  })
-}
-
-export function getPerPromptData(results: BenchmarkResult[], scenarioId: string, resultsIndex?: ResultsIndex) {
-  const index = getResultsIndex(results, resultsIndex)
-  const scenarioRows = index.byScenario.get(scenarioId) ?? []
-  const models = [...new Set(scenarioRows.map((result) => result.modelId))]
-
-  return [1, 2, 3, 4, 5].map((level) => {
-    const row: Record<string, number | string> = { level: `Level ${level}` }
-    for (const modelId of models) {
-      row[modelId] =
-        index.byScenarioModelLevel.get(scenarioModelLevelKey(scenarioId, modelId, level))?.score ?? 0
+          : null
     }
     return row
   })

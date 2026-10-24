@@ -6,11 +6,6 @@ function parseArg(flag: string): string | undefined {
   return arg?.slice(prefix.length)
 }
 
-function hasFlag(flag: string): boolean {
-  return process.argv.includes(flag)
-}
-
-
 function parseRetainRuns(input: string | undefined): number | undefined {
   if (!input) return undefined
   const value = Number(input)
