@@ -16,13 +16,22 @@ import {
 } from "recharts"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ALL_MODULES, ALL_SCENARIOS, SCENARIOS_BY_ID } from "@/lib/dystopiabench/scenarios"
-import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
+import { ALL_MODULES, SCENARIOS_BY_ID } from "@/lib/dystopiabench/scenarios"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
 import { createResultsIndex, type ResultsIndex } from "@/lib/dystopiabench/analytics"
-import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS, getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
-import { Radiation, Eye, Building2, HeartPulse, Fingerprint, FlaskConical, FileSearch, MessagesSquare, Boxes } from "lucide-react"
-import { SectionHeader } from "./section-header"
+import {
+  compareSafestFirst,
+  scoreDirectionHint,
+  scoreTone,
+  scoreToneLabel,
+  LEVEL_LABELS,
+  getResponsiveBarChartLayout,
+} from "@/lib/dystopiabench/chart-config"
+import { getModelLineDashes, indexDisplayModels, type DisplayModel } from "@/lib/dystopiabench/display-models"
+import { renderModuleIcon } from "../module-icon"
+import { AXIS_TICK, PICKER_BUTTON_CLASS, pickerButtonState } from "./chart-shared"
+import { ChartSummary, SectionHeader } from "./section-header"
+import { LabLogo, ModelLegend, ModelName } from "./lab-logo"
 
 const TOOLTIP_STYLE = {
   background: "hsl(var(--card))",
@@ -31,18 +40,6 @@ const TOOLTIP_STYLE = {
   fontFamily: "var(--font-mono)",
   fontSize: 11,
   color: "hsl(var(--foreground))",
-}
-
-function renderModuleIcon(module: Module, className: string) {
-  if (module === "petrov") return <Radiation className={className} />
-  if (module === "orwell") return <Eye className={className} />
-  if (module === "laguardia") return <Building2 className={className} />
-  if (module === "basaglia") return <HeartPulse className={className} />
-  if (module === "huxley") return <FlaskConical className={className} />
-  if (module === "kafka") return <FileSearch className={className} />
-  if (module === "pkd") return <Fingerprint className={className} />
-  if (module === "baudrillard") return <MessagesSquare className={className} />
-  return <Boxes className={className} />
 }
 
 function scenarioLevelKey(scenarioId: string, level: number): string {
@@ -55,7 +52,7 @@ function scenarioModelLevelKey(scenarioId: string, modelId: string, level: numbe
 
 const ESCALATION_LEVELS = [1, 2, 3, 4, 5] as const
 
-function buildPromptData(resultsIndex: ResultsIndex, scenarioId: string, models = AVAILABLE_MODELS) {
+function buildPromptData(resultsIndex: ResultsIndex, scenarioId: string, models: DisplayModel[]) {
   const scenario = SCENARIOS_BY_ID.get(scenarioId)
   if (!scenario) return null
   const promptsByLevel = new Map(scenario.escalationPrompts.map((prompt) => [prompt.level, prompt]))
@@ -100,9 +97,10 @@ function buildPromptData(resultsIndex: ResultsIndex, scenarioId: string, models 
   return { scenario, levels, lineData }
 }
 
-function buildGlobalLevelData(resultsIndex: ResultsIndex, models = AVAILABLE_MODELS) {
+function buildGlobalLevelData(resultsIndex: ResultsIndex, models: DisplayModel[]) {
+  const allRows = Array.from(resultsIndex.byScenario.values()).flat()
   return ESCALATION_LEVELS.map((level) => {
-    const rows = Array.from(resultsIndex.byScenario.values()).flat().filter((result) => result.level === level)
+    const rows = allRows.filter((result) => result.level === level)
     const avg = rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : null
 
     const row: Record<string, string | number | null> = {
@@ -132,10 +130,12 @@ function averageScores(scores: Array<number | null | undefined>): number | null 
 function ScoreCell({
   score,
   title,
+  legacyScoring,
   className = "w-24",
 }: {
   score: number | null | undefined
   title: string
+  legacyScoring: boolean
   className?: string
 }) {
   if (score === null || score === undefined) {
@@ -144,18 +144,19 @@ function ScoreCell({
         className={`${className} h-12 flex items-center justify-center rounded-sm bg-muted/30`}
         title={`${title}: no data`}
       >
-        <span className="font-mono text-[10px] text-muted-foreground">-</span>
+        <span className="font-mono text-[11px] text-muted-foreground">-</span>
       </div>
     )
   }
 
+  const tone = scoreTone(score, legacyScoring)
   return (
     <div
       className={`${className} h-12 flex items-center justify-center rounded-sm`}
-      style={{ background: `${scoreColor(score)}28` }}
+      style={{ background: `${tone}28` }}
       title={`${title}: ${score}`}
     >
-      <span className="font-mono text-[10px] font-bold" style={{ color: scoreColor(score) }}>
+      <span className="font-mono text-[11px] font-bold" style={{ color: tone }}>
         {score}
       </span>
     </div>
@@ -165,9 +166,11 @@ function ScoreCell({
 function LevelModelGrid({
   data,
   models,
+  legacyScoring,
 }: {
   data: Array<Record<string, string | number | null>>
-  models: typeof AVAILABLE_MODELS
+  models: DisplayModel[]
+  legacyScoring: boolean
 }) {
   const modelRows = models.map((model) => {
     const levelScores = data.map((row) => ({
@@ -188,7 +191,7 @@ function LevelModelGrid({
     <Card className="bg-card border-border p-3 overflow-x-auto subtle-x-scrollbar">
       <SectionHeader
         label="Compliance Score Grid — Level × Model"
-        sub="Avg Dystopian Compliance Score (DCS) at each escalation level per model. Color = compliance tier (Lower is better)"
+        sub={`Avg Dystopian Compliance Score (DCS) at each level per model. Colour = compliance tier (${scoreDirectionHint(legacyScoring)})`}
       />
       <div className="min-w-max">
         <div className="flex items-end gap-px mb-1">
@@ -198,13 +201,13 @@ function LevelModelGrid({
               <span className="font-mono text-[10px] font-bold text-foreground">
                 {row.label as string}
               </span>
-              <span className="font-mono text-[8px] text-muted-foreground leading-tight">
+              <span className="font-mono text-[10px] text-muted-foreground leading-tight">
                 {row.levelName as string}
               </span>
             </div>
           ))}
           <div className="w-16 h-12 flex items-center justify-center pb-2">
-            <span className="font-mono text-[8px] text-muted-foreground uppercase font-bold">
+            <span className="font-mono text-[10px] text-muted-foreground uppercase font-bold">
               AVG
             </span>
           </div>
@@ -212,38 +215,37 @@ function LevelModelGrid({
 
         {modelRows.map((row) => (
           <div key={row.model.id} className="flex items-center gap-px mb-px">
-            <div className="w-48 shrink-0 pr-3 flex items-center justify-end gap-2 text-right">
-              <div
-                className="h-2 w-2 rounded-full shrink-0"
-                style={{ background: MODEL_COLORS[row.model.id] ?? "hsl(var(--muted-foreground))" }}
+            <div className="w-48 shrink-0 pr-3 flex items-center justify-end text-right">
+              <ModelName
+                model={row.model}
+                labelClassName="font-mono text-[10px] text-muted-foreground uppercase leading-tight"
               />
-              <span className="font-mono text-[9px] text-muted-foreground uppercase leading-tight">
-                {row.model.label}
-              </span>
             </div>
             {row.levelScores.map((levelScore) => (
               <ScoreCell
                 key={levelScore.label}
                 score={levelScore.score}
                 title={`${row.model.label} / ${levelScore.label}`}
+                legacyScoring={legacyScoring}
               />
             ))}
-            <ScoreCell score={row.avg} title={`${row.model.label} average`} className="w-16" />
+            <ScoreCell score={row.avg} title={`${row.model.label} average`} className="w-16" legacyScoring={legacyScoring} />
           </div>
         ))}
 
         <div className="flex items-center gap-px mt-1 border-t border-border pt-1">
           <div className="w-48 shrink-0 pr-3 text-right">
-            <span className="font-mono text-[9px] text-muted-foreground uppercase">Avg</span>
+            <span className="font-mono text-[10px] text-muted-foreground uppercase">Avg</span>
           </div>
           {data.map((row) => (
             <ScoreCell
               key={row.label as string}
               score={row.avg as number | null}
               title={`${row.label as string} average`}
+              legacyScoring={legacyScoring}
             />
           ))}
-          <ScoreCell score={grandAverage} title="Grand average" className="w-16" />
+          <ScoreCell score={grandAverage} title="Grand average" className="w-16" legacyScoring={legacyScoring} />
         </div>
       </div>
     </Card>
@@ -253,9 +255,11 @@ function LevelModelGrid({
 function GlobalLevelBar({
   data,
   viewMode,
+  legacyScoring,
 }: {
   data: Array<Record<string, string | number | null>>
   viewMode: "stateful" | "stateless"
+  legacyScoring: boolean
 }) {
   const levelLabel = viewMode === "stateless" ? "Prompt Level" : "Escalation Level"
   const levelSub =
@@ -268,7 +272,7 @@ function GlobalLevelBar({
     <Card className="bg-card border-border p-5">
       <SectionHeader
         label={`Avg Compliance Score by ${levelLabel} — All Scenarios`}
-        sub={`${levelSub} (Lower is better)`}
+        sub={`${levelSub} (${scoreDirectionHint(legacyScoring)})`}
       />
       <ResponsiveContainer width="100%" height={200}>
         <BarChart
@@ -278,19 +282,8 @@ function GlobalLevelBar({
           barCategoryGap={barLayout.barCategoryGap}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis
-            dataKey="label"
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            tickLine={false}
-          />
-          <YAxis
-            domain={[0, 100]}
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-            axisLine={false}
-            tickLine={false}
-            width={28}
-          />
+          <XAxis dataKey="label" tick={AXIS_TICK} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
+          <YAxis domain={[0, 100]} tick={AXIS_TICK} axisLine={false} tickLine={false} width={28} />
           <Tooltip
             cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
             content={({ active, payload }) => {
@@ -300,20 +293,23 @@ function GlobalLevelBar({
               return (
                 <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
                   <p className="font-mono text-xs font-bold text-foreground">{d.label} – {d.levelName}</p>
-                  <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
-                    {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                  <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(d.avg, legacyScoring) }}>
+                    {d.avg} <span className="text-[11px] font-normal">{scoreToneLabel(d.avg, legacyScoring)}</span>
                   </p>
                 </div>
               )
             }}
           />
-          <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={barLayout.maxBarSize}>
+          <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={barLayout.maxBarSize} isAnimationActive={false}>
             {data.map((entry) => (
-              <Cell key={entry.label as string} fill={scoreColor(entry.avg as number)} />
+              <Cell key={entry.label as string} fill={scoreTone(entry.avg as number | null, legacyScoring)} />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      <ChartSummary>
+        {data.map((entry) => `${entry.label as string} ${entry.avg ?? "no data"}`).join(", ")}
+      </ChartSummary>
     </Card>
   )
 }
@@ -322,21 +318,31 @@ function ScenarioPromptDrillDown({
   resultsIndex,
   models,
   viewMode,
+  legacyScoring,
 }: {
   resultsIndex: ResultsIndex
-  models: typeof AVAILABLE_MODELS
+  models: DisplayModel[]
   viewMode: "stateful" | "stateless"
+  legacyScoring: boolean
 }) {
-  const [selectedId, setSelectedId] = useState<string>(ALL_SCENARIOS[0].id)
-  const data = useMemo(() => buildPromptData(resultsIndex, selectedId, models), [models, resultsIndex, selectedId])
+  // Only offer scenarios that have results (the no-escalation ablation covers a subset).
   const scenarioGroups = useMemo(
     () =>
       ALL_MODULES.map((scenarioModule) => ({
         module: scenarioModule,
-        scenarios: scenarioModule.scenarios,
+        scenarios: scenarioModule.scenarios.filter((scenario) => resultsIndex.byScenario.has(scenario.id)),
       })).filter((group) => group.scenarios.length > 0),
-    [],
+    [resultsIndex],
   )
+  const firstScenarioId = scenarioGroups[0]?.scenarios[0]?.id
+  const [requestedId, setSelectedId] = useState<string | undefined>(undefined)
+  const selectedId = requestedId && resultsIndex.byScenario.has(requestedId) ? requestedId : firstScenarioId
+  const data = useMemo(
+    () => (selectedId ? buildPromptData(resultsIndex, selectedId, models) : null),
+    [models, resultsIndex, selectedId],
+  )
+  const dashes = useMemo(() => getModelLineDashes(models), [models])
+  const modelsById = useMemo(() => indexDisplayModels(models), [models])
 
   if (!data) return null
   const { scenario, levels, lineData } = data
@@ -346,23 +352,21 @@ function ScenarioPromptDrillDown({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-4">
-        <div>
-          <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2">
+        <div role="group" aria-labelledby={`prompt-module-picker-${viewMode}`}>
+          <p id={`prompt-module-picker-${viewMode}`} className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase mb-2">
             Select Module
           </p>
           <div className="flex flex-wrap gap-2">
             {scenarioGroups.map((group) => (
               <button
                 key={group.module.id}
+                type="button"
+                aria-pressed={scenario.module === group.module.id}
                 onClick={() => {
                   const firstScenario = group.scenarios[0]
                   if (firstScenario) setSelectedId(firstScenario.id)
                 }}
-                className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
-                  scenario.module === group.module.id
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-                }`}
+                className={`${PICKER_BUTTON_CLASS} ${pickerButtonState(scenario.module === group.module.id)}`}
               >
                 {renderModuleIcon(group.module.id, "h-3 w-3")}
                 {group.module.id}
@@ -371,21 +375,19 @@ function ScenarioPromptDrillDown({
           </div>
         </div>
         {selectedModuleGroup ? (
-          <div>
-            <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2">
+          <div role="group" aria-labelledby={`prompt-scenario-picker-${viewMode}`}>
+            <p id={`prompt-scenario-picker-${viewMode}`} className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase mb-2">
               Select Scenario
             </p>
             <div className="flex flex-wrap gap-2">
               {selectedModuleGroup.scenarios.map((item) => (
                 <button
                   key={item.id}
+                  type="button"
+                  aria-pressed={selectedId === item.id}
                   onClick={() => setSelectedId(item.id)}
                   title={item.title}
-                  className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
-                    selectedId === item.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={`${PICKER_BUTTON_CLASS} ${pickerButtonState(selectedId === item.id)}`}
                 >
                   {renderModuleIcon(item.module, "h-3 w-3")}
                   {item.id}
@@ -401,12 +403,12 @@ function ScenarioPromptDrillDown({
           {renderModuleIcon(scenario.module, "h-5 w-5 mt-0.5 text-muted-foreground shrink-0")}
           <div>
             <h3 className="font-mono text-sm font-bold text-foreground">{scenario.title}</h3>
-            <p className="font-mono text-[10px] text-muted-foreground mt-1">{scenario.description}</p>
+            <p className="font-mono text-[11px] text-muted-foreground mt-1">{scenario.description}</p>
             <div className="flex items-center gap-2 mt-2">
-              <Badge variant="outline" className="font-mono text-[9px] uppercase">
+              <Badge variant="outline" className="font-mono text-[10px] uppercase">
                 {scenario.category}
               </Badge>
-              <Badge variant="outline" className="font-mono text-[9px] uppercase">
+              <Badge variant="outline" className="font-mono text-[10px] uppercase">
                 {scenario.module} module
               </Badge>
             </div>
@@ -416,28 +418,17 @@ function ScenarioPromptDrillDown({
 
       <Card className="bg-card border-border p-5">
         <SectionHeader
-          label={viewMode === "stateless" ? "Per-Prompt (No Escalation) — Selected Models" : "Per-Prompt Escalation — Selected Models"}
+          label={viewMode === "stateless" ? "Per-Prompt (No Escalation) - Selected Models" : "Per-Prompt Escalation - Selected Models"}
           sub={viewMode === "stateless"
-            ? "Each model's Dystopian Compliance Score (DCS) at each prompt level for this scenario with fresh context (Lower is better)"
-            : "Each model's Dystopian Compliance Score (DCS) at each of the 5 escalation levels for this scenario (Lower is better)"}
+            ? `Each model's Dystopian Compliance Score (DCS) at each prompt level for this scenario with fresh context (${scoreDirectionHint(legacyScoring)})`
+            : `Each model's Dystopian Compliance Score (DCS) at each of the 5 escalation levels for this scenario (${scoreDirectionHint(legacyScoring)})`}
         />
-        <div className="h-[220px] md:h-[320px]">
+        <div className="h-[240px] md:h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={lineData} margin={{ left: 0, right: 12, top: 8, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                axisLine={{ stroke: "hsl(var(--border))" }}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                axisLine={false}
-                tickLine={false}
-                width={28}
-              />
+              <XAxis dataKey="label" tick={AXIS_TICK} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={AXIS_TICK} axisLine={false} tickLine={false} width={28} />
               <ReferenceLine
                 y={50}
                 stroke="hsl(var(--border))"
@@ -446,17 +437,17 @@ function ScenarioPromptDrillDown({
                   value: "threshold",
                   position: "right",
                   style: {
-                    fontSize: 9,
+                    fontSize: 10,
                     fontFamily: "var(--font-mono)",
                     fill: "hsl(var(--muted-foreground))",
                   },
                 }}
               />
               <Tooltip
-                formatter={(val: number, name: string) => [`${val} (${scoreLabel(val)})`, `${name} DCS`]}
+                formatter={(val: number, name: string) => [`${val ?? "-"} (${scoreToneLabel(val, legacyScoring)})`, `${name} DCS`]}
                 labelFormatter={(label) => {
                   const levelNum = parseInt(String(label).replace("L", ""), 10)
-                  return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
+                  return `${label} - ${LEVEL_LABELS[levelNum] ?? label}`
                 }}
                 contentStyle={TOOLTIP_STYLE}
               />
@@ -465,12 +456,13 @@ function ScenarioPromptDrillDown({
                   key={model.id}
                   type="linear"
                   dataKey={model.id}
-                  stroke={MODEL_COLORS[model.id] ?? "#888"}
+                  stroke={model.color}
                   strokeWidth={2}
-                  dot={{ r: 3.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
+                  strokeDasharray={dashes.get(model.id)}
+                  dot={{ r: 3.5, fill: model.color, strokeWidth: 0 }}
                   activeDot={{ r: 5 }}
                   name={model.label}
-                  connectNulls
+                  isAnimationActive={false}
                 />
               ))}
               <Line
@@ -481,10 +473,12 @@ function ScenarioPromptDrillDown({
                 strokeDasharray="4 2"
                 dot={false}
                 name="Average"
+                isAnimationActive={false}
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
+        <ModelLegend models={models} dashes={dashes} />
       </Card>
 
       <div className="grid gap-4 md:grid-cols-5">
@@ -492,69 +486,66 @@ function ScenarioPromptDrillDown({
           <Card key={levelEntry.level} className="bg-card border-border p-4">
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1">
-                <span className="font-mono text-[10px] font-bold text-foreground">
+                <span className="font-mono text-[11px] font-bold text-foreground">
                   L{levelEntry.level}
                 </span>
-                <span className="font-mono text-[9px] text-muted-foreground">
+                <span className="font-mono text-[10px] text-muted-foreground">
                   {levelEntry.levelName}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 {levelEntry.levelAvg !== null ? (
                   <>
-                    <span className="font-mono text-xl font-black" style={{ color: scoreColor(levelEntry.levelAvg) }}>
+                    <span className="font-mono text-xl font-black" style={{ color: scoreTone(levelEntry.levelAvg, legacyScoring) }}>
                       {levelEntry.levelAvg}
                     </span>
-                    <span className="font-mono text-[9px]" style={{ color: scoreColor(levelEntry.levelAvg) }}>
-                      {scoreLabel(levelEntry.levelAvg)}
+                    <span className="font-mono text-[10px]" style={{ color: scoreTone(levelEntry.levelAvg, legacyScoring) }}>
+                      {scoreToneLabel(levelEntry.levelAvg, legacyScoring)}
                     </span>
                   </>
                 ) : (
                   <>
                     <span className="font-mono text-xl font-black text-muted-foreground">-</span>
-                    <span className="font-mono text-[9px] text-muted-foreground">no data</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">no data</span>
                   </>
                 )}
               </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              {[...levelEntry.modelScores].sort((a, b) => (a.score ?? -1) - (b.score ?? -1)).map((modelScore) => (
-                <div key={modelScore.modelId} className="flex flex-col gap-0.5">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1 min-w-0">
-                      <div
-                        className="h-1.5 w-1.5 rounded-full shrink-0"
-                        style={{ background: MODEL_COLORS[modelScore.modelId] }}
-                      />
-                      <span
-                        className="font-mono text-[8px] truncate"
-                        style={{ color: MODEL_COLORS[modelScore.modelId] ?? "hsl(var(--muted-foreground))" }}
-                      >
-                        {modelScore.label}
-                      </span>
+              {[...levelEntry.modelScores]
+                .sort((a, b) => compareSafestFirst(a.score, b.score, legacyScoring))
+                .map((modelScore) => {
+                  const model = modelsById.get(modelScore.modelId)
+                  return (
+                    <div key={modelScore.modelId} className="flex flex-col gap-0.5">
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1 min-w-0">
+                          <LabLogo provider={model?.provider} size={11} />
+                          <span className="font-mono text-[10px] text-muted-foreground truncate">
+                            {modelScore.label}
+                          </span>
+                        </div>
+                        <span className="font-mono text-[10px] shrink-0" style={{ color: scoreTone(modelScore.score, legacyScoring) }}>
+                          {modelScore.score ?? "-"}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        {modelScore.score !== null ? (
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${modelScore.score}%`, background: scoreTone(modelScore.score, legacyScoring) }}
+                          />
+                        ) : null}
+                      </div>
                     </div>
-                    <span className="font-mono text-[9px] shrink-0" style={{ color: modelScore.score !== null ? scoreColor(modelScore.score) : "hsl(var(--muted-foreground))" }}>
-                      {modelScore.score ?? "–"}
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    {modelScore.score !== null ? (
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${modelScore.score}%`, background: scoreColor(modelScore.score) }}
-                      />
-                    ) : (
-                      <div className="h-full rounded-full bg-muted/30" />
-                    )}
-                  </div>
-                </div>
-              ))}
+                  )
+                })}
             </div>
 
             {levelEntry.prompt ? (
               <div className="mt-3 pt-2 border-t border-border">
-                <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
+                <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
                   {levelEntry.prompt.prompt}
                 </p>
               </div>
@@ -568,38 +559,36 @@ function ScenarioPromptDrillDown({
 
 export function PromptCharts({
   results,
-  selectedModelIds,
+  models,
+  legacyScoring,
   viewMode = "stateful",
 }: {
   results: BenchmarkResult[]
-  selectedModelIds?: string[]
+  models: DisplayModel[]
+  legacyScoring: boolean
   viewMode?: "stateful" | "stateless"
 }) {
   const resultsIndex = useMemo(() => createResultsIndex(results), [results])
   const activeModels = useMemo(
-    () =>
-      AVAILABLE_MODELS.filter((model) =>
-        selectedModelIds
-          ? selectedModelIds.includes(model.id)
-          : results.some((row) => row.modelId === model.id),
-      ),
-    [results, selectedModelIds],
+    () => models.filter((model) => resultsIndex.byModel.has(model.id)),
+    [models, resultsIndex],
   )
   const globalData = useMemo(() => buildGlobalLevelData(resultsIndex, activeModels), [activeModels, resultsIndex])
   const promptSectionTitle = viewMode === "stateless" ? "Per-Scenario Prompt Drill Down (No Escalation)" : "Per-Scenario Prompt Drill Down (Escalation)"
 
   return (
     <div className="flex flex-col gap-6">
-      <GlobalLevelBar data={globalData} viewMode={viewMode} />
-      <LevelModelGrid data={globalData} models={activeModels} />
+      <GlobalLevelBar data={globalData} viewMode={viewMode} legacyScoring={legacyScoring} />
+      <LevelModelGrid data={globalData} models={activeModels} legacyScoring={legacyScoring} />
       <div className="border-t border-border pt-6">
-        <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase mb-5">
+        <h3 className="font-mono text-xs font-bold tracking-wider text-foreground uppercase mb-5">
           {promptSectionTitle}
-        </p>
+        </h3>
         <ScenarioPromptDrillDown
           resultsIndex={resultsIndex}
           models={activeModels}
           viewMode={viewMode}
+          legacyScoring={legacyScoring}
         />
       </div>
     </div>

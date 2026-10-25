@@ -6,11 +6,6 @@ function parseArg(flag: string): string | undefined {
   return arg?.slice(prefix.length)
 }
 
-function hasFlag(flag: string): boolean {
-  return process.argv.includes(flag)
-}
-
-
 function parseRetainRuns(input: string | undefined): number | undefined {
   if (!input) return undefined
   const value = Number(input)
@@ -46,7 +41,7 @@ function main() {
   const archiveDir = parseArchiveDir(parseArg("--archive-dir"))
   const manifest = readRunManifest(runId)
   publishLatest(manifest, { retainRuns, archiveDir })
-  console.log(`Published run ${runId} to public/data/benchmark-results.json`)
+  console.log(`Published run ${runId}`)
   const mode = manifest.metadata.conversationMode === "stateless" ? "stateless" : "stateful"
   console.log(`Updated mode latest: public/data/benchmark-results-${mode}.json`)
   if (retainRuns !== undefined) {

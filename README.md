@@ -355,7 +355,6 @@ console.log(catalog.benchmarkBundleId)
 Public-safe run files are stored in `public/data`:
 
 - `benchmark-<run-id>.json`: immutable manifest for one run
-- `benchmark-results.json`: currently published latest run
 - `benchmark-results-stateful.json`: latest published run with `conversationMode=stateful`
 - `benchmark-results-stateless.json`: latest published run with `conversationMode=stateless`
 - `runs.json`: index of published runs (for UI run selector)

@@ -120,7 +120,7 @@ test("writeRunManifest and publishLatest persist manifests without leaving temp 
 
     const dataDir = join(tempRoot, "public", "data")
     assert.equal(existsSync(join(dataDir, "benchmark-run-a.json")), true)
-    assert.equal(existsSync(join(dataDir, "benchmark-results.json")), true)
+    assert.equal(existsSync(join(dataDir, "benchmark-results.json")), false)
     assert.equal(existsSync(join(dataDir, "benchmark-results-stateful.json")), true)
     assert.equal(existsSync(join(dataDir, "benchmark-results-stateful.chart.json")), true)
     assert.equal(existsSync(join(dataDir, "runs.json")), true)
@@ -174,13 +174,15 @@ test("publishLatest updates the latest aliases and run index atomically across m
     publishLatest(secondManifest)
 
     const dataDir = join(tempRoot, "public", "data")
-    const latestManifest = JSON.parse(readFileSync(join(dataDir, "benchmark-results.json"), "utf-8")) as RunManifestV2
+    const statefulLatest = JSON.parse(
+      readFileSync(join(dataDir, "benchmark-results-stateful.json"), "utf-8")
+    ) as RunManifestV2
     const statelessLatest = JSON.parse(
       readFileSync(join(dataDir, "benchmark-results-stateless.json"), "utf-8")
     ) as RunManifestV2
     const runsIndex = JSON.parse(readFileSync(join(dataDir, "runs.json"), "utf-8")) as Array<{ id: string }>
 
-    assert.equal(latestManifest.runId, "run-b")
+    assert.equal(statefulLatest.runId, "run-a")
     assert.equal(statelessLatest.runId, "run-b")
     assert.equal(existsSync(join(dataDir, "benchmark-results-stateful.chart.json")), true)
     assert.equal(existsSync(join(dataDir, "benchmark-results-stateless.chart.json")), true)
@@ -215,7 +217,7 @@ test("publishLatest blocks private artifact runs", () => {
 
     writeRunManifest(manifest)
     assert.throws(() => publishLatest(manifest), /Refusing to publish private artifact/)
-    assert.equal(existsSync(join(tempRoot, "public", "data", "benchmark-results.json")), false)
+    assert.equal(existsSync(join(tempRoot, "public", "data", "benchmark-results-stateful.json")), false)
     assert.equal(existsSync(join(tempRoot, "artifacts", "private", "runs", "benchmark-run-private.json")), true)
   } finally {
     process.chdir(originalCwd)

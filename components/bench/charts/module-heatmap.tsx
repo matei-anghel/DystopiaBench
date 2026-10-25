@@ -1,10 +1,11 @@
 "use client"
 
 import { Fragment, useEffect, useMemo, useState } from "react"
-import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
-import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import { COMPLIANCE_COLORS } from "@/lib/dystopiabench/chart-config"
+import type { BenchmarkResult, ComplianceRating, Module } from "@/lib/dystopiabench/types"
+import { COMPLIANCE_COLORS, COMPLIANCE_NAMES } from "@/lib/dystopiabench/chart-config"
+import type { DisplayModel } from "@/lib/dystopiabench/display-models"
 import { getModuleById } from "@/lib/dystopiabench/scenarios"
+import { LabLogo } from "./lab-logo"
 
 const LEVELS = [1, 2, 3, 4, 5] as const
 
@@ -13,9 +14,11 @@ const LEVELS = [1, 2, 3, 4, 5] as const
  * Falls back to a dim grey when no data is present.
  */
 function cellColor(compliance: string | null): string {
-  if (!compliance) return "#2a2a2a"
-  return COMPLIANCE_COLORS[compliance] ?? "#444"
+  if (!compliance) return "hsl(var(--muted))"
+  return COMPLIANCE_COLORS[compliance] ?? "hsl(var(--muted-foreground))"
 }
+
+const TIER_ORDER: ComplianceRating[] = ["refusal", "hesitant", "compliant", "proactive"]
 
 function getResponsiveHeatmapLayout(modelCount: number, narrow: boolean) {
   if (narrow) {
@@ -156,7 +159,7 @@ function getResponsiveHeatmapLayout(modelCount: number, narrow: boolean) {
 interface ModuleLevelHeatmapProps {
   module: Module
   results: BenchmarkResult[]
-  selectedModelIds?: string[]
+  models: DisplayModel[]
 }
 
 interface HeatmapCellValue {
@@ -181,21 +184,15 @@ function useNarrowHeatmapViewport() {
 export function ModuleLevelHeatmap({
   module,
   results,
-  selectedModelIds,
+  models: activeModels,
 }: ModuleLevelHeatmapProps) {
   const narrowViewport = useNarrowHeatmapViewport()
   const scenarioModule = getModuleById(module)
-  const moduleResults = results.filter((r) => r.module === module)
-
-  const activeModels = useMemo(
-    () =>
-      AVAILABLE_MODELS.filter((m) =>
-        selectedModelIds
-          ? selectedModelIds.includes(m.id)
-          : moduleResults.some((r) => r.modelId === m.id),
-      ),
-    [moduleResults, selectedModelIds],
-  )
+  const moduleResults = useMemo(() => results.filter((r) => r.module === module), [module, results])
+  const presentTiers = useMemo(() => {
+    const present = new Set(moduleResults.map((r) => r.compliance))
+    return TIER_ORDER.filter((tier) => present.has(tier))
+  }, [moduleResults])
 
   const scenarios = scenarioModule?.scenarios ?? []
 
@@ -285,19 +282,25 @@ export function ModuleLevelHeatmap({
             }}
           >
             <span
+              title={`${model.provider} / ${model.label}`}
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: layout.modelFontSize,
-                color: "#888",
+                color: "hsl(var(--muted-foreground))",
                 letterSpacing: "0.04em",
                 whiteSpace: "nowrap",
                 transformOrigin: "center bottom",
                 transform: "rotate(-46deg)",
-                display: "inline-block",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
                 lineHeight: 1,
               }}
             >
-              {model.id}
+              {model.label}
+            </span>
+            <span style={{ position: "absolute", bottom: 4, left: "50%", transform: "translateX(-50%)", display: "flex" }}>
+              <LabLogo provider={model.provider} size={14} />
             </span>
           </div>
         ))}
@@ -321,7 +324,7 @@ export function ModuleLevelHeatmap({
                   fontFamily: "var(--font-mono)",
                   fontSize: layout.scenarioIdSize,
                   fontWeight: 700,
-                  color: "#c8c8c8",
+                  color: "hsl(var(--foreground))",
                   margin: 0,
                   lineHeight: 1.2,
                   letterSpacing: "0.02em",
@@ -334,7 +337,7 @@ export function ModuleLevelHeatmap({
                   style={{
                     fontFamily: "var(--font-mono)",
                     fontSize: layout.scenarioTitleSize,
-                    color: "#555",
+                    color: "hsl(var(--muted-foreground))",
                     margin: "4px 0 0",
                     lineHeight: 1.35,
                     maxWidth: "100%",
@@ -373,7 +376,7 @@ export function ModuleLevelHeatmap({
                     return (
                       <div
                         key={level}
-                        title={`${scenario.id} | ${model.id} | L${level}: ${compliance ?? "no data"}${cell ? ` | score ${cell.score}` : ""}`}
+                        title={`${scenario.id} | ${model.label} | L${level}: ${compliance ?? "no data"}${cell ? ` | score ${cell.score}` : ""}`}
                         style={{
                           width: "100%",
                           height: layout.segmentHeight,
@@ -395,35 +398,28 @@ export function ModuleLevelHeatmap({
             display: "flex",
             gap: layout.legendGap,
             marginTop: 16,
-            borderTop: "1px solid #222",
+            borderTop: "1px solid hsl(var(--border))",
             paddingTop: 12,
             flexWrap: "wrap",
             gridColumn: `1 / span ${Math.max(activeModels.length + 1, 2)}`,
           }}
         >
-          {(
-            [
-              { key: "refusal", label: "Refusal" },
-              { key: "hesitant", label: "Hesitant" },
-              { key: "compliant", label: "Compliant" },
-              { key: "proactive", label: "Proactive" },
-            ] as const
-          ).map(({ key, label }) => (
+          {[...presentTiers.map((key) => ({ key: key as string, label: COMPLIANCE_NAMES[key] })), { key: "none", label: "No data" }].map(({ key, label }) => (
             <div key={key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <div
                 style={{
                   width: 12,
                   height: 12,
                   borderRadius: 2,
-                  background: COMPLIANCE_COLORS[key],
+                  background: cellColor(key === "none" ? null : key),
                   flexShrink: 0,
                 }}
               />
               <span
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: 10,
-                  color: "#aaa",
+                  fontSize: 11,
+                  color: "hsl(var(--muted-foreground))",
                 }}
               >
                 {label}

@@ -6,7 +6,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://vitals.vercel-insights.com https://va.vercel-scripts.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://vitals.vercel-insights.com https://va.vercel-scripts.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
         },
         {
           "key": "Strict-Transport-Security",
@@ -58,15 +58,6 @@
       ]
     },
     {
-      "source": "/data/benchmark-results.json",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=60, stale-while-revalidate=300"
-        }
-      ]
-    },
-    {
       "source": "/data/benchmark-results-stateful.json",
       "headers": [
         {
@@ -103,20 +94,11 @@
       ]
     },
     {
-      "source": "/data/legacy-results-stateful.chart.json",
+      "source": "/data/legacy-results-:mode(stateful|stateless).chart.json",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/data/legacy-results-stateless.chart.json",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "value": "public, max-age=3600, stale-while-revalidate=86400"
         }
       ]
     },

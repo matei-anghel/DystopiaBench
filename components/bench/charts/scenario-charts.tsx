@@ -16,12 +16,25 @@ import {
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ALL_MODULES, ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
-import { AVAILABLE_MODELS } from "@/lib/dystopiabench/models"
-import type { BenchmarkResult, Module } from "@/lib/dystopiabench/types"
-import { MODEL_COLORS, scoreColor, scoreLabel, LEVEL_LABELS, getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
+import type { BenchmarkResult } from "@/lib/dystopiabench/types"
+import {
+  compareSafestFirst,
+  scoreDirectionHint,
+  scoreTone,
+  scoreToneLabel,
+  LEVEL_LABELS,
+  getResponsiveBarChartLayout,
+} from "@/lib/dystopiabench/chart-config"
 import { createResultsIndex, type ResultsIndex } from "@/lib/dystopiabench/analytics"
-import { Radiation, Eye, Building2, HeartPulse, Fingerprint, FlaskConical, FileSearch, MessagesSquare, Boxes } from "lucide-react"
-import { SectionHeader } from "./section-header"
+import {
+  getModelLineDashes,
+  indexDisplayModels,
+  type DisplayModel,
+} from "@/lib/dystopiabench/display-models"
+import { renderModuleIcon } from "../module-icon"
+import { AXIS_TICK, PICKER_BUTTON_CLASS, averageOf, pickerButtonState } from "./chart-shared"
+import { ChartSummary, SectionHeader } from "./section-header"
+import { LabLogo, ModelBarXAxisTick, ModelLegend, getModelAxisBottomMargin } from "./lab-logo"
 
 const TOOLTIP_STYLE = {
   background: "hsl(var(--card))",
@@ -80,7 +93,7 @@ function WrappedYAxisTick({
   y = 0,
   payload,
   fontSize,
-  lineHeight = 11,
+  lineHeight = 12,
 }: {
   x?: number
   y?: number
@@ -111,47 +124,24 @@ function WrappedYAxisTick({
   )
 }
 
-export function renderModuleIcon(module: Module, className: string) {
-  if (module === "petrov") return <Radiation className={className} />
-  if (module === "orwell") return <Eye className={className} />
-  if (module === "laguardia") return <Building2 className={className} />
-  if (module === "basaglia") return <HeartPulse className={className} />
-  if (module === "huxley") return <FlaskConical className={className} />
-  if (module === "kafka") return <FileSearch className={className} />
-  if (module === "pkd") return <Fingerprint className={className} />
-  if (module === "baudrillard") return <MessagesSquare className={className} />
-  return <Boxes className={className} />
-}
-
-function buildScenarioData(resultsIndex: ResultsIndex, models = AVAILABLE_MODELS) {
+function buildScenarioData(resultsIndex: ResultsIndex, models: DisplayModel[], legacyScoring: boolean) {
   return ALL_SCENARIOS.map((scenario) => {
     const rows = resultsIndex.byScenario.get(scenario.id) ?? []
-    const avgAll = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length) : 0
 
-    const levelAvgs = [1, 2, 3, 4, 5].map((level) => {
-      const levelRows = resultsIndex.byScenarioLevel.get(scenarioLevelKey(scenario.id, level)) ?? []
-      return {
-        level,
-        label: `L${level}`,
-        levelName: LEVEL_LABELS[level],
-        avg:
-          levelRows.length > 0
-            ? Math.round(levelRows.reduce((s, r) => s + r.score, 0) / levelRows.length)
-            : 0,
-      }
-    })
+    const levelAvgs = [1, 2, 3, 4, 5].map((level) => ({
+      level,
+      label: `L${level}`,
+      levelName: LEVEL_LABELS[level],
+      avg: averageOf(resultsIndex.byScenarioLevel.get(scenarioLevelKey(scenario.id, level)) ?? []),
+    }))
 
-    const modelAvgs = models.map((model) => {
-      const modelRows = rows.filter((r) => r.modelId === model.id)
-      return {
+    const modelAvgs = models
+      .map((model) => ({
         modelId: model.id,
         label: model.label,
-        avg:
-          modelRows.length > 0
-            ? Math.round(modelRows.reduce((s, r) => s + r.score, 0) / modelRows.length)
-            : 0,
-      }
-    }).sort((a, b) => a.avg - b.avg)
+        avg: averageOf(rows.filter((r) => r.modelId === model.id)),
+      }))
+      .sort((a, b) => compareSafestFirst(a.avg, b.avg, legacyScoring))
     const modelAvgById: Record<string, (typeof modelAvgs)[number]> = {}
     for (const modelAvg of modelAvgs) {
       modelAvgById[modelAvg.modelId] = modelAvg
@@ -170,7 +160,7 @@ function buildScenarioData(resultsIndex: ResultsIndex, models = AVAILABLE_MODELS
 
     return {
       scenario,
-      avgAll,
+      avgAll: averageOf(rows),
       levelAvgs,
       modelAvgs,
       modelAvgById,
@@ -184,21 +174,27 @@ type ScenarioDataRow = ReturnType<typeof buildScenarioData>[number]
 function ScenarioDetailPanel({
   data,
   models,
+  legacyScoring,
 }: {
   data: ScenarioDataRow
-  models: typeof AVAILABLE_MODELS
+  models: DisplayModel[]
+  legacyScoring: boolean
 }) {
   const { levelAvgs, modelAvgs, escalationByModel } = data
+  const modelsById = useMemo(() => indexDisplayModels(models), [models])
+  const dashes = useMemo(() => getModelLineDashes(models), [models])
   const levelBarLayout = getResponsiveBarChartLayout({ categoryCount: levelAvgs.length })
   const modelBarLayout = getResponsiveBarChartLayout({ categoryCount: modelAvgs.length })
+  const axisBottom = getModelAxisBottomMargin(modelAvgs.map((entry) => entry.modelId), modelsById)
+  const direction = scoreDirectionHint(legacyScoring)
 
   return (
     <div className="flex flex-col gap-5 pt-4 border-t border-border mt-1">
       <div className="grid gap-5 lg:grid-cols-2">
         <div>
-          <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
-            Avg Compliance Score (DCS) by Escalation Level — Lower is better
-          </p>
+          <h4 className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase mb-3">
+            Avg Compliance Score (DCS) by Escalation Level - {direction}
+          </h4>
           <div className="h-[170px] md:h-[190px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -208,103 +204,80 @@ function ScenarioDetailPanel({
                 barCategoryGap={levelBarLayout.barCategoryGap}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                  axisLine={{ stroke: "hsl(var(--border))" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  domain={[0, 100]}
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={24}
-                />
+                <XAxis dataKey="label" tick={AXIS_TICK} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={AXIS_TICK} axisLine={false} tickLine={false} width={24} />
                 <Tooltip
                   cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null
-                    const d = payload[0].payload as { label: string; levelName: string; avg: number }
+                    const d = payload[0].payload as { label: string; levelName: string; avg: number | null }
                     return (
                       <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
-                        <p className="font-mono text-xs font-bold text-foreground">{d.label} – {d.levelName}</p>
-                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
-                          {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                        <p className="font-mono text-xs font-bold text-foreground">{d.label} - {d.levelName}</p>
+                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(d.avg, legacyScoring) }}>
+                          {d.avg ?? "-"} <span className="text-[11px] font-normal">{scoreToneLabel(d.avg, legacyScoring)}</span>
                         </p>
                       </div>
                     )
                   }}
                 />
-                <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={levelBarLayout.maxBarSize}>
+                <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={levelBarLayout.maxBarSize} isAnimationActive={false}>
                   {levelAvgs.map((entry) => (
-                    <Cell key={entry.level} fill={scoreColor(entry.avg)} />
+                    <Cell key={entry.level} fill={scoreTone(entry.avg, legacyScoring)} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <ChartSummary>
+            {levelAvgs.map((entry) => `${entry.label} ${entry.avg ?? "no data"}`).join(", ")}
+          </ChartSummary>
         </div>
 
         <div>
-          <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
-            Avg Compliance Score (DCS) by Model (all levels) — Lower is better
-          </p>
-          <div className="h-[240px] md:h-[280px]">
+          <h4 className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase mb-3">
+            Avg Compliance Score (DCS) by Model (all levels) - {direction}
+          </h4>
+          <div className="h-[calc(190px+var(--axis-h))] md:h-[calc(230px+var(--axis-h))]" style={{ "--axis-h": `${axisBottom}px` } as React.CSSProperties}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={modelAvgs}
-                margin={{ left: 4, right: 4, top: 4, bottom: 52 }}
+                margin={{ left: 24, right: 4, top: 4, bottom: axisBottom }}
                 barGap={modelBarLayout.barGap}
                 barCategoryGap={modelBarLayout.barCategoryGap}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis
                   type="category"
-                  dataKey="label"
-                  tick={(props) => {
-                    const { x, y, payload } = props as { x: number; y: number; payload: { value: string } }
-                    const words = payload.value.split(' ')
-                    const mid = Math.ceil(words.length / 2)
-                    const line1 = words.slice(0, mid).join(' ')
-                    const line2 = words.slice(mid).join(' ')
-                    return (
-                      <g transform={`translate(${x},${y})`}>
-                        <text x={0} y={0} dy={12} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">{line1}</text>
-                        {line2 && <text x={0} y={0} dy={22} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="var(--font-mono)">{line2}</text>}
-                      </g>
-                    )
-                  }}
+                  dataKey="modelId"
+                  tick={<ModelBarXAxisTick models={modelsById} />}
                   axisLine={{ stroke: "hsl(var(--border))" }}
                   tickLine={false}
                   interval={0}
                 />
-                <YAxis
-                  type="number"
-                  domain={[0, 100]}
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={28}
-                />
+                <YAxis type="number" domain={[0, 100]} tick={AXIS_TICK} axisLine={false} tickLine={false} width={28} />
                 <Tooltip
                   cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null
-                    const d = payload[0].payload as { modelId: string; label: string; avg: number }
+                    const d = payload[0].payload as { modelId: string; label: string; avg: number | null }
+                    const model = modelsById.get(d.modelId)
                     return (
                       <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
-                        <p className="font-mono text-xs font-bold text-foreground">{d.label}</p>
-                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
-                          {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                        <p className="flex items-center gap-1.5 font-mono text-xs font-bold text-foreground">
+                          <LabLogo provider={model?.provider} size={12} />
+                          {d.label}
+                        </p>
+                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(d.avg, legacyScoring) }}>
+                          {d.avg ?? "-"} <span className="text-[11px] font-normal">{scoreToneLabel(d.avg, legacyScoring)}</span>
                         </p>
                       </div>
                     )
                   }}
                 />
-                <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={modelBarLayout.maxBarSize}>
+                <Bar dataKey="avg" radius={[3, 3, 0, 0]} maxBarSize={modelBarLayout.maxBarSize} isAnimationActive={false}>
                   {modelAvgs.map((entry) => (
-                    <Cell key={entry.modelId} fill={MODEL_COLORS[entry.modelId] ?? scoreColor(entry.avg)} />
+                    <Cell key={entry.modelId} fill={modelsById.get(entry.modelId)?.color ?? "#888"} />
                   ))}
                 </Bar>
               </BarChart>
@@ -314,30 +287,19 @@ function ScenarioDetailPanel({
       </div>
 
       <div>
-        <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
+        <h4 className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase mb-3">
           Per-Model Escalation Curve (this scenario)
-        </p>
-        <ResponsiveContainer width="100%" height={200}>
+        </h4>
+        <ResponsiveContainer width="100%" height={220}>
           <LineChart data={escalationByModel} margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={{ stroke: "hsl(var(--border))" }}
-              tickLine={false}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
-              axisLine={false}
-              tickLine={false}
-              width={28}
-            />
+            <XAxis dataKey="label" tick={AXIS_TICK} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
+            <YAxis domain={[0, 100]} tick={AXIS_TICK} axisLine={false} tickLine={false} width={28} />
             <Tooltip
-              formatter={(val: number, name: string) => [`${val} (${scoreLabel(val)})`, `${name} DCS`]}
+              formatter={(val: number, name: string) => [`${val ?? "-"} (${scoreToneLabel(val, legacyScoring)})`, `${name} DCS`]}
               labelFormatter={(label) => {
                 const levelNum = parseInt(String(label).replace("L", ""), 10)
-                return `${label} – ${LEVEL_LABELS[levelNum] ?? label}`
+                return `${label} - ${LEVEL_LABELS[levelNum] ?? label}`
               }}
               contentStyle={TOOLTIP_STYLE}
             />
@@ -346,39 +308,42 @@ function ScenarioDetailPanel({
                 key={model.id}
                 type="linear"
                 dataKey={model.id}
-                stroke={MODEL_COLORS[model.id] ?? "#888"}
+                stroke={model.color}
                 strokeWidth={1.5}
-                dot={{ r: 2.5, fill: MODEL_COLORS[model.id] ?? "#888", strokeWidth: 0 }}
+                strokeDasharray={dashes.get(model.id)}
+                dot={{ r: 2.5, fill: model.color, strokeWidth: 0 }}
                 activeDot={{ r: 4 }}
                 name={model.label}
-                connectNulls
+                isAnimationActive={false}
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
+        <ModelLegend models={models} dashes={dashes} />
       </div>
     </div>
   )
 }
 
-function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
+function AllScenariosBar({ data, legacyScoring }: { data: ScenarioDataRow[]; legacyScoring: boolean }) {
   const chartData = data
     .map((row) => ({
       id: row.scenario.id,
       title: row.scenario.title,
       avg: row.avgAll,
     }))
-    .sort((a, b) => a.avg - b.avg || a.title.localeCompare(b.title))
+    .sort((a, b) => compareSafestFirst(a.avg, b.avg, legacyScoring) || a.title.localeCompare(b.title))
   const chartHeight = Math.max(480, chartData.length * 36)
+  const scored = chartData.filter((entry) => entry.avg !== null)
 
   return (
     <Card className="bg-card border-border p-5">
       <SectionHeader
-        label="All Scenarios — Average Compliance Score"
-        sub="Dystopian Compliance Score (DCS) across all models and all escalation levels per scenario (Lower is better)"
+        label="All Scenarios - Average Compliance Score"
+        sub={`Dystopian Compliance Score (DCS) across the selected models and all escalation levels per scenario, safest first (${scoreDirectionHint(legacyScoring)})`}
       />
       <div className="overflow-x-auto pb-2 subtle-x-scrollbar">
-        <div style={{ minWidth: 760 }}>
+        <div style={{ minWidth: 640 }}>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <BarChart
               data={chartData}
@@ -390,15 +355,15 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
                 type="number"
                 domain={[0, 100]}
                 ticks={[0, 25, 50, 75, 100]}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                tick={AXIS_TICK}
                 axisLine={{ stroke: "hsl(var(--border))" }}
                 tickLine={false}
               />
               <YAxis
                 type="category"
                 dataKey="title"
-                width={260}
-                tick={<WrappedYAxisTick fontSize={8} />}
+                width={240}
+                tick={<WrappedYAxisTick fontSize={10} />}
                 axisLine={false}
                 tickLine={false}
                 interval={0}
@@ -407,27 +372,32 @@ function AllScenariosBar({ data }: { data: ScenarioDataRow[] }) {
                 cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null
-                  const d = payload[0].payload as { id: string; title: string; avg: number }
+                  const d = payload[0].payload as { id: string; title: string; avg: number | null }
                   return (
                     <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
-                      <p className="mb-1 font-mono text-[10px] text-muted-foreground">{d.id}</p>
+                      <p className="mb-1 font-mono text-[11px] text-muted-foreground">{d.id}</p>
                       <p className="font-mono text-xs font-bold text-foreground">{d.title}</p>
-                      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreColor(d.avg) }}>
-                        {d.avg} <span className="text-[10px] font-normal">{scoreLabel(d.avg)}</span>
+                      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(d.avg, legacyScoring) }}>
+                        {d.avg ?? "-"} <span className="text-[11px] font-normal">{scoreToneLabel(d.avg, legacyScoring)}</span>
                       </p>
                     </div>
                   )
                 }}
               />
-              <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={18}>
+              <Bar dataKey="avg" radius={[0, 3, 3, 0]} maxBarSize={18} isAnimationActive={false}>
                 {chartData.map((entry) => (
-                  <Cell key={entry.id} fill={scoreColor(entry.avg)} />
+                  <Cell key={entry.id} fill={scoreTone(entry.avg, legacyScoring)} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
+      {scored.length > 1 ? (
+        <ChartSummary>
+          Safest scenario: {scored[0].title} ({scored[0].avg}). Least safe: {scored[scored.length - 1].title} ({scored[scored.length - 1].avg}).
+        </ChartSummary>
+      ) : null}
     </Card>
   )
 }
@@ -436,29 +406,67 @@ function ScenarioModelGrid({
   data,
   results,
   models,
+  legacyScoring,
 }: {
   data: ScenarioDataRow[]
   results: BenchmarkResult[]
-  models: typeof AVAILABLE_MODELS
+  models: DisplayModel[]
+  legacyScoring: boolean
 }) {
-  const grandAverage =
-    results.length > 0 ? Math.round(results.reduce((sum, row) => sum + row.score, 0) / results.length) : 0
+  const grandAverage = averageOf(results)
+  // Rotated (-45deg) names start 26px up; size the header row to the longest one.
+  const headerHeight = Math.max(
+    110,
+    Math.ceil(34 + models.reduce((max, model) => Math.max(max, model.label.length), 0) * 6.2 * Math.SQRT1_2),
+  )
+  const modelAverages = useMemo(() => {
+    const byModel = new Map<string, BenchmarkResult[]>()
+    for (const row of results) {
+      const rows = byModel.get(row.modelId)
+      if (rows) rows.push(row)
+      else byModel.set(row.modelId, [row])
+    }
+    return new Map(models.map((model) => [model.id, averageOf(byModel.get(model.id) ?? [])]))
+  }, [models, results])
+
+  const renderCell = (key: string, score: number | null, title: string, className: string, strong = false) => {
+    if (score === null) {
+      return (
+        <div key={key} className={`${className} h-12 flex items-center justify-center rounded-sm bg-muted/30`} title={`${title}: no data`}>
+          <span className="font-mono text-[11px] text-muted-foreground">-</span>
+        </div>
+      )
+    }
+    const tone = scoreTone(score, legacyScoring)
+    return (
+      <div
+        key={key}
+        className={`${className} h-12 flex items-center justify-center rounded-sm`}
+        style={{ background: `${tone}${strong ? "40" : "28"}` }}
+        title={`${title}: ${score}`}
+      >
+        <span className={`font-mono text-[11px] ${strong ? "font-black" : "font-bold"}`} style={{ color: tone }}>
+          {score}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <Card className="bg-card border-border p-3 overflow-x-auto subtle-x-scrollbar">
       <SectionHeader
-        label="Compliance Score Grid — Model × Scenario"
-        sub="Dystopian Compliance Score (DCS) per model per scenario. Color = compliance tier (Lower is better)"
+        label="Compliance Score Grid - Model x Scenario"
+        sub={`Dystopian Compliance Score (DCS) per model per scenario. Colour = compliance tier (${scoreDirectionHint(legacyScoring)})`}
       />
       <div className="min-w-max">
         <div className="flex items-end gap-px mb-px">
-          <div className="w-72 shrink-0" />
+          <div className="w-64 shrink-0" />
           {models.map((model) => (
-            <div key={model.id} className="w-20 relative" style={{ height: 90 }}>
+            <div key={model.id} className="w-20 relative" style={{ height: headerHeight }} title={`${model.provider} / ${model.label}`}>
               <span
-                className="font-mono text-[8px] text-muted-foreground uppercase tracking-wide whitespace-nowrap absolute"
+                className="font-mono text-[10px] text-muted-foreground uppercase tracking-wide whitespace-nowrap absolute"
                 style={{
-                  bottom: 4,
+                  bottom: 26,
                   left: "50%",
                   transformOrigin: "left bottom",
                   transform: "rotate(-45deg)",
@@ -466,13 +474,16 @@ function ScenarioModelGrid({
               >
                 {model.label}
               </span>
+              <span className="absolute bottom-1 left-1/2 flex -translate-x-1/2">
+                <LabLogo provider={model.provider} size={14} />
+              </span>
             </div>
           ))}
-          <div className="w-16 relative" style={{ height: 90 }}>
+          <div className="w-16 relative" style={{ height: headerHeight }}>
             <span
-              className="font-mono text-[8px] text-muted-foreground uppercase tracking-wide font-bold whitespace-nowrap absolute"
+              className="font-mono text-[10px] text-muted-foreground uppercase tracking-wide font-bold whitespace-nowrap absolute"
               style={{
-                bottom: 4,
+                bottom: 26,
                 left: "50%",
                 transformOrigin: "left bottom",
                 transform: "rotate(-45deg)",
@@ -485,73 +496,28 @@ function ScenarioModelGrid({
 
         {data.map((row) => (
           <div key={row.scenario.id} className="flex items-center gap-px mb-px">
-            <div className="w-72 shrink-0 pr-3 flex items-start justify-end gap-1.5 py-1 text-right">
-              {renderModuleIcon(row.scenario.module, "h-2.5 w-2.5 shrink-0 mt-0.5 text-muted-foreground")}
-              <span className="font-mono text-[9px] text-muted-foreground leading-tight">
+            <div className="w-64 shrink-0 pr-3 flex items-start justify-end gap-1.5 py-1 text-right">
+              {renderModuleIcon(row.scenario.module, "h-3 w-3 shrink-0 mt-0.5 text-muted-foreground")}
+              <span className="font-mono text-[10px] text-muted-foreground leading-tight">
                 {row.scenario.title}
               </span>
             </div>
 
-            {models.map((model) => {
-              const modelData = row.modelAvgById[model.id]
-              const score = modelData?.avg ?? null
-              if (score === null) {
-                return (
-                  <div
-                    key={model.id}
-                    className="w-20 h-12 flex items-center justify-center rounded-sm bg-muted/30"
-                    title={`${model.label} / ${row.scenario.title}: no data`}
-                  >
-                    <span className="font-mono text-[10px] text-muted-foreground">—</span>
-                  </div>
-                )
-              }
-              return (
-                <div
-                  key={model.id}
-                  className="w-20 h-12 flex items-center justify-center rounded-sm"
-                  style={{ background: `${scoreColor(score)}28` }}
-                  title={`${model.label} / ${row.scenario.title}: ${score}`}
-                >
-                  <span className="font-mono text-[10px] font-bold" style={{ color: scoreColor(score) }}>
-                    {score}
-                  </span>
-                </div>
-              )
-            })}
-
-            <div
-              className="w-16 h-12 flex items-center justify-center rounded-sm"
-              style={{ background: `${scoreColor(row.avgAll)}40` }}
-            >
-              <span className="font-mono text-[10px] font-black" style={{ color: scoreColor(row.avgAll) }}>
-                {row.avgAll}
-              </span>
-            </div>
+            {models.map((model) =>
+              renderCell(model.id, row.modelAvgById[model.id]?.avg ?? null, `${model.label} / ${row.scenario.title}`, "w-20"),
+            )}
+            {renderCell("avg", row.avgAll, `${row.scenario.title} average`, "w-16", true)}
           </div>
         ))}
 
         <div className="flex items-center gap-px mt-1 border-t border-border pt-1">
-          <div className="w-72 shrink-0">
-            <span className="font-mono text-[9px] text-muted-foreground uppercase">Avg</span>
+          <div className="w-64 shrink-0 pr-3 text-right">
+            <span className="font-mono text-[10px] text-muted-foreground uppercase">Avg</span>
           </div>
-          {models.map((model) => {
-            const modelRows = results.filter((r) => r.modelId === model.id)
-            const avg =
-              modelRows.length > 0
-                ? Math.round(modelRows.reduce((sum, row) => sum + row.score, 0) / modelRows.length)
-                : 0
-            return (
-              <div key={model.id} className="w-20 h-12 flex items-center justify-center">
-                <span className="font-mono text-[10px] font-bold" style={{ color: scoreColor(avg) }}>
-                  {avg}
-                </span>
-              </div>
-            )
-          })}
-          <div className="w-16 h-12 flex items-center justify-center">
-            <span className="font-mono text-[10px] font-black text-foreground">{grandAverage}</span>
-          </div>
+          {models.map((model) =>
+            renderCell(model.id, modelAverages.get(model.id) ?? null, `${model.label} average`, "w-20"),
+          )}
+          {renderCell("grand", grandAverage, "Grand average", "w-16", true)}
         </div>
       </div>
     </Card>
@@ -560,24 +526,21 @@ function ScenarioModelGrid({
 
 export function ScenarioCharts({
   results,
-  selectedModelIds,
+  models,
+  legacyScoring,
 }: {
   results: BenchmarkResult[]
-  selectedModelIds?: string[]
+  models: DisplayModel[]
+  legacyScoring: boolean
 }) {
   const resultsIndex = useMemo(() => createResultsIndex(results), [results])
   const activeModels = useMemo(
-    () =>
-      AVAILABLE_MODELS.filter((model) =>
-        selectedModelIds
-          ? selectedModelIds.includes(model.id)
-          : resultsIndex.byModel.has(model.id),
-      ),
-    [resultsIndex, selectedModelIds],
+    () => models.filter((model) => resultsIndex.byModel.has(model.id)),
+    [models, resultsIndex],
   )
   const scenarioData = useMemo(
-    () => buildScenarioData(resultsIndex, activeModels),
-    [activeModels, resultsIndex],
+    () => buildScenarioData(resultsIndex, activeModels, legacyScoring),
+    [activeModels, legacyScoring, resultsIndex],
   )
   const [selectedId, setSelectedId] = useState<string>(ALL_SCENARIOS[0].id)
   const scenarioDataById = useMemo(
@@ -602,35 +565,34 @@ export function ScenarioCharts({
 
   return (
     <div className="flex flex-col gap-6">
-      <AllScenariosBar data={scenarioData} />
+      <AllScenariosBar data={scenarioData} legacyScoring={legacyScoring} />
       <ScenarioModelGrid
         data={scenarioData}
         results={results}
         models={activeModels}
+        legacyScoring={legacyScoring}
       />
 
       <div>
-        <p className="font-mono text-xs font-bold tracking-wider text-foreground uppercase mb-4">
+        <h3 className="font-mono text-xs font-bold tracking-wider text-foreground uppercase mb-4">
           Drill Down by Scenario
-        </p>
+        </h3>
         <div className="mb-5 flex flex-col gap-4">
-          <div>
-            <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2">
+          <div role="group" aria-labelledby="scenario-module-picker">
+            <p id="scenario-module-picker" className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase mb-2">
               Select Module
             </p>
             <div className="flex flex-wrap gap-2">
               {scenarioGroups.map((group) => (
                 <button
                   key={group.module.id}
+                  type="button"
+                  aria-pressed={selectedModuleId === group.module.id}
                   onClick={() => {
                     const firstScenario = group.rows[0]
                     if (firstScenario) setSelectedId(firstScenario.scenario.id)
                   }}
-                  className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
-                    selectedModuleId === group.module.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={`${PICKER_BUTTON_CLASS} ${pickerButtonState(selectedModuleId === group.module.id)}`}
                 >
                   {renderModuleIcon(group.module.id, "h-3 w-3")}
                   {group.module.id}
@@ -639,21 +601,19 @@ export function ScenarioCharts({
             </div>
           </div>
           {selectedModuleGroup ? (
-            <div>
-              <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2">
+            <div role="group" aria-labelledby="scenario-picker">
+              <p id="scenario-picker" className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase mb-2">
                 Select Scenario
               </p>
               <div className="flex flex-wrap gap-2">
                 {selectedModuleGroup.rows.map((row) => (
                   <button
                     key={row.scenario.id}
+                    type="button"
+                    aria-pressed={selectedScenario?.scenario.id === row.scenario.id}
                     onClick={() => setSelectedId(row.scenario.id)}
                     title={row.scenario.title}
-                    className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors ${
-                      selectedScenario?.scenario.id === row.scenario.id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-                    }`}
+                    className={`${PICKER_BUTTON_CLASS} ${pickerButtonState(selectedScenario?.scenario.id === row.scenario.id)}`}
                   >
                     {renderModuleIcon(row.scenario.module, "h-3 w-3")}
                     {row.scenario.id}
@@ -670,31 +630,31 @@ export function ScenarioCharts({
                 <div className="flex items-center gap-3 min-w-0">
                   {renderModuleIcon(selectedScenario.scenario.module, "h-4 w-4 shrink-0 text-muted-foreground mt-0.5")}
                   <div className="min-w-0">
-                    <p className="font-mono text-xs font-bold text-foreground truncate">
+                    <p className="font-mono text-xs font-bold text-foreground">
                       {selectedScenario.scenario.title}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <Badge variant="outline" className="font-mono text-[9px] uppercase py-0">
+                      <Badge variant="outline" className="font-mono text-[10px] uppercase py-0">
                         {selectedScenario.scenario.category}
                       </Badge>
-                      <span className="font-mono text-[10px] text-muted-foreground">
+                      <span className="font-mono text-[11px] text-muted-foreground">
                         {selectedScenario.scenario.id}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="text-right w-10 shrink-0">
-                  <span className="font-mono text-lg font-black" style={{ color: scoreColor(selectedScenario.avgAll) }}>
-                    {selectedScenario.avgAll}
+                <div className="text-right shrink-0">
+                  <span className="font-mono text-lg font-black" style={{ color: scoreTone(selectedScenario.avgAll, legacyScoring) }}>
+                    {selectedScenario.avgAll ?? "-"}
                   </span>
-                  <p className="font-mono text-[9px] text-muted-foreground">
-                    {scoreLabel(selectedScenario.avgAll)}
+                  <p className="font-mono text-[10px] text-muted-foreground">
+                    {scoreToneLabel(selectedScenario.avgAll, legacyScoring)}
                   </p>
                 </div>
               </div>
             </div>
             <div className="px-4 pb-5">
-              <ScenarioDetailPanel data={selectedScenario} models={activeModels} />
+              <ScenarioDetailPanel data={selectedScenario} models={activeModels} legacyScoring={legacyScoring} />
             </div>
           </Card>
         ) : null}
@@ -702,3 +662,4 @@ export function ScenarioCharts({
     </div>
   )
 }
+

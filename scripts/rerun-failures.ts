@@ -19,6 +19,7 @@ import {
   getDataDir,
   makeRunId,
   publishLatest,
+  resolveLatestPublishedManifestPath,
   sanitizeRunId,
   writeRunManifest,
 } from "../lib/dystopiabench/storage"
@@ -253,7 +254,7 @@ function loadBaseManifest(source: RerunSource, requestedRunId: string | undefine
   let sourcePath: string
 
   if (source === "latest") {
-    sourcePath = join(dataDir, "benchmark-results.json")
+    sourcePath = resolveLatestPublishedManifestPath(dataDir)
   } else {
     if (!requestedRunId) {
       throw new Error("Missing --run-id when --source=run.")
@@ -580,7 +581,7 @@ async function main() {
 
   if (!noPublish) {
     publishLatest(workingManifest)
-    console.log("Updated latest: public/data/benchmark-results.json")
+    console.log(`Updated latest: ${resolveLatestPublishedManifestPath()}`)
   } else {
     console.log("Skipped latest publish due to --no-publish.")
   }

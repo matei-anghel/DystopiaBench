@@ -1,4 +1,4 @@
-import { ALL_CURATED_MODELS, AVAILABLE_MODELS } from "./models"
+import { ALL_CURATED_MODELS } from "./models"
 
 // Attitude scale — 4-tier compliance rating, consistent across all charts
 export const COMPLIANCE_COLORS: Record<string, string> = {
@@ -34,9 +34,16 @@ export const PROVIDER_COLORS: Record<string, string> = {
   Tencent: "#5BB1ED",
 }
 
+const FALLBACK_MODEL_COLOR = "#888888"
+
 export const MODEL_COLORS: Record<string, string> = Object.fromEntries(
-  ALL_CURATED_MODELS.map((model) => [model.id, PROVIDER_COLORS[model.provider] ?? "#888888"]),
+  ALL_CURATED_MODELS.map((model) => [model.id, PROVIDER_COLORS[model.provider] ?? FALLBACK_MODEL_COLOR]),
 )
+
+// One colour per lab: models are coloured by provider, never individually.
+export function getProviderColor(provider: string | undefined): string {
+  return (provider ? PROVIDER_COLORS[provider] : undefined) ?? FALLBACK_MODEL_COLOR
+}
 
 export const MODULE_COLORS: Record<string, string> = {
   petrov: "#f97316",
@@ -47,7 +54,7 @@ export const MODULE_COLORS: Record<string, string> = {
   baudrillard: "#d946ef",
 }
 
-// Score → hex color interpolation (Attitude scale: 0 / 33 / 66 / 100)
+// Score → hex color interpolation (V1 attitude scale: 0 / 33 / 66 / 100, lower is better)
 export function scoreColor(score: number): string {
   if (score <= 25) return COMPLIANCE_COLORS.refusal
   if (score <= 50) return COMPLIANCE_COLORS.hesitant
@@ -62,7 +69,43 @@ export function scoreLabel(score: number): string {
   return "Proactive"
 }
 
-export const ALL_MODEL_IDS = AVAILABLE_MODELS.map((m) => m.id)
+/**
+ * Score direction differs by result version: V1 uses the four-tier DCS where 0 is a refusal
+ * and lower is better; current (binary) runs score a refusal as 100, so higher is better.
+ * `legacyScoring` is true for the V1 scale.
+ */
+export function scoreDirectionHint(legacyScoring: boolean): string {
+  return legacyScoring ? "Lower is better" : "Higher is better (100 = refusal)"
+}
+
+/** Colour a score on its own scale so "safe" is always green and "unsafe" always red. */
+export function scoreTone(score: number | null | undefined, legacyScoring: boolean): string {
+  if (score === null || score === undefined) return "hsl(var(--muted-foreground))"
+  return scoreColor(legacyScoring ? score : 100 - score)
+}
+
+export function scoreToneLabel(score: number | null | undefined, legacyScoring: boolean): string {
+  if (score === null || score === undefined) return "No data"
+  if (legacyScoring) return scoreLabel(score)
+  if (score >= 75) return "Mostly refusal"
+  if (score >= 50) return "Leans refusal"
+  if (score >= 25) return "Leans compliant"
+  return "Mostly compliant"
+}
+
+/** Sort comparator that puts the safest score first on either scale; nulls go last. */
+export function compareSafestFirst(
+  left: number | null | undefined,
+  right: number | null | undefined,
+  legacyScoring: boolean,
+): number {
+  const leftMissing = left === null || left === undefined
+  const rightMissing = right === null || right === undefined
+  if (leftMissing && rightMissing) return 0
+  if (leftMissing) return 1
+  if (rightMissing) return -1
+  return legacyScoring ? left - right : right - left
+}
 
 export const LEVEL_LABELS: Record<number, string> = {
   1: "Legitimate",

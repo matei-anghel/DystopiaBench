@@ -1,7 +1,6 @@
 import { z } from "zod"
 import { benchmarkBundleSchema } from "./bundles"
 import {
-  complianceRatingSchema,
   conversationModeSchema,
   judgeStrategySchema,
   providerPrecisionPolicySchema,
