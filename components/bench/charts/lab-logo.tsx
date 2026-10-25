@@ -126,6 +126,23 @@ export function ModelLegend({
   )
 }
 
+const TICK_CHAR_WIDTH_PX = 6.2
+const TICK_LABEL_ANGLE_DEG = 40
+
+/**
+ * Bottom margin a vertical model bar chart needs so the logo and the full angled name fit
+ * below the axis (long names such as "Nemotron 3 Super 120B A12B" need more than a fixed margin).
+ */
+export function getModelAxisBottomMargin(
+  modelIds: readonly string[],
+  models: Map<string, DisplayModel>,
+  { logoSize = 14, fontSize = 10 } = {},
+): number {
+  const longest = modelIds.reduce((max, id) => Math.max(max, (models.get(id)?.label ?? id).length), 0)
+  const textDrop = longest * TICK_CHAR_WIDTH_PX * (fontSize / 10) * Math.sin((TICK_LABEL_ANGLE_DEG * Math.PI) / 180)
+  return Math.ceil(logoSize + 14 + textDrop + 8)
+}
+
 interface TickProps {
   x?: number
   y?: number
@@ -155,7 +172,7 @@ export function ModelBarXAxisTick({
         x={x}
         y={y + logoSize + 14}
         textAnchor="end"
-        transform={`rotate(-40 ${x} ${y + logoSize + 14})`}
+        transform={`rotate(-${TICK_LABEL_ANGLE_DEG} ${x} ${y + logoSize + 14})`}
         fill="hsl(var(--muted-foreground))"
         fontSize={fontSize}
         fontFamily="var(--font-mono)"

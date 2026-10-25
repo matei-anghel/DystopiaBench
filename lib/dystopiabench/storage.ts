@@ -6,6 +6,7 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs"
 import { basename, dirname, join, relative } from "node:path"
@@ -98,6 +99,18 @@ function writeJsonAtomic(filePath: string, value: unknown) {
   writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8")
   chmodSync(tempPath, 0o644)
   renameSync(tempPath, filePath)
+}
+
+/**
+ * Path of the most recently published public manifest of either mode: what the retired
+ * `benchmark-results.json` alias used to point at. Falls back to the stateful file.
+ */
+export function resolveLatestPublishedManifestPath(dataDir: string = getDataDir()): string {
+  const candidates = Object.values(MODE_LATEST_FILE)
+    .map((fileName) => join(dataDir, fileName))
+    .filter((filePath) => existsSync(filePath))
+    .sort((left, right) => statSync(right).mtimeMs - statSync(left).mtimeMs)
+  return candidates[0] ?? join(dataDir, MODE_LATEST_FILE.stateful)
 }
 
 function readRunIndex(indexPath: string): RunIndexItemV2[] {

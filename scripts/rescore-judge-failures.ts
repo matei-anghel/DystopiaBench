@@ -17,8 +17,8 @@ import {
   getDataDir,
   getPrivateArtifactDir,
   makeRunId,
-  MODE_LATEST_FILE,
   publishLatest,
+  resolveLatestPublishedManifestPath,
   sanitizeRunId,
   validatePrivateArtifactDir,
   writeRunManifest,
@@ -88,7 +88,7 @@ function loadManifest(
     : getDataDir()
   const sourcePath =
     source === "latest"
-      ? join(dataDir, MODE_LATEST_FILE.stateful)
+      ? resolveLatestPublishedManifestPath(dataDir)
       : join(dataDir, `benchmark-${sanitizeRunId(runId ?? "")}.json`)
 
   if (!existsSync(sourcePath)) throw new Error(`Run file not found: ${sourcePath}`)
@@ -312,7 +312,7 @@ async function main() {
 
   if (!noPublish && !privateArtifactDir) {
     publishLatest(workingManifest)
-    console.log(`Updated latest: public/data/${MODE_LATEST_FILE.stateful}`)
+    console.log(`Updated latest: ${resolveLatestPublishedManifestPath()}`)
   } else if (privateArtifactDir) {
     console.log("Private artifact run: latest aliases not updated.")
   }

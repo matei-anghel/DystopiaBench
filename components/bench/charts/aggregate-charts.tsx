@@ -30,8 +30,9 @@ import {
 } from "@/lib/dystopiabench/display-models"
 import { ALL_MODULES } from "@/lib/dystopiabench/scenarios"
 import { orderScenarioModulesForDisplay } from "@/lib/dystopiabench/module-display-order"
+import { AXIS_TICK, averageOf } from "./chart-shared"
 import { ChartSummary, SectionHeader } from "./section-header"
-import { LabLogo, ModelBarXAxisTick, ModelLegend, ModelName } from "./lab-logo"
+import { LabLogo, ModelBarXAxisTick, ModelLegend, ModelName, getModelAxisBottomMargin } from "./lab-logo"
 
 function getModuleDisplayLabel(label: string): string {
   return label.replace(/\s+Module$/i, "")
@@ -53,8 +54,6 @@ const MODULE_HEATMAP_SUMMARIES: Record<string, string> = {
   huxley: "Conditioning, caste systems, pacification",
   baudrillard: "Synthetic AI companions used for fraud and manipulation",
 }
-
-const AXIS_TICK = { fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }
 
 /** Green → amber → red ramp where `risk` 0 is safest and 100 least safe. */
 function moduleHeatmapColor(risk: number): string {
@@ -94,11 +93,6 @@ function getHeatmapHeaderHeight(labels: string[]): number {
   // Height needed for the rotated label to fully fit when anchored at bottom + safety.
   const needed = Math.ceil(maxTextWidth * sin + HEATMAP_HEADER_LINE_HEIGHT_PX * cos)
   return needed + 14
-}
-
-function averageOf(rows: BenchmarkResult[]): number | null {
-  if (rows.length === 0) return null
-  return Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length)
 }
 
 function ModelBarTooltip({
@@ -206,6 +200,7 @@ function ModelBarChart({
   legacyScoring: boolean
 }) {
   const barLayout = getResponsiveBarChartLayout({ categoryCount: data.length })
+  const axisBottom = getModelAxisBottomMargin(data.map((entry) => entry.modelId), modelsById)
   const safest = data[0]
   const leastSafe = data[data.length - 1]
   const nameOf = (modelId: string) => modelsById.get(modelId)?.label ?? modelId
@@ -216,11 +211,11 @@ function ModelBarChart({
         label="Average Dystopian Compliance Score by Model"
         sub={`DCS - how willingly a model complies with harmful requests, safest first (${scoreDirectionHint(legacyScoring)})`}
       />
-      <div className="h-[320px] md:h-[440px]">
+      <div className="h-[calc(230px+var(--axis-h))] md:h-[calc(350px+var(--axis-h))]" style={{ "--axis-h": `${axisBottom}px` } as React.CSSProperties}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            margin={{ left: 24, right: 4, top: 4, bottom: 92 }}
+            margin={{ left: 24, right: 4, top: 4, bottom: axisBottom }}
             barGap={barLayout.barGap}
             barCategoryGap={barLayout.barCategoryGap}
           >
@@ -270,6 +265,7 @@ function DRFRChart({
   modelsById: Map<string, DisplayModel>
 }) {
   const barLayout = getResponsiveBarChartLayout({ categoryCount: data.length })
+  const axisBottom = getModelAxisBottomMargin(data.map((entry) => entry.modelId), modelsById)
   const highest = data[0]
   const lowest = data[data.length - 1]
   const nameOf = (modelId: string) => modelsById.get(modelId)?.label ?? modelId
@@ -280,11 +276,11 @@ function DRFRChart({
         label="Directed Refusal Rate by Model"
         sub="DRFR - percentage of responses rated a principled refusal (Higher is better)"
       />
-      <div className="h-[320px] md:h-[440px]">
+      <div className="h-[calc(230px+var(--axis-h))] md:h-[calc(350px+var(--axis-h))]" style={{ "--axis-h": `${axisBottom}px` } as React.CSSProperties}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            margin={{ left: 24, right: 4, top: 4, bottom: 92 }}
+            margin={{ left: 24, right: 4, top: 4, bottom: axisBottom }}
             barGap={barLayout.barGap}
             barCategoryGap={barLayout.barCategoryGap}
           >

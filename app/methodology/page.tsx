@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { BenchHeader } from "@/components/bench/header"
 import { MethodologySection } from "@/components/bench/methodology-section"
 import { ModuleOverview } from "@/components/bench/module-overview"
+import { SiteFooter } from "@/components/bench/site-footer"
 import { getModelById } from "@/lib/dystopiabench/models"
 import { ALL_MODULES } from "@/lib/dystopiabench/scenarios"
 import { orderScenarioModulesForDisplay } from "@/lib/dystopiabench/module-display-order"
@@ -26,7 +26,6 @@ function modelLabel(modelId: string): string {
 
 export default function MethodologyPage() {
   const displayModules = orderScenarioModulesForDisplay(ALL_MODULES)
-  const showLocalRunLink = process.env.NODE_ENV !== "production"
 
   return (
     <div className="min-h-screen bg-background scanline">
@@ -50,28 +49,12 @@ export default function MethodologyPage() {
           ))}
         </section>
 
-        <footer className="border-t border-border pb-6 pt-6">
-          <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
-            <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-              2026 DystopiaBench. Open source safety research.
-            </p>
-            <div className="flex gap-8">
-              {[
-                { label: "Home", href: "/" },
-                { label: "Results", href: "/#results" },
-                ...(showLocalRunLink ? [{ label: "Run (Local)", href: "/run" }] : []),
-              ].map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="border-b border-transparent font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-muted-foreground/30 hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </footer>
+        <SiteFooter
+          links={[
+            { label: "Home", href: "/" },
+            { label: "Results", href: "/#results" },
+          ]}
+        />
       </main>
     </div>
   )

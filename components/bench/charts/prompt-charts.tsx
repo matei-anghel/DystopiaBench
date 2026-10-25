@@ -27,8 +27,9 @@ import {
   LEVEL_LABELS,
   getResponsiveBarChartLayout,
 } from "@/lib/dystopiabench/chart-config"
-import { getModelLineDashes, type DisplayModel } from "@/lib/dystopiabench/display-models"
+import { getModelLineDashes, indexDisplayModels, type DisplayModel } from "@/lib/dystopiabench/display-models"
 import { renderModuleIcon } from "../module-icon"
+import { AXIS_TICK, PICKER_BUTTON_CLASS, pickerButtonState } from "./chart-shared"
 import { ChartSummary, SectionHeader } from "./section-header"
 import { LabLogo, ModelLegend, ModelName } from "./lab-logo"
 
@@ -40,8 +41,6 @@ const TOOLTIP_STYLE = {
   fontSize: 11,
   color: "hsl(var(--foreground))",
 }
-
-const AXIS_TICK = { fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }
 
 function scenarioLevelKey(scenarioId: string, level: number): string {
   return `${scenarioId}::${level}`
@@ -315,12 +314,6 @@ function GlobalLevelBar({
   )
 }
 
-const PICKER_BUTTON_CLASS = "flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors"
-const pickerButtonState = (selected: boolean) =>
-  selected
-    ? "border-primary bg-primary/10 text-primary"
-    : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-
 function ScenarioPromptDrillDown({
   resultsIndex,
   models,
@@ -349,6 +342,7 @@ function ScenarioPromptDrillDown({
     [models, resultsIndex, selectedId],
   )
   const dashes = useMemo(() => getModelLineDashes(models), [models])
+  const modelsById = useMemo(() => indexDisplayModels(models), [models])
 
   if (!data) return null
   const { scenario, levels, lineData } = data
@@ -522,7 +516,7 @@ function ScenarioPromptDrillDown({
               {[...levelEntry.modelScores]
                 .sort((a, b) => compareSafestFirst(a.score, b.score, legacyScoring))
                 .map((modelScore) => {
-                  const model = modelsByIdFrom(models, modelScore.modelId)
+                  const model = modelsById.get(modelScore.modelId)
                   return (
                     <div key={modelScore.modelId} className="flex flex-col gap-0.5">
                       <div className="flex items-center justify-between gap-1">
@@ -561,10 +555,6 @@ function ScenarioPromptDrillDown({
       </div>
     </div>
   )
-}
-
-function modelsByIdFrom(models: DisplayModel[], modelId: string): DisplayModel | undefined {
-  return models.find((model) => model.id === modelId)
 }
 
 export function PromptCharts({

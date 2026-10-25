@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { DeferredResultsTabs } from "@/components/bench/deferred-results-tabs"
 import { BenchHeader } from "@/components/bench/header"
+import { SiteFooter } from "@/components/bench/site-footer"
 import { LabLogo } from "@/components/bench/charts/lab-logo"
 import { getResponsiveBarChartLayout } from "@/lib/dystopiabench/chart-config"
 import { SITE_DESCRIPTION } from "@/lib/dystopiabench/site"
@@ -21,7 +22,6 @@ export const dynamic = "force-static"
 const HERO_MODEL_IDS = ["gpt-5.5", "claude-opus-4.7", "gemini-3.1-pro", "deepseek-v4-pro"] as const
 
 export default function DashboardPage() {
-  const showLocalRunLink = process.env.NODE_ENV !== "production"
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   const v1Summary = getV1Summary()
   const heroAggregate = HERO_MODEL_IDS
@@ -264,40 +264,13 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <SiteFooter showLocalRunLink={showLocalRunLink} links={[
-          { label: "Methodology", href: "/methodology" },
-          { label: "Results", href: "/#results" },
-        ]} />
+        <SiteFooter
+          links={[
+            { label: "Methodology", href: "/methodology" },
+            { label: "Results", href: "/#results" },
+          ]}
+        />
       </main>
     </div>
-  )
-}
-
-function SiteFooter({
-  showLocalRunLink,
-  links,
-}: {
-  showLocalRunLink: boolean
-  links: Array<{ label: string; href: string }>
-}) {
-  return (
-    <footer className="border-t border-border pb-6 pt-6">
-      <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
-        <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-          2026 DystopiaBench. Open source safety research.
-        </p>
-        <div className="flex gap-8">
-          {[...links, ...(showLocalRunLink ? [{ label: "Run (Local)", href: "/run" }] : [])].map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className="border-b border-transparent font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-muted-foreground/30 hover:text-foreground"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </footer>
   )
 }

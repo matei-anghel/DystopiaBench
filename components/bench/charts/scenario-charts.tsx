@@ -32,8 +32,9 @@ import {
   type DisplayModel,
 } from "@/lib/dystopiabench/display-models"
 import { renderModuleIcon } from "../module-icon"
+import { AXIS_TICK, PICKER_BUTTON_CLASS, averageOf, pickerButtonState } from "./chart-shared"
 import { ChartSummary, SectionHeader } from "./section-header"
-import { LabLogo, ModelBarXAxisTick, ModelLegend } from "./lab-logo"
+import { LabLogo, ModelBarXAxisTick, ModelLegend, getModelAxisBottomMargin } from "./lab-logo"
 
 const TOOLTIP_STYLE = {
   background: "hsl(var(--card))",
@@ -43,8 +44,6 @@ const TOOLTIP_STYLE = {
   fontSize: 11,
   color: "hsl(var(--foreground))",
 }
-
-const AXIS_TICK = { fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }
 
 const SCENARIO_TICK_MAX_LINE_LENGTH = 16
 const SCENARIO_TICK_MAX_LINES = 3
@@ -56,11 +55,6 @@ function scenarioLevelKey(scenarioId: string, level: number): string {
 
 function scenarioModelLevelKey(scenarioId: string, modelId: string, level: number): string {
   return `${scenarioId}::${modelId}::${level}`
-}
-
-function averageOf(rows: BenchmarkResult[]): number | null {
-  if (rows.length === 0) return null
-  return Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length)
 }
 
 function wrapTickLabel(value: string, maxLineLength = SCENARIO_TICK_MAX_LINE_LENGTH, maxLines = SCENARIO_TICK_MAX_LINES) {
@@ -191,6 +185,7 @@ function ScenarioDetailPanel({
   const dashes = useMemo(() => getModelLineDashes(models), [models])
   const levelBarLayout = getResponsiveBarChartLayout({ categoryCount: levelAvgs.length })
   const modelBarLayout = getResponsiveBarChartLayout({ categoryCount: modelAvgs.length })
+  const axisBottom = getModelAxisBottomMargin(modelAvgs.map((entry) => entry.modelId), modelsById)
   const direction = scoreDirectionHint(legacyScoring)
 
   return (
@@ -243,11 +238,11 @@ function ScenarioDetailPanel({
           <h4 className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase mb-3">
             Avg Compliance Score (DCS) by Model (all levels) - {direction}
           </h4>
-          <div className="h-[280px] md:h-[320px]">
+          <div className="h-[calc(190px+var(--axis-h))] md:h-[calc(230px+var(--axis-h))]" style={{ "--axis-h": `${axisBottom}px` } as React.CSSProperties}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={modelAvgs}
-                margin={{ left: 24, right: 4, top: 4, bottom: 92 }}
+                margin={{ left: 24, right: 4, top: 4, bottom: axisBottom }}
                 barGap={modelBarLayout.barGap}
                 barCategoryGap={modelBarLayout.barCategoryGap}
               >
@@ -419,6 +414,11 @@ function ScenarioModelGrid({
   legacyScoring: boolean
 }) {
   const grandAverage = averageOf(results)
+  // Rotated (-45deg) names start 26px up; size the header row to the longest one.
+  const headerHeight = Math.max(
+    110,
+    Math.ceil(34 + models.reduce((max, model) => Math.max(max, model.label.length), 0) * 6.2 * Math.SQRT1_2),
+  )
   const modelAverages = useMemo(() => {
     const byModel = new Map<string, BenchmarkResult[]>()
     for (const row of results) {
@@ -462,7 +462,7 @@ function ScenarioModelGrid({
         <div className="flex items-end gap-px mb-px">
           <div className="w-64 shrink-0" />
           {models.map((model) => (
-            <div key={model.id} className="w-20 relative" style={{ height: 110 }} title={`${model.provider} / ${model.label}`}>
+            <div key={model.id} className="w-20 relative" style={{ height: headerHeight }} title={`${model.provider} / ${model.label}`}>
               <span
                 className="font-mono text-[10px] text-muted-foreground uppercase tracking-wide whitespace-nowrap absolute"
                 style={{
@@ -479,7 +479,7 @@ function ScenarioModelGrid({
               </span>
             </div>
           ))}
-          <div className="w-16 relative" style={{ height: 110 }}>
+          <div className="w-16 relative" style={{ height: headerHeight }}>
             <span
               className="font-mono text-[10px] text-muted-foreground uppercase tracking-wide font-bold whitespace-nowrap absolute"
               style={{
@@ -523,12 +523,6 @@ function ScenarioModelGrid({
     </Card>
   )
 }
-
-const PICKER_BUTTON_CLASS = "flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs transition-colors"
-const pickerButtonState = (selected: boolean) =>
-  selected
-    ? "border-primary bg-primary/10 text-primary"
-    : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
 
 export function ScenarioCharts({
   results,

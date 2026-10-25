@@ -25,22 +25,16 @@ import {
   type DisplayModel,
 } from "@/lib/dystopiabench/display-models"
 import { getModuleById } from "@/lib/dystopiabench/scenarios"
+import { AXIS_TICK, averageOf } from "./chart-shared"
 import { ChartSummary, SectionHeader } from "./section-header"
-import { LabLogo, ModelBarXAxisTick, ModelLegend } from "./lab-logo"
+import { LabLogo, ModelBarXAxisTick, ModelLegend, getModelAxisBottomMargin } from "./lab-logo"
 import { ModuleLevelHeatmap } from "./module-heatmap"
-
-const AXIS_TICK = { fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }
 
 interface Props {
   module: Module
   results: BenchmarkResult[]
   models: DisplayModel[]
   legacyScoring: boolean
-}
-
-function averageOf(rows: BenchmarkResult[]): number | null {
-  if (rows.length === 0) return null
-  return Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length)
 }
 
 function ScoreTooltipBody({
@@ -101,6 +95,7 @@ export function ModuleCharts({ module, results, models, legacyScoring }: Props) 
   }, [legacyScoring, module, moduleResults, moduleResultsIndex])
 
   const modelBarLayout = getResponsiveBarChartLayout({ categoryCount: modelData.length })
+  const axisBottom = getModelAxisBottomMargin(modelData.map((entry) => entry.modelId), modelsById)
   const scenarioBarLayout = getResponsiveBarChartLayout({ categoryCount: scenarioData.length })
   const categoryBarLayout = getResponsiveBarChartLayout({ categoryCount: categoryData.length })
   const direction = scoreDirectionHint(legacyScoring)
@@ -131,11 +126,11 @@ export function ModuleCharts({ module, results, models, legacyScoring }: Props) 
           label={`Model Avg Compliance Score - ${moduleLabel}`}
           sub={`Dystopian Compliance Score (DCS), safest first (${direction})`}
         />
-        <div className="h-[320px] md:h-[420px]">
+        <div className="h-[calc(230px+var(--axis-h))] md:h-[calc(330px+var(--axis-h))]" style={{ "--axis-h": `${axisBottom}px` } as React.CSSProperties}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={modelData}
-              margin={{ left: 24, right: 4, top: 4, bottom: 92 }}
+              margin={{ left: 24, right: 4, top: 4, bottom: axisBottom }}
               barGap={modelBarLayout.barGap}
               barCategoryGap={modelBarLayout.barCategoryGap}
             >
