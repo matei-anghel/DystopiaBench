@@ -1,8 +1,9 @@
 "use client"
 
-import { useSyncExternalStore } from "react"
+import { useEffect, useSyncExternalStore } from "react"
 import { Monitor, Moon, Sun } from "lucide-react"
 import {
+  applyPreference,
   getServerThemePreference,
   getThemePreference,
   setThemePreference,
@@ -24,6 +25,8 @@ const LABELS: Record<ThemePreference, string> = {
 
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const preference = useSyncExternalStore(subscribeToTheme, getThemePreference, getServerThemePreference)
+  // Sync the browser theme-color with a stored choice that differs from the OS scheme.
+  useEffect(() => applyPreference(getThemePreference()), [])
   const Icon = preference === "light" ? Sun : preference === "dark" ? Moon : Monitor
   const next = NEXT_PREFERENCE[preference]
 

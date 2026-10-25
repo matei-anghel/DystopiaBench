@@ -55,6 +55,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
+  // Defaults by OS scheme; components/bench/theme.ts retargets these when a visitor picks a theme.
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#fafafa' },
     { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
