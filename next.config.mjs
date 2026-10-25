@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 // The V1 chart files are served from fixed URLs; the dashboard requests them with this content
-// hash as a query string so browsers never keep a stale copy after the files change.
+// hash as a query string; vercel.json caches hashed requests as immutable, so a push only
+// invalidates browser caches when the data itself changed.
 function hashFiles(paths) {
   const hash = createHash("sha256")
   for (const path of paths) {

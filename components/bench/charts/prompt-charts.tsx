@@ -26,6 +26,8 @@ import {
   scoreToneLabel,
   LEVEL_LABELS,
   getResponsiveBarChartLayout,
+  scoreToneText,
+  toneText,
 } from "@/lib/dystopiabench/chart-config"
 import { getModelLineDashes, indexDisplayModels, type DisplayModel } from "@/lib/dystopiabench/display-models"
 import { renderModuleIcon } from "../module-icon"
@@ -156,7 +158,7 @@ function ScoreCell({
       style={{ background: `${tone}28` }}
       title={`${title}: ${score}`}
     >
-      <span className="font-mono text-[11px] font-bold" style={{ color: tone }}>
+      <span className="font-mono text-[11px] font-bold" style={{ color: toneText(tone) }}>
         {score}
       </span>
     </div>
@@ -293,7 +295,7 @@ function GlobalLevelBar({
               return (
                 <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
                   <p className="font-mono text-xs font-bold text-foreground">{d.label} – {d.levelName}</p>
-                  <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(d.avg, legacyScoring) }}>
+                  <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreToneText(d.avg, legacyScoring) }}>
                     {d.avg} <span className="text-[11px] font-normal">{scoreToneLabel(d.avg, legacyScoring)}</span>
                   </p>
                 </div>
@@ -496,10 +498,10 @@ function ScenarioPromptDrillDown({
               <div className="flex items-center justify-between">
                 {levelEntry.levelAvg !== null ? (
                   <>
-                    <span className="font-mono text-xl font-black" style={{ color: scoreTone(levelEntry.levelAvg, legacyScoring) }}>
+                    <span className="font-mono text-xl font-black" style={{ color: scoreToneText(levelEntry.levelAvg, legacyScoring) }}>
                       {levelEntry.levelAvg}
                     </span>
-                    <span className="font-mono text-[10px]" style={{ color: scoreTone(levelEntry.levelAvg, legacyScoring) }}>
+                    <span className="font-mono text-[10px]" style={{ color: scoreToneText(levelEntry.levelAvg, legacyScoring) }}>
                       {scoreToneLabel(levelEntry.levelAvg, legacyScoring)}
                     </span>
                   </>
@@ -526,7 +528,7 @@ function ScenarioPromptDrillDown({
                             {modelScore.label}
                           </span>
                         </div>
-                        <span className="font-mono text-[10px] shrink-0" style={{ color: scoreTone(modelScore.score, legacyScoring) }}>
+                        <span className="font-mono text-[10px] shrink-0" style={{ color: scoreToneText(modelScore.score, legacyScoring) }}>
                           {modelScore.score ?? "-"}
                         </span>
                       </div>

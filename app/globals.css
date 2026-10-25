@@ -3,36 +3,50 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Light theme. The theme follows the visitor's system setting unless they pick one in the header
+   (see components/bench/theme.ts); the inline script in app/layout.tsx sets `.dark` before paint. */
 :root {
-  /* Exact HSL values from design inspo */
-  --background: 0 0% 4%;
-  --foreground: 0 0% 90%;
-  --card: 0 0% 7%;
-  --card-foreground: 0 0% 90%;
-  --popover: 0 0% 7%;
-  --popover-foreground: 0 0% 90%;
-  --primary: 0 72% 51%;
+  --background: 0 0% 98%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 0 72% 45%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 12%;
-  --secondary-foreground: 0 0% 80%;
-  --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 62%;
-  --accent: 38 92% 50%;
-  --accent-foreground: 0 0% 4%;
-  --destructive: 0 84% 60%;
+  --secondary: 0 0% 94%;
+  --secondary-foreground: 0 0% 20%;
+  --muted: 0 0% 93%;
+  --muted-foreground: 0 0% 36%;
+  --accent: 30 90% 36%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 46%;
   --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 15%;
-  --input: 0 0% 15%;
-  --ring: 0 72% 51%;
+  --border: 0 0% 86%;
+  --input: 0 0% 86%;
+  --ring: 0 72% 45%;
   --radius: 0.25rem;
 
+  --warning: 30 90% 36%;
+  --warning-foreground: 0 0% 100%;
+  --danger: 0 72% 45%;
+  --terminal: 142 70% 28%;
+  /* Score tones (green/yellow/orange/red) are darkened by this much when used as text. */
+  --tone-shade: 40%;
+  --scanline: 0 0% 0% / 0.02;
+  color-scheme: light;
+}
+
+/* Dark theme: exact HSL values from the original design. */
+.dark {
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 4%;
   --danger: 0 72% 51%;
   --terminal: 120 100% 40%;
-}
+  --tone-shade: 0%;
+  --scanline: 0 0% 100% / 0.015;
+  color-scheme: dark;
 
-.dark {
   --background: 0 0% 4%;
   --foreground: 0 0% 90%;
   --card: 0 0% 7%;
@@ -159,8 +173,8 @@
     background: repeating-linear-gradient(0deg,
         transparent,
         transparent 2px,
-        hsl(0 0% 100% / 0.015) 2px,
-        hsl(0 0% 100% / 0.015) 4px);
+        hsl(var(--scanline)) 2px,
+        hsl(var(--scanline)) 4px);
   }
 
   .subtle-x-scrollbar {

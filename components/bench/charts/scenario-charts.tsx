@@ -24,6 +24,8 @@ import {
   scoreToneLabel,
   LEVEL_LABELS,
   getResponsiveBarChartLayout,
+  scoreToneText,
+  toneText,
 } from "@/lib/dystopiabench/chart-config"
 import { createResultsIndex, type ResultsIndex } from "@/lib/dystopiabench/analytics"
 import {
@@ -214,7 +216,7 @@ function ScenarioDetailPanel({
                     return (
                       <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
                         <p className="font-mono text-xs font-bold text-foreground">{d.label} - {d.levelName}</p>
-                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(d.avg, legacyScoring) }}>
+                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreToneText(d.avg, legacyScoring) }}>
                           {d.avg ?? "-"} <span className="text-[11px] font-normal">{scoreToneLabel(d.avg, legacyScoring)}</span>
                         </p>
                       </div>
@@ -268,7 +270,7 @@ function ScenarioDetailPanel({
                           <LabLogo provider={model?.provider} size={12} />
                           {d.label}
                         </p>
-                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(d.avg, legacyScoring) }}>
+                        <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreToneText(d.avg, legacyScoring) }}>
                           {d.avg ?? "-"} <span className="text-[11px] font-normal">{scoreToneLabel(d.avg, legacyScoring)}</span>
                         </p>
                       </div>
@@ -377,7 +379,7 @@ function AllScenariosBar({ data, legacyScoring }: { data: ScenarioDataRow[]; leg
                     <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
                       <p className="mb-1 font-mono text-[11px] text-muted-foreground">{d.id}</p>
                       <p className="font-mono text-xs font-bold text-foreground">{d.title}</p>
-                      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(d.avg, legacyScoring) }}>
+                      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreToneText(d.avg, legacyScoring) }}>
                         {d.avg ?? "-"} <span className="text-[11px] font-normal">{scoreToneLabel(d.avg, legacyScoring)}</span>
                       </p>
                     </div>
@@ -445,7 +447,7 @@ function ScenarioModelGrid({
         style={{ background: `${tone}${strong ? "40" : "28"}` }}
         title={`${title}: ${score}`}
       >
-        <span className={`font-mono text-[11px] ${strong ? "font-black" : "font-bold"}`} style={{ color: tone }}>
+        <span className={`font-mono text-[11px] ${strong ? "font-black" : "font-bold"}`} style={{ color: toneText(tone) }}>
           {score}
         </span>
       </div>
@@ -644,7 +646,7 @@ export function ScenarioCharts({
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="font-mono text-lg font-black" style={{ color: scoreTone(selectedScenario.avgAll, legacyScoring) }}>
+                  <span className="font-mono text-lg font-black" style={{ color: scoreToneText(selectedScenario.avgAll, legacyScoring) }}>
                     {selectedScenario.avgAll ?? "-"}
                   </span>
                   <p className="font-mono text-[10px] text-muted-foreground">

@@ -84,6 +84,18 @@ export function scoreTone(score: number | null | undefined, legacyScoring: boole
   return scoreColor(legacyScoring ? score : 100 - score)
 }
 
+/**
+ * A tone colour usable as text: unchanged on dark backgrounds, darkened by the theme's
+ * `--tone-shade` on light ones (yellow/orange on white would otherwise be unreadable).
+ */
+export function toneText(color: string): string {
+  return `color-mix(in srgb, ${color}, #000 var(--tone-shade, 0%))`
+}
+
+export function scoreToneText(score: number | null | undefined, legacyScoring: boolean): string {
+  return toneText(scoreTone(score, legacyScoring))
+}
+
 export function scoreToneLabel(score: number | null | undefined, legacyScoring: boolean): string {
   if (score === null || score === undefined) return "No data"
   if (legacyScoring) return scoreLabel(score)

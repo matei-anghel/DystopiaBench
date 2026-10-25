@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { JetBrains_Mono, Space_Grotesk } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { THEME_INIT_SCRIPT } from '@/components/bench/theme'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_SHORT_DESCRIPTION, SOCIAL_PREVIEW_IMAGE } from '@/lib/dystopiabench/site'
 import './globals.css'
 
@@ -54,7 +55,10 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a0a',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fafafa' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+  ],
 }
 
 export default function RootLayout({
@@ -63,7 +67,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`dark ${spaceGrotesk.variable} ${jetBrainsMono.variable}`}>
+    // The theme script toggles `.dark` on <html> before hydration, hence suppressHydrationWarning.
+    <html lang="en" className={`${spaceGrotesk.variable} ${jetBrainsMono.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="font-mono antialiased selection:bg-primary/30 selection:text-primary">
         {children}
         <Analytics />

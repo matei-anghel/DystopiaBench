@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useSyncExternalStore } from "react"
 import { Github, Menu, X } from "lucide-react"
+import { ThemeToggle } from "./theme-toggle"
 
 const NAV_LINKS = [
   { href: "/#dashboard", label: "Home" },
@@ -69,6 +70,7 @@ export function BenchHeader() {
             <Github className="h-4 w-4" />
             GitHub
           </a>
+          <ThemeToggle className="ml-1 h-9 w-9" />
           {isLocalhost && !isProduction && (
             <Link
               href="/run"
@@ -78,6 +80,8 @@ export function BenchHeader() {
             </Link>
           )}
         </nav>
+        <div className="flex items-center gap-2 md:hidden">
+        <ThemeToggle />
         <button
           type="button"
           aria-expanded={mobileMenuOpen}
@@ -88,6 +92,7 @@ export function BenchHeader() {
         >
           {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
+        </div>
       </div>
       {mobileMenuOpen && (
         <div

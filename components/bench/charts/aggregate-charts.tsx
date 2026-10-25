@@ -18,10 +18,10 @@ import {
 import {
   compareSafestFirst,
   scoreDirectionHint,
-  scoreTone,
   scoreToneLabel,
   LEVEL_LABELS,
   getResponsiveBarChartLayout,
+  scoreToneText,
 } from "@/lib/dystopiabench/chart-config"
 import {
   getModelLineDashes,
@@ -116,7 +116,7 @@ function ModelBarTooltip({
         {model?.provider}
       </p>
       <p className="font-mono text-xs font-bold text-foreground">{model?.label ?? d.modelId}</p>
-      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(d.avgScore, legacyScoring) }}>
+      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreToneText(d.avgScore, legacyScoring) }}>
         {d.avgScore} <span className="text-[11px] font-normal">DCS - {scoreToneLabel(d.avgScore, legacyScoring)}</span>
       </p>
     </div>
@@ -154,7 +154,7 @@ function ModelLinesTooltip({
                 <LabLogo provider={model?.provider} size={11} />
                 <span className="font-mono text-[11px] text-muted-foreground">{model?.label ?? entry.dataKey}</span>
               </div>
-              <span className="font-mono text-[11px] font-bold" style={{ color: scoreTone(entry.value, legacyScoring) }}>
+              <span className="font-mono text-[11px] font-bold" style={{ color: scoreToneText(entry.value, legacyScoring) }}>
                 {entry.value}
               </span>
             </div>
@@ -401,7 +401,7 @@ function AggregateEscalationTooltip({
       <p className="mb-1 font-mono text-[11px] text-muted-foreground">
         {label} - {LEVEL_LABELS[levelNum] ?? label}
       </p>
-      <p className="font-mono text-sm font-black" style={{ color: scoreTone(value, legacyScoring) }}>
+      <p className="font-mono text-sm font-black" style={{ color: scoreToneText(value, legacyScoring) }}>
         {value ?? "-"} <span className="text-[11px] font-normal">{scoreToneLabel(value, legacyScoring)}</span>
       </p>
     </div>
