@@ -95,6 +95,17 @@
     },
     {
       "source": "/data/legacy-results-:mode(stateful|stateless).chart.json",
+      "has": [{ "type": "query", "key": "v" }],
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/data/legacy-results-:mode(stateful|stateless).chart.json",
+      "missing": [{ "type": "query", "key": "v" }],
       "headers": [
         {
           "key": "Cache-Control",

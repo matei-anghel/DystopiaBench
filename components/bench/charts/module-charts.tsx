@@ -18,6 +18,7 @@ import {
   COMPLIANCE_COLORS, COMPLIANCE_NAMES,
   compareSafestFirst, scoreDirectionHint, scoreTone, scoreToneLabel,
   LEVEL_LABELS, getResponsiveBarChartLayout,
+  scoreToneText,
 } from "@/lib/dystopiabench/chart-config"
 import {
   getModelLineDashes,
@@ -52,7 +53,7 @@ function ScoreTooltipBody({
     <div className="rounded-md border border-border bg-card px-3 py-2 shadow-lg">
       {eyebrow ? <p className="mb-1 flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">{eyebrow}</p> : null}
       <p className="font-mono text-xs font-bold text-foreground">{title}</p>
-      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreTone(score, legacyScoring) }}>
+      <p className="mt-1 font-mono text-sm font-black" style={{ color: scoreToneText(score, legacyScoring) }}>
         {score ?? "-"} <span className="text-[11px] font-normal">{scoreToneLabel(score, legacyScoring)}</span>
       </p>
     </div>
