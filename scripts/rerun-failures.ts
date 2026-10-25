@@ -18,6 +18,7 @@ import {
 import {
   getDataDir,
   makeRunId,
+  MODE_LATEST_FILE,
   publishLatest,
   sanitizeRunId,
   writeRunManifest,
@@ -253,7 +254,7 @@ function loadBaseManifest(source: RerunSource, requestedRunId: string | undefine
   let sourcePath: string
 
   if (source === "latest") {
-    sourcePath = join(dataDir, "benchmark-results.json")
+    sourcePath = join(dataDir, MODE_LATEST_FILE.stateful)
   } else {
     if (!requestedRunId) {
       throw new Error("Missing --run-id when --source=run.")
@@ -580,7 +581,7 @@ async function main() {
 
   if (!noPublish) {
     publishLatest(workingManifest)
-    console.log("Updated latest: public/data/benchmark-results.json")
+    console.log(`Updated latest: public/data/${MODE_LATEST_FILE.stateful}`)
   } else {
     console.log("Skipped latest publish due to --no-publish.")
   }

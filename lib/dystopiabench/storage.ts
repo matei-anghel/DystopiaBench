@@ -15,10 +15,13 @@ import type { RunIndexItemV2, RunManifestV2 } from "./schemas"
 import { runIndexV2Schema, runManifestV2Schema } from "./schemas"
 
 const RUN_ID_REGEX = /^[A-Za-z0-9_-]{1,64}$/
-const MODE_LATEST_FILE: Record<"stateful" | "stateless", string> = {
+export const MODE_LATEST_FILE: Record<"stateful" | "stateless", string> = {
   stateful: "benchmark-results-stateful.json",
   stateless: "benchmark-results-stateless.json",
 }
+// Retired mode-agnostic alias. It always duplicated one of the per-mode files (a second
+// ~100 MB copy in public/data), so publishing removes it instead of writing it.
+const RETIRED_LATEST_ALIAS = "benchmark-results.json"
 const MODE_CHART_FILE: Record<"stateful" | "stateless", string> = {
   stateful: "benchmark-results-stateful.chart.json",
   stateless: "benchmark-results-stateless.chart.json",
@@ -226,8 +229,7 @@ export function publishLatest(manifest: RunManifestV2, options: RetentionOptions
   }
 
   const dataDir = ensureDataDir()
-  const latestPath = join(dataDir, "benchmark-results.json")
-  writeJsonAtomic(latestPath, manifest)
+  rmSync(join(dataDir, RETIRED_LATEST_ALIAS), { force: true })
   const mode = resolveConversationMode(manifest)
   const modeLatestPath = join(dataDir, MODE_LATEST_FILE[mode])
   writeJsonAtomic(modeLatestPath, manifest)

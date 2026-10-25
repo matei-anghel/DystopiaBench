@@ -389,7 +389,6 @@ function main() {
   if (publish) {
     publishLatest(mergedManifest, { retainRuns, archiveDir })
     console.log(`Published merged run ${runId}`)
-    console.log("Updated public/data/benchmark-results.json")
     console.log("Updated public/data/benchmark-results-stateful.json")
   }
 }

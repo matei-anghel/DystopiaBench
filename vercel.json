@@ -58,15 +58,6 @@
       ]
     },
     {
-      "source": "/data/benchmark-results.json",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=60, stale-while-revalidate=300"
-        }
-      ]
-    },
-    {
       "source": "/data/benchmark-results-stateful.json",
       "headers": [
         {

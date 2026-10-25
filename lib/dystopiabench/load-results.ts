@@ -138,10 +138,8 @@ async function loadSavedRunUncached(
           decorateVersion("/data/benchmark-results-stateful.chart.json"),
           decorateVersion("/data/benchmark-results-stateful.json"),
           decorateVersion("/data/benchmark-results-stateful.json.gz"),
-          decorateVersion("/data/benchmark-results.json.gz"),
-          decorateVersion("/data/benchmark-results.json"),
         ]
-          : [decorateVersion("/data/benchmark-results.json.gz"), decorateVersion("/data/benchmark-results.json")]
+          : [decorateVersion("/data/benchmark-results-stateful.json"), decorateVersion("/data/benchmark-results-stateful.json.gz")]
 
     for (const url of urlCandidates) {
       const res = await fetch(url, { cache: "force-cache" })

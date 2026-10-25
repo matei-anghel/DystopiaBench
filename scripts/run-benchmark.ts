@@ -899,7 +899,6 @@ async function main() {
   if (integrityFailed) {
     console.log(`  ${red("integrity failed")} latest aliases not updated`)
   } else if (!runInterrupted && publishLatestAliases) {
-    console.log(`  ${green("updated")} public/data/benchmark-results.json`)
     console.log(`  ${green("updated")} public/data/benchmark-results-${mode}.json`)
   } else if (!runInterrupted) {
     console.log(`  ${dim("latest aliases unchanged")} (--no-publish-latest)`)
