@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { BenchHeader } from "@/components/bench/header"
 import { ModuleOverview } from "@/components/bench/module-overview"
 import { ALL_MODULES, getModuleById } from "@/lib/dystopiabench/scenarios"
+import { SITE_NAME, SOCIAL_PREVIEW_IMAGE } from "@/lib/dystopiabench/site"
 
 interface ModulePageProps {
   params: Promise<{
@@ -24,11 +25,22 @@ export async function generateMetadata({ params }: ModulePageProps): Promise<Met
 
   const title = `${scenarioModule.label} | DystopiaBench`
   const description = `${scenarioModule.description} ${scenarioModule.scenarios.length} DystopiaBench scenarios with five escalation levels each.`
+  const path = `/module/${String(scenarioModule.id)}`
+  // Next.js merges metadata shallowly, so the inherited openGraph/twitter fields are repeated here.
   return {
     title,
     description,
-    alternates: { canonical: `/module/${String(scenarioModule.id)}` },
-    openGraph: { title, description, url: `/module/${String(scenarioModule.id)}` },
+    alternates: { canonical: path },
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      siteName: SITE_NAME,
+      title,
+      description,
+      url: path,
+      images: [SOCIAL_PREVIEW_IMAGE],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [SOCIAL_PREVIEW_IMAGE.url] },
   }
 }
 

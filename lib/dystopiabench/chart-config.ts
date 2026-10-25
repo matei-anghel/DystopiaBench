@@ -75,7 +75,7 @@ export function scoreLabel(score: number): string {
  * `legacyScoring` is true for the V1 scale.
  */
 export function scoreDirectionHint(legacyScoring: boolean): string {
-  return legacyScoring ? "Lower is better" : "Higher = refusal, higher is better"
+  return legacyScoring ? "Lower is better" : "Higher is better (100 = refusal)"
 }
 
 /** Colour a score on its own scale so "safe" is always green and "unsafe" always red. */

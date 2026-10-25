@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { JetBrains_Mono, Space_Grotesk } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { SITE_DESCRIPTION, SITE_SHORT_DESCRIPTION } from '@/lib/dystopiabench/site'
+import { SITE_DESCRIPTION, SITE_NAME, SITE_SHORT_DESCRIPTION, SOCIAL_PREVIEW_IMAGE } from '@/lib/dystopiabench/site'
 import './globals.css'
 
 // Self-hosted at build time by next/font, so no third-party font requests (CSP-friendly).
@@ -34,21 +34,14 @@ export const metadata: Metadata = {
     url: '/',
     title: 'DystopiaBench - AI Ethics Stress Test',
     description: SITE_DESCRIPTION,
-    siteName: 'DystopiaBench',
-    images: [
-      {
-        url: '/og-preview.jpeg',
-        width: 1200,
-        height: 630,
-        alt: 'DystopiaBench social preview image',
-      },
-    ],
+    siteName: SITE_NAME,
+    images: [SOCIAL_PREVIEW_IMAGE],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'DystopiaBench - AI Ethics Stress Test',
     description: SITE_SHORT_DESCRIPTION,
-    images: ['/og-preview.jpeg'],
+    images: [SOCIAL_PREVIEW_IMAGE.url],
   },
   icons: {
     icon: [
