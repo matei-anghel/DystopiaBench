@@ -1,6 +1,6 @@
-import { getProviderColor } from "./chart-config"
+import { getLabColor } from "./chart-config"
 import { ALL_CURATED_MODELS, getModelById } from "./models"
-import type { BenchmarkResult } from "./types"
+import type { BenchmarkResult, WeightClass } from "./types"
 
 /**
  * Chart-facing model descriptor. Dashboard model lists are always derived from the model IDs
@@ -12,6 +12,8 @@ export interface DisplayModel {
   label: string
   provider: string
   color: string
+  /** Known for curated models only. */
+  weightClass?: WeightClass
 }
 
 type ResultModelFields = Pick<BenchmarkResult, "modelId" | "modelLabel" | "provider">
@@ -25,7 +27,8 @@ export function resolveDisplayModel(modelId: string, fallback?: Partial<ResultMo
     id: modelId,
     label: curated?.label ?? fallback?.modelLabel ?? modelId,
     provider,
-    color: getProviderColor(provider),
+    color: getLabColor(provider),
+    weightClass: curated?.weightClass,
   }
 }
 

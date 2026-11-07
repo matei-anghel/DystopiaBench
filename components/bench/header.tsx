@@ -4,12 +4,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useSyncExternalStore } from "react"
 import { Github, Menu, X } from "lucide-react"
+import { openSection, requestSectionOpen } from "./collapsible-section"
 import { ThemeToggle } from "./theme-toggle"
+import { TrefoilMark } from "./trefoil-mark"
 
 const NAV_LINKS = [
-  { href: "/#dashboard", label: "Home" },
   { href: "/#results", label: "Results" },
-  { href: "/methodology", label: "Methodology" },
+  { href: "/#methodology", label: "Methodology" },
   { href: "/#contact", label: "Contact" },
 ]
 
@@ -31,23 +32,28 @@ export function BenchHeader() {
   const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (href.startsWith("/#")) {
       const id = href.slice(2)
-      if (isHome) {
+      const el = isHome ? document.getElementById(id) : null
+      if (el instanceof HTMLDetailsElement) {
+        // Collapsed sections (methodology) open when their header link is clicked.
         e.preventDefault()
-        const el = document.getElementById(id)
-        if (el) el.scrollIntoView({ behavior: "smooth" })
+        openSection(id)
+      } else if (el) {
+        e.preventDefault()
+        el.scrollIntoView({ behavior: "smooth" })
+      } else if (!isHome) {
+        requestSectionOpen(id)
       }
     }
     setMobileMenuOpen(false)
   }
 
   return (
-    <header className="border-b border-border bg-card/90 backdrop-blur sticky top-0 z-40">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-7">
-        <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3" aria-label="DystopiaBench home">
+    <header className="ds-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
+        <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5" aria-label="DystopiaBench home">
+          <TrefoilMark size={22} className="text-foreground" />
           {/* Not a heading: each page owns its single <h1>. */}
-          <span className="font-sans text-base font-bold tracking-wider text-foreground uppercase">
-            Dystopia<span className="text-destructive">Bench</span>
-          </span>
+          <span className="ds-display text-lg leading-none text-foreground">DystopiaBench</span>
         </Link>
         <nav className="hidden items-center gap-1.5 md:flex">
           {NAV_LINKS.map((link) => (
@@ -55,7 +61,8 @@ export function BenchHeader() {
               key={link.href}
               href={link.href}
               onClick={(e) => handleAnchorClick(e, link.href)}
-              className="flex items-center gap-1.5 px-3.5 py-2 font-mono text-sm tracking-wide text-muted-foreground transition-colors hover:text-foreground uppercase rounded-md hover:bg-muted/50"
+              aria-current={pathname === link.href ? "page" : undefined}
+              className="ds-label flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground aria-[current=page]:text-foreground"
             >
               {link.label}
             </a>
@@ -65,16 +72,16 @@ export function BenchHeader() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="View GitHub repository"
-            className="flex items-center gap-1.5 px-3.5 py-2 font-mono text-sm tracking-wide text-muted-foreground transition-colors hover:text-foreground uppercase rounded-md hover:bg-muted/50"
+            className="ds-label flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
           >
-            <Github className="h-4 w-4" />
+            <Github className="h-3.5 w-3.5" />
             GitHub
           </a>
           <ThemeToggle className="ml-1 h-9 w-9" />
           {isLocalhost && !isProduction && (
             <Link
               href="/run"
-              className="ml-2 flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/20 px-3.5 py-2 font-mono text-sm font-medium tracking-wide text-primary transition-colors hover:bg-primary/20 uppercase"
+              className="ds-label ml-2 flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
             >
               Run Bench
             </Link>
@@ -97,7 +104,7 @@ export function BenchHeader() {
       {mobileMenuOpen && (
         <div
           id="mobile-topbar-menu"
-          className="border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:hidden"
+          className="border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden"
         >
           <nav className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
@@ -105,7 +112,7 @@ export function BenchHeader() {
                 key={link.href}
                 href={link.href}
                 onClick={(e) => handleAnchorClick(e, link.href)}
-                className="rounded-md px-3 py-2 font-mono text-xs tracking-wide text-muted-foreground uppercase transition-colors hover:bg-muted/50 hover:text-foreground"
+                className="ds-label rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
               >
                 {link.label}
               </a>
@@ -115,7 +122,7 @@ export function BenchHeader() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 rounded-md px-3 py-2 font-mono text-xs tracking-wide text-muted-foreground uppercase transition-colors hover:bg-muted/50 hover:text-foreground"
+              className="ds-label flex items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
             >
               <Github className="h-3.5 w-3.5" />
               GitHub
@@ -124,7 +131,7 @@ export function BenchHeader() {
               <Link
                 href="/run"
                 onClick={() => setMobileMenuOpen(false)}
-                className="mt-1 rounded-md border border-primary/20 bg-primary/10 px-3 py-2 font-mono text-xs font-medium tracking-wide text-primary uppercase transition-colors hover:bg-primary/20"
+                className="ds-label mt-1 rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
               >
                 Run Bench
               </Link>

@@ -53,19 +53,19 @@ export default async function ModulePage({ params }: ModulePageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="ds-page min-h-screen">
       <BenchHeader />
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <nav aria-label="Breadcrumb" className="mb-6 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-          <Link href="/methodology" className="hover:text-foreground">Methodology</Link>
+        <nav aria-label="Breadcrumb" className="ds-label mb-6 text-[11px] text-muted-foreground">
+          <Link href="/#methodology" className="hover:text-foreground">Methodology</Link>
           <span aria-hidden> / </span>
           <span className="text-foreground">{scenarioModule.label}</span>
         </nav>
         <ModuleOverview module={scenarioModule.id} headingLevel={1} />
         <p className="mt-10 font-mono text-xs text-muted-foreground">
-          See how models scored on these scenarios in the{" "}
+          Scores for these scenarios are in the{" "}
           <Link href="/#results" className="text-foreground underline underline-offset-2 hover:text-primary">
-            benchmark results
+            results
           </Link>
           .
         </p>

@@ -25,6 +25,9 @@ as standalone images (the dashboard inverts them in dark mode).
 | xai.svg | xai.svg |
 | zai.svg | zai.svg |
 
+`xiaomi.svg` is the Xiaomi mark from [Simple Icons](https://simpleicons.org) v13.21.0
+(CC0 1.0), filled with the Xiaomi brand orange.
+
 The logos themselves are trademarks of their respective owners and are used here only to
 identify the organisation that built each benchmarked model.
 

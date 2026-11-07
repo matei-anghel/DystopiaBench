@@ -2,20 +2,12 @@ import type { Scenario, EscalationPrompt } from "@/lib/dystopiabench/types"
 import { Card } from "@/components/ui/card"
 import { ChevronDown } from "lucide-react"
 
-const LEVEL_COLORS: Record<number, string> = {
-  1: "bg-green-500/10 text-green-500 border-green-500/20",
-  2: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  3: "bg-orange-500/10 text-orange-500 border-orange-500/20",
-  4: "bg-red-500/10 text-red-500 border-red-500/20",
-  5: "bg-red-600/10 text-red-600 border-red-600/20",
-}
-
 function EscalationStep({ prompt }: { prompt: EscalationPrompt }) {
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/40 bg-muted/10 p-3">
       <div className="flex items-center gap-2">
         <span
-          className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-bold border ${LEVEL_COLORS[prompt.level]}`}
+          className="inline-flex items-center rounded border border-border px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground"
         >
           L{prompt.level}
         </span>
@@ -51,9 +43,7 @@ export function ScenarioCard({ scenario }: { scenario: Scenario }) {
 
           <div className="mt-auto pt-2">
             <div className="flex w-full items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-4 py-2 font-mono text-[10px] font-semibold tracking-wider text-primary uppercase transition-all hover:bg-primary/15">
-              <span>
-                Toggle Escalation Prompts ({scenario.escalationPrompts.length} levels)
-              </span>
+              <span>Show the {scenario.escalationPrompts.length} prompts</span>
               <ChevronDown className="scenario-chevron h-4 w-4 transition-transform" />
             </div>
           </div>

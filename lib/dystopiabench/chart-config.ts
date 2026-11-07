@@ -1,11 +1,14 @@
 import { ALL_CURATED_MODELS } from "./models"
 
-// Attitude scale — 4-tier compliance rating, consistent across all charts
+// Attitude scale: 4-tier compliance rating, consistent across all charts. A single-hue ramp from
+// neutral (refusal) to the design's risk red (proactive), driven by CSS variables so it follows
+// the active design direction and light/dark theme.
+const TIER_BASE = "hsl(var(--muted-foreground) / 0.35)"
 export const COMPLIANCE_COLORS: Record<string, string> = {
-  refusal: "#16a34a", // green  — refused to assist
-  hesitant: "#facc15", // yellow — assisted with caveats/flags
-  compliant: "#f97316", // orange — assisted without pushback
-  proactive: "#dc2626", // red    — actively enhanced the request
+  refusal: TIER_BASE,
+  hesitant: `color-mix(in oklab, hsl(var(--risk-hi)) 38%, ${TIER_BASE})`,
+  compliant: `color-mix(in oklab, hsl(var(--risk-hi)) 70%, ${TIER_BASE})`,
+  proactive: "hsl(var(--risk-hi))",
 }
 
 export const COMPLIANCE_NAMES: Record<string, string> = {
@@ -45,6 +48,24 @@ export function getProviderColor(provider: string | undefined): string {
   return (provider ? PROVIDER_COLORS[provider] : undefined) ?? FALLBACK_MODEL_COLOR
 }
 
+// Labs whose colour is a neutral grey; they use a theme-aware neutral instead (dark grey on light
+// backgrounds, light grey on dark ones).
+const NEUTRAL_LABS = new Set(["OpenAI"])
+
+/**
+ * The lab colour as drawn on the page. The palette is tuned for the dark theme; on light
+ * backgrounds every colour is deepened by --lab-shade (app/globals.css) so pale hues keep contrast.
+ */
+export function getLabColor(provider: string | undefined): string {
+  if (provider && NEUTRAL_LABS.has(provider)) return "hsl(var(--lab-neutral))"
+  return themedChartColor(getProviderColor(provider))
+}
+
+/** A categorical chart colour, deepened on the light theme so it holds contrast on white. */
+export function themedChartColor(hex: string): string {
+  return `color-mix(in oklab, ${hex}, #000 var(--lab-shade, 0%))`
+}
+
 export const MODULE_COLORS: Record<string, string> = {
   petrov: "#f97316",
   orwell: "#8b5cf6",
@@ -54,12 +75,29 @@ export const MODULE_COLORS: Record<string, string> = {
   baudrillard: "#d946ef",
 }
 
-// Score → hex color interpolation (V1 attitude scale: 0 / 33 / 66 / 100, lower is better)
+/**
+ * Bars that average across models (per level, per scenario) are drawn as outlines, so they can
+ * never be mistaken for a lab colour (a neutral grey fill read as OpenAI's).
+ */
+export const AGGREGATE_BAR = {
+  fill: "hsl(var(--foreground) / 0.07)",
+  stroke: "hsl(var(--foreground) / 0.75)",
+  strokeWidth: 1.25,
+} as const
+
+/**
+ * Sequential risk colour on the V1 orientation (0 safest, 100 least safe): a continuous ramp from
+ * the design's --risk-lo (near the surface colour) to --risk-hi. For heatmap cells, not bars.
+ */
 export function scoreColor(score: number): string {
-  if (score <= 25) return COMPLIANCE_COLORS.refusal
-  if (score <= 50) return COMPLIANCE_COLORS.hesitant
-  if (score <= 75) return COMPLIANCE_COLORS.compliant
-  return COMPLIANCE_COLORS.proactive
+  // Stretch 10..90 over the full ramp: almost every average falls inside it.
+  const mix = Math.max(0, Math.min(100, Math.round(((score - 10) / 80) * 100)))
+  return `color-mix(in oklab, hsl(var(--risk-hi)) ${mix}%, hsl(var(--risk-lo)))`
+}
+
+/** Text colour that stays legible on a scoreColor() cell. */
+export function scoreInk(score: number): string {
+  return score >= 55 ? "#ffffff" : "hsl(var(--foreground))"
 }
 
 export function scoreLabel(score: number): string {
@@ -78,22 +116,28 @@ export function scoreDirectionHint(legacyScoring: boolean): string {
   return legacyScoring ? "Lower is better" : "Higher is better (100 = refusal)"
 }
 
+/** What the ends of the score scale mean, for chart subtitles. */
+export function scaleHint(legacyScoring: boolean): string {
+  return legacyScoring ? "0 = refusal, 100 = proactive compliance" : "100 = refusal, 0 = full compliance"
+}
+
 /** Colour a score on its own scale so "safe" is always green and "unsafe" always red. */
 export function scoreTone(score: number | null | undefined, legacyScoring: boolean): string {
   if (score === null || score === undefined) return "hsl(var(--muted-foreground))"
   return scoreColor(legacyScoring ? score : 100 - score)
 }
 
-/**
- * A tone colour usable as text: unchanged on dark backgrounds, darkened by the theme's
- * `--tone-shade` on light ones (yellow/orange on white would otherwise be unreadable).
- */
-export function toneText(color: string): string {
-  return `color-mix(in srgb, ${color}, #000 var(--tone-shade, 0%))`
+/** Text colour for a score: ink when it leans safe, the risk red when it leans unsafe. */
+export function scoreToneText(score: number | null | undefined, legacyScoring: boolean): string {
+  if (score === null || score === undefined) return "hsl(var(--muted-foreground))"
+  const risk = legacyScoring ? score : 100 - score
+  return risk >= 50 ? "hsl(var(--risk-hi))" : "hsl(var(--foreground))"
 }
 
-export function scoreToneText(score: number | null | undefined, legacyScoring: boolean): string {
-  return toneText(scoreTone(score, legacyScoring))
+/** Cell text colour for scoreTone() backgrounds on either scale. */
+export function scoreToneInk(score: number | null | undefined, legacyScoring: boolean): string {
+  if (score === null || score === undefined) return "hsl(var(--muted-foreground))"
+  return scoreInk(legacyScoring ? score : 100 - score)
 }
 
 export function scoreToneLabel(score: number | null | undefined, legacyScoring: boolean): string {

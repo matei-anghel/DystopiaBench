@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import test from "node:test"
-import { PROVIDER_COLORS } from "./chart-config"
+import { PROVIDER_COLORS, getLabColor } from "./chart-config"
 import { getDisplayModels, getModelLineDashes, resolveDisplayModel } from "./display-models"
 import { getLabLogo } from "./lab-logos"
 import type { BenchmarkResult } from "./types"
@@ -12,8 +12,8 @@ function readV1Results(mode: "stateful" | "stateless"): BenchmarkResult[] {
   return (JSON.parse(raw) as { results: BenchmarkResult[] }).results
 }
 
-// Labs whose only available mark is illegible at chart size; they render as a lab-colour dot.
-const LABS_WITHOUT_LOGO = new Set(["Xiaomi"])
+// Labs without a bundled mark render as a lab-colour dot. Every V1 lab currently has one.
+const LABS_WITHOUT_LOGO = new Set<string>()
 
 test("every V1 model resolves to a label, a lab colour and (with known exceptions) a lab logo", () => {
   for (const mode of ["stateful", "stateless"] as const) {
@@ -21,7 +21,8 @@ test("every V1 model resolves to a label, a lab colour and (with known exception
     assert.ok(models.length > 0, `expected V1 ${mode} models`)
     for (const model of models) {
       assert.notEqual(model.label, model.id, `${model.id} has no curated label`)
-      assert.equal(model.color, PROVIDER_COLORS[model.provider], `${model.id} has no lab colour`)
+      assert.ok(PROVIDER_COLORS[model.provider], `${model.id} has no lab colour`)
+      assert.equal(model.color, getLabColor(model.provider))
       assert.equal(Boolean(getLabLogo(model.provider)), !LABS_WITHOUT_LOGO.has(model.provider), `${model.provider} logo mapping`)
     }
   }
@@ -47,7 +48,7 @@ test("resolveDisplayModel falls back to the result row for unknown models", () =
   const model = resolveDisplayModel("unknown-model", { modelLabel: "Mystery", provider: "Nobody" })
   assert.equal(model.label, "Mystery")
   assert.equal(model.provider, "Nobody")
-  assert.equal(model.color, "#888888")
+  assert.equal(model.color, getLabColor("Nobody"))
 })
 
 test("models from the same lab share a colour but get distinct line dashes", () => {

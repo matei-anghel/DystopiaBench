@@ -1,8 +1,8 @@
 /**
  * Locally bundled lab logos (see public/logos/LICENSE.md), keyed on a model's provider.
  * `mono` marks single-colour black marks that must be inverted on dark backgrounds.
- * Labs without a legible small mark (e.g. Xiaomi, whose MiMo icon is a wordmark) fall back to a
- * dot in the lab colour.
+ * Labs without a bundled mark fall back to a dot in the lab colour. Xiaomi uses the company mark
+ * rather than the MiMo icon, which is a wordmark and illegible at chart sizes.
  */
 export interface LabLogo {
   src: string
@@ -25,6 +25,7 @@ const LAB_LOGOS: Record<string, LabLogo> = {
   ByteDance: { src: "/logos/bytedance.svg", mono: false },
   Arcee: { src: "/logos/arcee.svg", mono: false },
   Tencent: { src: "/logos/tencent.svg", mono: false },
+  Xiaomi: { src: "/logos/xiaomi.svg", mono: false },
 }
 
 export function getLabLogo(provider: string | undefined): LabLogo | undefined {

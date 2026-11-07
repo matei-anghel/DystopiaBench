@@ -3,24 +3,15 @@ import { JetBrains_Mono, Space_Grotesk } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { THEME_INIT_SCRIPT } from '@/components/bench/theme'
-import { SITE_DESCRIPTION, SITE_NAME, SITE_SHORT_DESCRIPTION, SOCIAL_PREVIEW_IMAGE } from '@/lib/dystopiabench/site'
+import { SITE_DESCRIPTION, SITE_NAME, SITE_SHORT_DESCRIPTION, SOCIAL_PREVIEW_IMAGE, getSiteUrl } from '@/lib/dystopiabench/site'
 import './globals.css'
 
 // Self-hosted at build time by next/font, so no third-party font requests (CSP-friendly).
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-space-grotesk',
-})
-
-const jetBrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-jetbrains-mono',
-})
+const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], display: 'swap', variable: '--font-space-grotesk' })
+const jetBrainsMono = JetBrains_Mono({ subsets: ['latin'], display: 'swap', variable: '--font-jetbrains-mono' })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  metadataBase: new URL(getSiteUrl()),
   title: 'DystopiaBench - AI Ethics Stress Test',
   description: SITE_DESCRIPTION,
   keywords: [
@@ -57,7 +48,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   // Defaults by OS scheme; components/bench/theme.ts retargets these when a visitor picks a theme.
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fafafa' },
+    { media: '(prefers-color-scheme: light)', color: '#f4f4f3' },
     { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
   ],
 }
@@ -73,7 +64,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="font-mono antialiased selection:bg-primary/30 selection:text-primary">
+      <body className="antialiased selection:bg-primary/25 selection:text-foreground">
         {children}
         <Analytics />
         <SpeedInsights />

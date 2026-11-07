@@ -33,6 +33,10 @@ const nextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // Methodology moved onto the homepage as a collapsible section; keep old links working.
+  async redirects() {
+    return [{ source: "/methodology", destination: "/#methodology", permanent: true }]
+  },
 }
 
 export default nextConfig

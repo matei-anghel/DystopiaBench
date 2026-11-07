@@ -6,8 +6,8 @@ import dynamic from "next/dynamic"
 function DeferredResultsPlaceholder() {
   return (
     <div className="rounded-md border border-border bg-card/40 p-5">
-      <p className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
-        Charts will load when this section enters view.
+      <p className="ds-label text-[11px] text-muted-foreground">
+        Loading results
       </p>
     </div>
   )

@@ -2,7 +2,7 @@ import type { DisplayModel } from "@/lib/dystopiabench/display-models"
 import { getProviderColor } from "@/lib/dystopiabench/chart-config"
 import { getLabLogo } from "@/lib/dystopiabench/lab-logos"
 
-const MONO_LOGO_CLASS = "dark:invert"
+const MONO_LOGO_CLASS = "lab-logo-mono"
 
 /** Lab logo for HTML contexts; falls back to a dot in the lab colour when no logo is bundled. */
 export function LabLogo({
@@ -92,21 +92,39 @@ export function ModelName({
   )
 }
 
-/** Legend for line/radar charts: line swatch in the lab colour (dashed per model) + logo + name. */
+/**
+ * Legend for line charts: line swatch in the lab colour (dashed per model) + logo + name.
+ * With `onActiveChange`, hovering or focusing an item highlights that model's series.
+ */
 export function ModelLegend({
   models,
   dashes,
   className = "",
+  activeId = null,
+  onActiveChange,
 }: {
   models: readonly DisplayModel[]
   dashes?: Map<string, string | undefined>
   className?: string
+  activeId?: string | null
+  onActiveChange?: (modelId: string | null) => void
 }) {
   if (models.length === 0) return null
   return (
-    <ul className={`mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-3 ${className}`} aria-label="Legend">
+    <ul
+      className={`mt-4 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border pt-3 ${className}`}
+      aria-label="Legend"
+      onMouseLeave={() => onActiveChange?.(null)}
+    >
       {models.map((model) => (
-        <li key={model.id} className="flex items-center gap-1.5">
+        <li
+          key={model.id}
+          className={`flex items-center gap-1.5 transition-opacity ${activeId && activeId !== model.id ? "opacity-40" : ""}`}
+          onMouseEnter={() => onActiveChange?.(model.id)}
+          onFocus={() => onActiveChange?.(model.id)}
+          onBlur={() => onActiveChange?.(null)}
+          tabIndex={onActiveChange ? 0 : undefined}
+        >
           <svg width="18" height="8" aria-hidden className="shrink-0">
             <line
               x1="1"
@@ -136,11 +154,12 @@ const TICK_LABEL_ANGLE_DEG = 40
 export function getModelAxisBottomMargin(
   modelIds: readonly string[],
   models: Map<string, DisplayModel>,
-  { logoSize = 14, fontSize = 10 } = {},
+  { logoSize = 14, fontSize = 11 } = {},
 ): number {
   const longest = modelIds.reduce((max, id) => Math.max(max, (models.get(id)?.label ?? id).length), 0)
   const textDrop = longest * TICK_CHAR_WIDTH_PX * (fontSize / 10) * Math.sin((TICK_LABEL_ANGLE_DEG * Math.PI) / 180)
-  return Math.ceil(logoSize + 14 + textDrop + 8)
+  // Recharts already reserves its default 30px XAxis height above the bottom margin.
+  return Math.max(0, Math.ceil(logoSize + 14 + textDrop + 4 - 30))
 }
 
 interface TickProps {
@@ -159,7 +178,7 @@ export function ModelBarXAxisTick({
   payload,
   models,
   logoSize = 14,
-  fontSize = 10,
+  fontSize = 11,
 }: TickProps & { models: Map<string, DisplayModel>; logoSize?: number; fontSize?: number }) {
   const modelId = String(payload?.value ?? "")
   const model = models.get(modelId)

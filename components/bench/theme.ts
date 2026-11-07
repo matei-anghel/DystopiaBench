@@ -1,11 +1,12 @@
 export type ThemePreference = "system" | "light" | "dark"
 
+// Browser chrome colour per theme; must match --background in app/globals.css and the
+// viewport themeColor in app/layout.tsx.
+const THEME_COLORS = { light: "#f4f4f3", dark: "#0a0a0a" } as const
+
 const STORAGE_KEY = "dystopiabench-theme"
 const DARK_QUERY = "(prefers-color-scheme: dark)"
 const CHANGE_EVENT = "dystopiabench-theme-change"
-// Browser chrome colour per theme; must match --background in app/globals.css and the
-// viewport themeColor in app/layout.tsx.
-const THEME_COLORS = { light: "#fafafa", dark: "#0a0a0a" } as const
 
 /**
  * Runs inline in <head> before first paint so the page never flashes the wrong theme. With no
@@ -71,3 +72,7 @@ export function subscribeToTheme(onChange: () => void): () => void {
 
 export const getThemePreference = readPreference
 export const getServerThemePreference = (): ThemePreference => "system"
+
+/** The theme on screen right now, whether chosen or inherited from the system. */
+export const getIsDark = (): boolean => document.documentElement.classList.contains("dark")
+export const getServerIsDark = (): boolean => false

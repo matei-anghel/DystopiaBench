@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import dynamic from "next/dynamic"
 import { Card } from "@/components/ui/card"
 import {
@@ -10,45 +10,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ModelVisibilityControls } from "@/components/bench/charts/model-visibility-controls"
-import { Database } from "lucide-react"
+import {
+  ModelViewPicker,
+  ModelViewProvider,
+  getViewModelIds,
+  type ModelViewId,
+  type PresetModelViewId,
+} from "@/components/bench/charts/model-view"
 import type { BenchmarkResult } from "@/lib/dystopiabench/types"
-import { ALL_MODULES } from "@/lib/dystopiabench/scenarios"
-import { orderScenarioModulesForDisplay } from "@/lib/dystopiabench/module-display-order"
-import { DEFAULT_DASHBOARD_MODEL_IDS } from "@/lib/dystopiabench/dashboard-model-selection"
+import { ALL_SCENARIOS } from "@/lib/dystopiabench/scenarios"
 import { getDisplayModels } from "@/lib/dystopiabench/display-models"
 
 export type ResultVersion = "latest" | "v1"
 export type DatasetStatus = "idle" | "loading" | "ready" | "error"
 
-function ChartPanelLoading() {
+function ChartLoading() {
   return (
     <div className="rounded-md border border-border bg-card/40 p-5">
-      <p className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
-        Loading chart panel...
-      </p>
+      <p className="ds-label text-[11px] text-muted-foreground">Loading chart</p>
     </div>
   )
 }
 
-const AggregateCharts = dynamic(
-  () => import("@/components/bench/charts/aggregate-charts").then((mod) => mod.AggregateCharts),
-  { ssr: false, loading: ChartPanelLoading },
-)
-
-const ModuleCharts = dynamic(
-  () => import("@/components/bench/charts/module-charts").then((mod) => mod.ModuleCharts),
-  { ssr: false, loading: ChartPanelLoading },
-)
-
-const ScenarioCharts = dynamic(
-  () => import("@/components/bench/charts/scenario-charts").then((mod) => mod.ScenarioCharts),
-  { ssr: false, loading: ChartPanelLoading },
-)
-
-const PromptCharts = dynamic(
-  () => import("@/components/bench/charts/prompt-charts").then((mod) => mod.PromptCharts),
-  { ssr: false, loading: ChartPanelLoading },
+// Recharts and the analytics helpers stay out of the initial bundle.
+const charts = () => import("@/components/bench/charts/aggregate-charts")
+const scenarioCharts = () => import("@/components/bench/charts/scenario-charts")
+const LeaderboardChart = dynamic(() => charts().then((mod) => mod.LeaderboardChart), { ssr: false, loading: ChartLoading })
+const ModelEscalationChart = dynamic(() => charts().then((mod) => mod.ModelEscalationChart), { ssr: false, loading: ChartLoading })
+const ModuleEscalationChart = dynamic(() => charts().then((mod) => mod.ModuleEscalationChart), { ssr: false, loading: ChartLoading })
+const ModuleBreakdownChart = dynamic(() => charts().then((mod) => mod.ModuleBreakdownChart), { ssr: false, loading: ChartLoading })
+const ResponseTiersByModule = dynamic(() => charts().then((mod) => mod.ResponseTiersByModule), { ssr: false, loading: ChartLoading })
+const ScenarioScoresByModule = dynamic(() => scenarioCharts().then((mod) => mod.ScenarioScoresByModule), { ssr: false, loading: ChartLoading })
+const ScenarioExplorer = dynamic(() => scenarioCharts().then((mod) => mod.ScenarioExplorer), { ssr: false, loading: ChartLoading })
+const NoEscalationChart = dynamic(
+  () => import("@/components/bench/charts/no-escalation-chart").then((mod) => mod.NoEscalationChart),
+  { ssr: false, loading: ChartLoading },
 )
 
 const VERSION_LABELS: Record<ResultVersion, string> = {
@@ -56,61 +52,54 @@ const VERSION_LABELS: Record<ResultVersion, string> = {
   latest: "Latest",
 }
 
-// Small datasets (e.g. the no-escalation ablation) show every model by default.
+const SECTIONS = [
+  { id: "leaderboard", label: "Leaderboard" },
+  { id: "escalation", label: "Escalation" },
+  { id: "modules", label: "Modules" },
+  { id: "scenarios", label: "Scenarios" },
+  { id: "no-escalation", label: "No escalation" },
+] as const
+
+// Small datasets show every model by default.
 const SHOW_ALL_MODELS_LIMIT = 12
-
-function getModuleDisplayLabel(label: string): string {
-  return label.replace(/\s+Module$/i, "")
-}
-
-function getDefaultSelection(available: string[]): string[] {
-  if (available.length <= SHOW_ALL_MODELS_LIMIT) return available
-  const defaults = DEFAULT_DASHBOARD_MODEL_IDS.filter((id) => available.includes(id))
-  return defaults.length > 0 ? defaults : available
-}
 
 function ResultsHeader({
   resultVersion,
   latestAvailable,
   onResultVersionChange,
+  showModelPicker = false,
 }: {
   resultVersion: ResultVersion
   latestAvailable: boolean
   onResultVersionChange?: (version: ResultVersion) => void
+  showModelPicker?: boolean
 }) {
   const versions: ResultVersion[] = latestAvailable ? ["latest", "v1"] : ["v1"]
 
   return (
-    <div className="mb-8 flex items-center justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-primary/20 bg-primary/10">
-          <Database className="h-5 w-5 text-primary" aria-hidden />
-        </div>
-        <h2 className="truncate font-mono text-lg font-black tracking-wider text-foreground uppercase sm:text-xl">
-          Benchmark Results
-        </h2>
+    <div className="ds-results-head mb-8 flex flex-wrap items-end justify-between gap-4">
+      <h2 className="ds-display text-3xl leading-none text-foreground sm:text-4xl">Results</h2>
+      <div className="flex items-center gap-2">
+        {showModelPicker ? <ModelViewPicker /> : null}
+        {versions.length > 1 ? (
+          <Select value={resultVersion} onValueChange={(value) => onResultVersionChange?.(value as ResultVersion)}>
+            <SelectTrigger className="h-9 min-w-20 shrink-0 bg-background font-mono text-xs" aria-label="Benchmark result version">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {versions.map((version) => (
+                <SelectItem key={version} value={version} className="font-mono text-xs">
+                  {VERSION_LABELS[version]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="inline-flex h-9 shrink-0 items-center rounded-md border border-border px-3 font-mono text-xs text-foreground">
+            {VERSION_LABELS[resultVersion]}
+          </span>
+        )}
       </div>
-      {versions.length > 1 ? (
-        <Select value={resultVersion} onValueChange={(value) => onResultVersionChange?.(value as ResultVersion)}>
-          <SelectTrigger
-            className="h-10 min-w-24 shrink-0 border-primary/20 bg-primary/5 font-mono text-xs font-bold tracking-wider uppercase"
-            aria-label="Benchmark result version"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="end">
-            {versions.map((version) => (
-              <SelectItem key={version} value={version} className="font-mono text-xs uppercase">
-                {VERSION_LABELS[version]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        <span className="inline-flex h-10 shrink-0 items-center rounded-md border border-primary/20 bg-primary/5 px-3 font-mono text-xs font-bold tracking-wider text-foreground uppercase">
-          {VERSION_LABELS[resultVersion]}<span className="hidden sm:inline">&nbsp;results</span>
-        </span>
-      )}
     </div>
   )
 }
@@ -118,7 +107,7 @@ function ResultsHeader({
 function StatusCard({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <Card className="border-border bg-card p-6" role="status">
-      <p className="mb-3 font-mono text-xs text-foreground uppercase">{title}</p>
+      <p className="ds-label mb-3 text-xs text-foreground">{title}</p>
       {children ? <div className="text-sm leading-relaxed text-muted-foreground">{children}</div> : null}
     </Card>
   )
@@ -127,9 +116,61 @@ function StatusCard({ title, children }: { title: string; children?: ReactNode }
 const ACTION_BUTTON_CLASS =
   "rounded border border-border px-2.5 py-1 font-mono text-[11px] text-foreground transition-colors hover:border-muted-foreground/60 hover:bg-muted/50"
 
-interface SelectionState {
-  interacted: boolean
-  ids: string[]
+/** Tracks which report section is in view, for the section nav. */
+function useActiveSection(ids: readonly string[], enabled: boolean) {
+  const [active, setActive] = useState<string>(ids[0])
+  useEffect(() => {
+    if (!enabled) return
+    let frame = 0
+    // The active section is the last one whose top has scrolled past a line 45% of the way
+    // down the viewport.
+    const update = () => {
+      frame = 0
+      const line = window.innerHeight * 0.45
+      let current = ids[0]
+      for (const id of ids) {
+        const node = document.getElementById(`r-${id}`)
+        if (node && node.getBoundingClientRect().top <= line) current = id
+      }
+      setActive(current)
+    }
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update)
+    }
+    update()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("resize", onScroll)
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame)
+      window.removeEventListener("scroll", onScroll)
+      window.removeEventListener("resize", onScroll)
+    }
+  }, [enabled, ids])
+  return active
+}
+
+function ReportSection({
+  id,
+  label,
+  children,
+  pair = false,
+}: {
+  id: string
+  label: string
+  children: ReactNode
+  /** Two charts that may sit side by side in denser directions. */
+  pair?: boolean
+}) {
+  return (
+    <section id={`r-${id}`} className="ds-section scroll-mt-28" aria-labelledby={`r-${id}-title`}>
+      <header className="ds-section-head mb-5">
+        <h3 id={`r-${id}-title`} className="ds-section-title text-foreground">
+          {label}
+        </h3>
+      </header>
+      <div className={`flex flex-col gap-6 ${pair ? "ds-pair" : ""}`}>{children}</div>
+    </section>
+  )
 }
 
 interface DashboardTabsProps {
@@ -144,6 +185,7 @@ interface DashboardTabsProps {
   onResultVersionChange?: (version: ResultVersion) => void
 }
 
+/** The results report: one scrolling page of sections with a section nav (no tabs). */
 export function DashboardTabs({
   statefulStatus,
   isolatedStatus,
@@ -156,99 +198,48 @@ export function DashboardTabs({
   onResultVersionChange,
 }: DashboardTabsProps) {
   const legacyScoring = resultVersion === "v1"
-  const moduleTabs = useMemo(
-    () => orderScenarioModulesForDisplay(ALL_MODULES).map((module) => ({
-      id: String(module.id),
-      moduleId: module.id,
-      label: getModuleDisplayLabel(module.label),
-    })),
-    [],
-  )
-  const resultTabs = useMemo(
-    () => [
-      { id: "aggregate", label: "Aggregate" },
-      ...moduleTabs.map(({ id, label }) => ({ id, label })),
-      { id: "scenario", label: "Per Scenario" },
-      { id: "prompt", label: "Per Prompt" },
-      { id: "prompt_no_escalation", label: "Per Prompt (No Escalation)" },
-    ],
-    [moduleTabs],
-  )
+  const [selections, setSelections] = useState<Partial<Record<ResultVersion, { view: ModelViewId; ids: string[] }>>>({})
+  const [scenarioId, setScenarioId] = useState<string>(ALL_SCENARIOS[0]?.id ?? "")
 
-  const [activeTab, setActiveTab] = useState<string>("aggregate")
-  const [selections, setSelections] = useState<Record<string, SelectionState>>({})
-  const tabRefs = useRef(new Map<string, HTMLButtonElement>())
-
-  const isolatedTab = activeTab === "prompt_no_escalation"
-  // Each dataset (version x conversation mode) keeps its own model selection, so switching
-  // version or opening the no-escalation ablation never leaves an empty, stale selection.
-  const datasetKey = `${resultVersion}:${isolatedTab ? "stateless" : "stateful"}`
-  const datasetResults = isolatedTab ? isolatedResults : statefulResults
-  const datasetModels = useMemo(() => getDisplayModels(datasetResults), [datasetResults])
+  const datasetModels = useMemo(() => getDisplayModels(statefulResults), [statefulResults])
   const availableModelIds = useMemo(() => datasetModels.map((model) => model.id), [datasetModels])
-
-  const selection = selections[datasetKey]
+  const selection = selections[resultVersion]
+  const defaultView: PresetModelViewId = availableModelIds.length <= SHOW_ALL_MODELS_LIMIT ? "all" : "featured"
+  const view = selection?.view ?? defaultView
   const selectedModelIds = useMemo(() => {
-    if (!selection?.interacted) return getDefaultSelection(availableModelIds)
-    return selection.ids.filter((id) => availableModelIds.includes(id))
-  }, [availableModelIds, selection])
+    if (view !== "custom") return getViewModelIds(view, datasetModels)
+    return (selection?.ids ?? []).filter((id) => availableModelIds.includes(id))
+  }, [availableModelIds, datasetModels, selection, view])
 
   const selectedSet = useMemo(() => new Set(selectedModelIds), [selectedModelIds])
-  const selectedModels = useMemo(
-    () => datasetModels.filter((model) => selectedSet.has(model.id)),
-    [datasetModels, selectedSet],
-  )
-  const filteredResults = useMemo(
-    () => datasetResults.filter((row) => selectedSet.has(row.modelId)),
-    [datasetResults, selectedSet],
+  const selectedModels = useMemo(() => datasetModels.filter((model) => selectedSet.has(model.id)), [datasetModels, selectedSet])
+  const filteredResults = useMemo(() => statefulResults.filter((row) => selectedSet.has(row.modelId)), [statefulResults, selectedSet])
+
+  const modelView = useMemo(
+    () => ({
+      models: datasetModels,
+      view,
+      selectedIds: selectedModelIds,
+      setView: (next: PresetModelViewId) => setSelections((current) => ({ ...current, [resultVersion]: { view: next, ids: [] } })),
+      setCustom: (ids: string[]) => setSelections((current) => ({ ...current, [resultVersion]: { view: "custom", ids } })),
+    }),
+    [datasetModels, resultVersion, selectedModelIds, view],
   )
 
+  const ready = statefulStatus === "ready" && statefulResults.length > 0
   useEffect(() => {
-    if (isolatedTab) {
-      void onLoadIsolatedResults?.()
-    }
-  }, [isolatedTab, onLoadIsolatedResults])
+    if (ready) void onLoadIsolatedResults?.()
+  }, [ready, onLoadIsolatedResults])
 
-  const setSelection = (ids: string[]) => {
-    setSelections((current) => ({ ...current, [datasetKey]: { interacted: true, ids } }))
-  }
-
-  const toggleModel = (modelId: string) => {
-    setSelection(
-      selectedModelIds.includes(modelId)
-        ? selectedModelIds.filter((id) => id !== modelId)
-        : [...selectedModelIds, modelId],
-    )
-  }
-
-  const toggleAll = () => {
-    setSelection(selectedModelIds.length === availableModelIds.length ? [] : availableModelIds)
-  }
-
-  const resetSelection = () => {
-    setSelections((current) => ({ ...current, [datasetKey]: { interacted: false, ids: [] } }))
-  }
-
-  const focusTab = (index: number) => {
-    const tab = resultTabs[(index + resultTabs.length) % resultTabs.length]
-    setActiveTab(tab.id)
-    tabRefs.current.get(tab.id)?.focus()
-  }
-
-  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") focusTab(index + 1)
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") focusTab(index - 1)
-    else if (event.key === "Home") focusTab(0)
-    else if (event.key === "End") focusTab(resultTabs.length - 1)
-    else return
-    event.preventDefault()
-  }
+  const sectionIds = useMemo(() => SECTIONS.map((section) => section.id), [])
+  const activeSection = useActiveSection(sectionIds, ready && selectedModels.length > 0)
 
   const header = (
     <ResultsHeader
       resultVersion={resultVersion}
       latestAvailable={latestAvailable}
       onResultVersionChange={onResultVersionChange}
+      showModelPicker={ready}
     />
   )
 
@@ -297,135 +288,89 @@ export function DashboardTabs({
     )
   }
 
-  const renderPanel = () => {
-    if (isolatedTab && (isolatedStatus === "idle" || isolatedStatus === "loading")) {
-      return (
-        <StatusCard title="Loading isolated run data...">
-          Fetching the no-escalation chart dataset, where each prompt runs in a fresh context.
-        </StatusCard>
-      )
-    }
-    if (isolatedTab && isolatedStatus === "error") {
-      return (
-        <StatusCard title="Could not load the no-escalation results.">
-          <button type="button" onClick={() => void onLoadIsolatedResults?.()} className={ACTION_BUTTON_CLASS}>
-            Retry
-          </button>
-        </StatusCard>
-      )
-    }
-    if (isolatedTab && isolatedResults.length === 0) {
-      return (
-        <StatusCard title="No no-escalation results were published for this version.">
-          {process.env.NODE_ENV !== "production" ? (
-            <code className="block whitespace-pre-wrap font-mono text-xs text-foreground">
-              pnpm bench:run-isolated --module=all
-            </code>
-          ) : null}
-        </StatusCard>
-      )
-    }
-    if (selectedModels.length === 0) {
-      return (
-        <StatusCard title="No models selected.">
-          <p className="mb-3">Pick at least one model above to draw the charts.</p>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={resetSelection} className={ACTION_BUTTON_CLASS}>
-              Restore default selection
-            </button>
-            <button type="button" onClick={() => setSelection(availableModelIds)} className={ACTION_BUTTON_CLASS}>
-              Select all models
-            </button>
-          </div>
-        </StatusCard>
-      )
-    }
-
-    if (activeTab === "aggregate") {
-      return (
-        <AggregateCharts
-          results={filteredResults}
-          models={selectedModels}
-          legacyScoring={legacyScoring}
-          showDirectedRefusalRate={legacyScoring}
-        />
-      )
-    }
-    const moduleTab = moduleTabs.find((tab) => tab.id === activeTab)
-    if (moduleTab) {
-      return (
-        <ModuleCharts
-          key={moduleTab.id}
-          module={moduleTab.moduleId}
-          results={filteredResults}
-          models={selectedModels}
-          legacyScoring={legacyScoring}
-        />
-      )
-    }
-    if (activeTab === "scenario") {
-      return <ScenarioCharts results={filteredResults} models={selectedModels} legacyScoring={legacyScoring} />
-    }
-    return (
-      <PromptCharts
-        results={filteredResults}
-        models={selectedModels}
-        legacyScoring={legacyScoring}
-        viewMode={isolatedTab ? "stateless" : "stateful"}
-      />
-    )
+  const selectScenario = (id: string) => {
+    setScenarioId(id)
+    document.getElementById("r-explorer")?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   return (
-    <>
+    <ModelViewProvider value={modelView}>
       {header}
-
-      <ModelVisibilityControls
-        models={datasetModels}
-        selectedModelIds={selectedModelIds}
-        onToggleModel={toggleModel}
-        onToggleAll={toggleAll}
-        caption={isolatedTab ? "No-escalation dataset" : undefined}
-      />
-
-      <div
-        role="tablist"
-        aria-label="Result views"
-        className="mb-8 grid grid-cols-2 gap-1.5 min-[420px]:grid-cols-3 sm:[grid-template-columns:repeat(auto-fit,minmax(12rem,1fr))]"
-      >
-        {resultTabs.map((tab, index) => {
-          const selected = activeTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              ref={(node) => {
-                if (node) tabRefs.current.set(tab.id, node)
-                else tabRefs.current.delete(tab.id)
-              }}
-              type="button"
-              role="tab"
-              id={`results-tab-${tab.id}`}
-              aria-selected={selected}
-              aria-controls="results-panel"
-              tabIndex={selected ? 0 : -1}
-              onClick={() => setActiveTab(tab.id)}
-              onKeyDown={(event) => handleTabKeyDown(event, index)}
-              className={`flex min-h-12 w-full min-w-0 flex-col items-center justify-center rounded-md border px-2.5 py-2 text-center transition-colors sm:items-start sm:px-4 sm:py-2.5 sm:text-left ${selected
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground"
-                }`}
-            >
-              <span className="text-wrap font-mono text-[11px] font-bold leading-tight tracking-wide uppercase sm:text-xs">
-                {tab.label}
-              </span>
+      {selectedModels.length === 0 ? (
+        <StatusCard title="No models selected.">
+          <p className="mb-3">Pick at least one model in the Models menu to draw the charts.</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => modelView.setView(defaultView)} className={ACTION_BUTTON_CLASS}>
+              Restore default view
             </button>
-          )
-        })}
-      </div>
+            <button type="button" onClick={() => modelView.setView("all")} className={ACTION_BUTTON_CLASS}>
+              Show all models
+            </button>
+          </div>
+        </StatusCard>
+      ) : (
+        <div className="ds-report">
+          <nav className="ds-toc" aria-label="Results sections">
+            <ol>
+              {SECTIONS.map((section) => (
+                <li key={section.id}>
+                  <a
+                    href={`#r-${section.id}`}
+                    aria-current={activeSection === section.id ? "true" : undefined}
+                    className="ds-toc-link ds-label text-[11px]"
+                  >
+                    {section.label}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
 
-      <div id="results-panel" role="tabpanel" aria-labelledby={`results-tab-${activeTab}`} className="flex flex-col gap-6">
-        {renderPanel()}
-      </div>
-    </>
+          <div className="ds-report-body flex min-w-0 flex-col gap-16">
+            <ReportSection {...SECTIONS[0]}>
+              <LeaderboardChart results={filteredResults} models={selectedModels} legacyScoring={legacyScoring} />
+            </ReportSection>
+
+            <ReportSection {...SECTIONS[1]} pair>
+              <ModelEscalationChart results={filteredResults} models={selectedModels} legacyScoring={legacyScoring} />
+              <ModuleEscalationChart results={filteredResults} legacyScoring={legacyScoring} />
+            </ReportSection>
+
+            <ReportSection {...SECTIONS[2]}>
+              <ModuleBreakdownChart results={filteredResults} models={selectedModels} legacyScoring={legacyScoring} />
+              <ResponseTiersByModule results={filteredResults} />
+            </ReportSection>
+
+            <ReportSection {...SECTIONS[3]}>
+              <ScenarioScoresByModule
+                results={filteredResults}
+                legacyScoring={legacyScoring}
+                selectedId={scenarioId}
+                onSelect={selectScenario}
+              />
+              <div id="r-explorer" className="scroll-mt-28">
+                <ScenarioExplorer
+                  results={filteredResults}
+                  models={selectedModels}
+                  legacyScoring={legacyScoring}
+                  selectedId={scenarioId}
+                  onSelect={setScenarioId}
+                />
+              </div>
+            </ReportSection>
+
+            <ReportSection {...SECTIONS[4]}>
+              <NoEscalationChart
+                stateful={statefulResults}
+                stateless={isolatedResults}
+                models={datasetModels}
+                legacyScoring={legacyScoring}
+                status={isolatedStatus}
+              />
+            </ReportSection>
+          </div>
+        </div>
+      )}
+    </ModelViewProvider>
   )
 }
