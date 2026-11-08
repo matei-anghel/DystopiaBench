@@ -96,9 +96,9 @@ export function CollapsibleSection({
   // independent of the section it sits in.
   if (nested) {
     return (
-      <details ref={ref} id={id} className="group/sub scroll-mt-20 border-t border-border">
-        <summary className="flex min-h-24 cursor-pointer list-none items-center justify-between gap-6 py-6 transition-colors hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
-          <h3 className="ds-display text-2xl leading-none text-foreground">{title}</h3>
+      <details ref={ref} id={id} className="group/sub scroll-mt-20">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-4 transition-colors hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
+          <h3 className="ds-display text-3xl leading-none text-foreground">{title}</h3>
           <span className="ds-label inline-flex h-11 shrink-0 items-center gap-2.5 rounded-md border border-foreground/25 bg-card px-5 text-xs font-semibold text-foreground transition-colors group-hover/sub:border-foreground/60">
             <span className="group-open/sub:hidden">Show</span>
             <span className="hidden group-open/sub:inline">Hide</span>
@@ -111,7 +111,7 @@ export function CollapsibleSection({
   }
 
   return (
-    <details ref={ref} id={id} className="group/section scroll-mt-20 border-t border-border">
+    <details ref={ref} id={id} className="group/section scroll-mt-20">
       <summary className="-mx-4 flex min-h-32 cursor-pointer list-none items-center justify-between gap-6 px-4 py-8 transition-colors hover:bg-muted/40 sm:-mx-6 sm:px-6 [&::-webkit-details-marker]:hidden">
         <h2 className="ds-display text-3xl leading-none text-foreground sm:text-4xl">{title}</h2>
         <span className="ds-label inline-flex h-11 shrink-0 items-center gap-2.5 rounded-md border border-foreground/25 bg-card px-5 text-xs font-semibold text-foreground transition-colors group-hover/section:border-foreground/60">

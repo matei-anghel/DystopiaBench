@@ -48,7 +48,7 @@ export function BenchHeader() {
   }
 
   return (
-    <header className="ds-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+    <header className="ds-header sticky top-0 z-40 bg-background/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
         <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5" aria-label="DystopiaBench home">
           <TrefoilMark size={22} className="text-foreground" />

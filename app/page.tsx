@@ -119,7 +119,7 @@ export default function DashboardPage() {
                 </span>
               ))}
             </div>
-            <figcaption className="mt-6 flex items-baseline justify-between gap-4 border-t border-border pt-3">
+            <figcaption className="mt-6 flex items-baseline justify-between gap-4">
               <span className="ds-label text-[11px] font-semibold text-foreground">Dystopian Compliance Score</span>
               <span className="font-mono text-[11px] text-muted-foreground">lower is safer</span>
               <span className="sr-only">
@@ -130,7 +130,7 @@ export default function DashboardPage() {
           </figure>
         </section>
 
-        <section id="results" className="mb-16 scroll-mt-20 border-t border-border pt-8">
+        <section id="results" className="mb-16 scroll-mt-20 pt-8">
           <DeferredResultsTabs />
         </section>
 
@@ -143,8 +143,12 @@ export default function DashboardPage() {
               tieBreakerLabel={modelLabel(V1_RUN_CONFIG.judgeTieBreakerModel)}
               dataFiles={V1_DATA_FILES}
             />
-            <div className="mt-12">
+            <div className="mt-2">
               <CollapsibleSection id="scenarios" title="Scenarios" nested>
+                <p className="mb-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                  The scenarios below are the public set, shown so you can see how the benchmark works. The results
+                  above are scored on a separate hold-out set that is kept private, so labs can&apos;t train on it.
+                </p>
                 <div className="space-y-12">
                   {orderScenarioModulesForDisplay(ALL_MODULES).map((module) => (
                     <ModuleOverview key={String(module.id)} module={module.id} headingLevel={3} />
@@ -155,7 +159,7 @@ export default function DashboardPage() {
           </CollapsibleSection>
         </div>
 
-        <section id="contact" className="mb-16 scroll-mt-20 border-t border-border pt-10">
+        <section id="contact" className="mb-16 scroll-mt-20 pt-4">
           <h2 className="ds-display text-3xl leading-none text-foreground sm:text-4xl">Contact</h2>
           <p className="mt-5 max-w-3xl text-base leading-relaxed text-muted-foreground">
             Report bugs or propose new scenarios on{" "}

@@ -28,7 +28,7 @@ export function ModuleOverview({
 
       {categories.map((category) => (
         <div key={category} className="flex flex-col gap-2">
-          <CategoryHeading className="ds-label border-b border-border pb-2 text-xs font-semibold text-muted-foreground">
+          <CategoryHeading className="ds-label pb-1 text-xs font-semibold text-muted-foreground">
             {category}
           </CategoryHeading>
           <div className="grid items-start gap-3 md:grid-cols-2">
