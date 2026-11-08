@@ -77,7 +77,7 @@ function ResultsHeader({
   const versions: ResultVersion[] = latestAvailable ? ["latest", "v1"] : ["v1"]
 
   return (
-    <div className="ds-results-head mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="ds-results-head mb-5 flex flex-wrap items-end justify-between gap-4">
       <h2 className="ds-display text-3xl leading-none text-foreground sm:text-4xl">Results</h2>
       <div className="flex items-center gap-2">
         {showModelPicker ? <ModelViewPicker /> : null}

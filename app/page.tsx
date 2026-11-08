@@ -47,7 +47,7 @@ export default function DashboardPage() {
       </script>
       <BenchHeader />
       <main className="mx-auto max-w-7xl px-4 sm:px-6">
-        <section id="dashboard" className="grid scroll-mt-20 gap-12 py-10 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-16">
+        <section id="dashboard" className="grid scroll-mt-20 gap-12 pb-6 pt-10 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-16">
           <div>
             <p className="ds-label mb-5 text-[11px] text-primary">Multi-turn escalation benchmark</p>
             <h1 className="ds-display text-5xl leading-[0.95] text-foreground sm:text-[4.25rem]">DystopiaBench</h1>
@@ -130,7 +130,7 @@ export default function DashboardPage() {
           </figure>
         </section>
 
-        <section id="results" className="mb-16 scroll-mt-20 border-t border-border pt-12">
+        <section id="results" className="mb-16 scroll-mt-20 border-t border-border pt-8">
           <DeferredResultsTabs />
         </section>
 

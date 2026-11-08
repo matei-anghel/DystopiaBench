@@ -274,7 +274,7 @@
   position: sticky;
   top: var(--header-h);
   z-index: 30;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--background) / 0.92);
   backdrop-filter: blur(8px);
@@ -322,6 +322,19 @@
   gap: 1rem;
   border-bottom: 1px solid hsl(var(--border));
   padding-bottom: 0.5rem;
+}
+
+/* The first section starts right under its own nav tab, so its heading is kept for screen readers only. */
+.ds-report-body > .ds-section:first-child > .ds-section-head {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .ds-section-title {
