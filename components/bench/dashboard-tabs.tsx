@@ -68,18 +68,23 @@ function ResultsHeader({
   latestAvailable,
   onResultVersionChange,
   showModelPicker = false,
+  nav,
 }: {
   resultVersion: ResultVersion
   latestAvailable: boolean
   onResultVersionChange?: (version: ResultVersion) => void
   showModelPicker?: boolean
+  /** Section nav; on wide screens it sits between the title and the controls (see .ds-results-bar). */
+  nav?: ReactNode
 }) {
+  // The version switch only appears once there is more than one published version to pick from.
   const versions: ResultVersion[] = latestAvailable ? ["latest", "v1"] : ["v1"]
 
   return (
-    <div className="ds-results-head mb-5 flex flex-wrap items-end justify-between gap-4">
-      <h2 className="ds-display text-3xl leading-none text-foreground sm:text-4xl">Results</h2>
-      <div className="flex items-center gap-2">
+    <div className={nav ? "ds-results-bar" : "mb-5 flex flex-wrap items-end justify-between gap-4"}>
+      <h2 className="ds-results-title ds-display text-3xl leading-none text-foreground sm:text-4xl">Results</h2>
+      {nav}
+      <div className="ds-results-controls flex items-center gap-2">
         {showModelPicker ? <ModelViewPicker /> : null}
         {versions.length > 1 ? (
           <Select value={resultVersion} onValueChange={(value) => onResultVersionChange?.(value as ResultVersion)}>
@@ -94,11 +99,7 @@ function ResultsHeader({
               ))}
             </SelectContent>
           </Select>
-        ) : (
-          <span className="inline-flex h-9 shrink-0 items-center rounded-md border border-border px-3 font-mono text-xs text-foreground">
-            {VERSION_LABELS[resultVersion]}
-          </span>
-        )}
+        ) : null}
       </div>
     </div>
   )
@@ -295,7 +296,7 @@ export function DashboardTabs({
 
   return (
     <ModelViewProvider value={modelView}>
-      {header}
+      {selectedModels.length === 0 ? header : null}
       {selectedModels.length === 0 ? (
         <StatusCard title="No models selected.">
           <p className="mb-3">Pick at least one model in the Models menu to draw the charts.</p>
@@ -310,21 +311,29 @@ export function DashboardTabs({
         </StatusCard>
       ) : (
         <div className="ds-report">
-          <nav className="ds-toc" aria-label="Results sections">
-            <ol>
-              {SECTIONS.map((section) => (
-                <li key={section.id}>
-                  <a
-                    href={`#r-${section.id}`}
-                    aria-current={activeSection === section.id ? "true" : undefined}
-                    className="ds-toc-link ds-label text-[11px]"
-                  >
-                    {section.label}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </nav>
+          <ResultsHeader
+            resultVersion={resultVersion}
+            latestAvailable={latestAvailable}
+            onResultVersionChange={onResultVersionChange}
+            showModelPicker
+            nav={
+              <nav className="ds-toc" aria-label="Results sections">
+                <ol>
+                  {SECTIONS.map((section) => (
+                    <li key={section.id}>
+                      <a
+                        href={`#r-${section.id}`}
+                        aria-current={activeSection === section.id ? "true" : undefined}
+                        className="ds-toc-link ds-label text-[11px]"
+                      >
+                        {section.label}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            }
+          />
 
           <div className="ds-report-body flex min-w-0 flex-col gap-16">
             <ReportSection {...SECTIONS[0]}>

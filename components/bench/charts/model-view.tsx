@@ -155,9 +155,17 @@ export function ModelViewPicker({ compact = false, align = "end" }: { compact?: 
         onClick={() => setOpen((value) => !value)}
         className={`inline-flex items-center rounded-md border border-border bg-background font-mono text-foreground transition-colors hover:border-muted-foreground/50 ${triggerClass}`}
       >
-        {compact ? null : <span className="text-muted-foreground">Models</span>}
-        <span className="font-medium">{viewLabel(view)}</span>
-        <span className="tabular-nums text-muted-foreground">{selectedIds.length}</span>
+        {compact ? (
+          <>
+            <span className="font-medium">{viewLabel(view)}</span>
+            <span className="tabular-nums text-muted-foreground">{selectedIds.length}</span>
+          </>
+        ) : (
+          <>
+            <span className="font-medium">Models</span>
+            <span className="sr-only">: {viewLabel(view)}, {selectedIds.length} shown</span>
+          </>
+        )}
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
       </button>
 

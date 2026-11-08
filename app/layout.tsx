@@ -12,29 +12,31 @@ const jetBrainsMono = JetBrains_Mono({ subsets: ['latin'], display: 'swap', vari
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
-  title: 'DystopiaBench - AI Ethics Stress Test',
+  title: 'DystopiaBench - Multi-turn escalation benchmark',
   description: SITE_DESCRIPTION,
   keywords: [
     'AI', 'Artificial Intelligence', 'Benchmark', 'Safety', 'Alignment', 'Ethics',
     'Dystopia', 'LLM', 'Red Teaming', 'Machine Learning', 'AI Alignment'
   ],
-  authors: [{ name: 'DystopiaBench Research Team' }],
-  creator: 'DystopiaBench Research Team',
+  authors: [{ name: 'Matei Anghel', url: 'https://mateianghel.xyz/' }],
+  creator: 'Matei Anghel',
+  publisher: 'Mawk Labs',
   openGraph: {
     type: 'website',
     locale: 'en_US',
     url: '/',
-    title: 'DystopiaBench - AI Ethics Stress Test',
+    title: 'DystopiaBench - Multi-turn escalation benchmark',
     description: SITE_DESCRIPTION,
     siteName: SITE_NAME,
     images: [SOCIAL_PREVIEW_IMAGE],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DystopiaBench - AI Ethics Stress Test',
+    title: 'DystopiaBench - Multi-turn escalation benchmark',
     description: SITE_SHORT_DESCRIPTION,
     images: [SOCIAL_PREVIEW_IMAGE.url],
   },
+  // app/favicon.ico is added automatically; it covers browsers and crawlers that only ask for .ico.
   icons: {
     icon: [
       {
@@ -42,6 +44,7 @@ export const metadata: Metadata = {
         type: 'image/svg+xml',
       },
     ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
   },
 }
 

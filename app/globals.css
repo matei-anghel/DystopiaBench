@@ -270,7 +270,40 @@
   scroll-margin-top: calc(var(--header-h) + 64px);
 }
 
+/* Results header + section nav. Narrow: title and controls on one row, the nav sticky on its own row
+   below (the bar is display: contents so the nav can stick against the whole report, a flex container).
+   Wide: title, nav and controls share one sticky row. */
+.ds-report {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  column-gap: 1rem;
+}
+
+.ds-results-bar {
+  display: contents;
+}
+
+.ds-report .ds-results-title {
+  order: 1;
+  flex: 1 1 auto;
+  margin-bottom: 1.25rem;
+}
+
+.ds-report .ds-results-controls {
+  order: 2;
+  margin-bottom: 1.25rem;
+}
+
+.ds-report-body {
+  order: 4;
+  flex-basis: 100%;
+}
+
 .ds-toc {
+  order: 3;
+  flex-basis: 100%;
+  min-width: 0;
   position: sticky;
   top: var(--header-h);
   z-index: 30;
@@ -278,6 +311,43 @@
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--background) / 0.92);
   backdrop-filter: blur(8px);
+}
+
+@media (min-width: 1200px) {
+  .ds-results-bar {
+    order: 1;
+    display: flex;
+    flex-basis: 100%;
+    align-items: center;
+    gap: 2.5rem;
+    position: sticky;
+    top: var(--header-h);
+    z-index: 30;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+    background: hsl(var(--background) / 0.92);
+    backdrop-filter: blur(8px);
+  }
+
+  .ds-report .ds-results-title {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  .ds-results-bar .ds-toc {
+    flex: 1 1 auto;
+    align-self: flex-end;
+    position: static;
+    margin: 0;
+    border: 0;
+    background: none;
+    backdrop-filter: none;
+  }
+
+  .ds-report .ds-results-controls {
+    order: 3;
+    margin: 0;
+  }
 }
 
 .ds-toc ol {
