@@ -299,9 +299,6 @@ export function V2Report({ data }: { data: V2Results }) {
             ))}
           </ol>
         </nav>
-        <div className="ds-results-controls">
-          <span className="font-mono text-[11px] text-muted-foreground">V2 · {models.length} models · {data.design.scenarios} scenarios</span>
-        </div>
       </div>
       <div className="ds-report-body flex min-w-0 flex-col gap-16">
         <Section id="leaderboard" label="Leaderboard">
