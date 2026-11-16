@@ -16,7 +16,7 @@ import type { V2Model, V2Results } from "@/lib/v2-results"
 
 const SECTIONS = [
   { id: "leaderboard", label: "Leaderboard" },
-  { id: "refusals", label: "Refusals" },
+  { id: "outcomes", label: "Outcomes" },
   { id: "modules", label: "Modules" },
   { id: "scenarios", label: "Scenarios" },
 ] as const
@@ -29,13 +29,6 @@ const SCENARIO_SEGMENTS: Segment[] = [
   { key: "principled", label: "Refused on principle", color: "hsl(var(--refusal-principled))" },
   { key: "classifier", label: "Safety classifier", color: "hsl(var(--refusal-classifier))" },
   { key: "mixed", label: "Both kinds", color: "repeating-linear-gradient(135deg, hsl(var(--refusal-principled)) 0 4px, hsl(var(--refusal-classifier)) 4px 8px)" },
-]
-
-const REPEAT_SEGMENTS: Segment[] = [
-  { key: "delivered", label: "Delivered", color: "hsl(var(--primary))" },
-  { key: "partial", label: "Partial", color: "hsl(var(--warning))" },
-  { key: "principled", label: "Refused on principle", color: "hsl(var(--refusal-principled))" },
-  { key: "classifier", label: "Safety classifier", color: "hsl(var(--refusal-classifier))" },
 ]
 
 function ModelName({ model, compact = false }: { model: V2Model; compact?: boolean }) {
@@ -107,7 +100,7 @@ function useActiveSection(ids: readonly string[]) {
 function StackedRow({ model, segments, counts, total }: { model: V2Model; segments: Segment[]; counts: Record<string, number>; total: number }) {
   const summary = segments.map((s) => `${s.label} ${counts[s.key] ?? 0}`).join(", ")
   return (
-    <li className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_4.5rem] sm:gap-3">
+    <li className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:gap-3">
       <ModelName model={model} compact />
       <span className="flex h-4 overflow-hidden rounded-[2px] bg-muted/60" role="img" aria-label={`${model.label}: ${summary} of ${total}`}>
         {segments.map((s) => {
@@ -115,9 +108,6 @@ function StackedRow({ model, segments, counts, total }: { model: V2Model; segmen
           if (!n || !total) return null
           return <span key={s.key} title={`${s.label}: ${n} of ${total}`} style={{ width: `${(n / total) * 100}%`, background: s.color }} />
         })}
-      </span>
-      <span className="hidden text-right font-mono text-[11px] tabular-nums text-muted-foreground sm:block">
-        {(counts.classifier ?? 0) > 0 ? `${counts.classifier} blocked` : ""}
       </span>
     </li>
   )
@@ -136,57 +126,19 @@ function Legend({ segments }: { segments: Segment[] }) {
   )
 }
 
-function Refusals({ models }: { models: V2Model[] }) {
-  const [unit, setUnit] = useState<"scenarios" | "repeats">("scenarios")
-  const withClassifier = models.filter((m) => m.repeats.classifier > 0)
-  const segments = unit === "scenarios" ? SCENARIO_SEGMENTS : REPEAT_SEGMENTS
-  const toggle = (
-    <div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Count by">
-      {(["scenarios", "repeats"] as const).map((value) => (
-        <button
-          key={value}
-          type="button"
-          aria-pressed={unit === value}
-          onClick={() => setUnit(value)}
-          className="rounded px-2.5 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
-        >
-          {value === "scenarios" ? "Scenarios" : "Repeats"}
-        </button>
-      ))}
-    </div>
-  )
+function Outcomes({ models }: { models: V2Model[] }) {
   return (
     <Card
-      title="How each model said no"
-      controls={<div className="flex flex-wrap items-center gap-2">{toggle}<ModelViewPicker compact /></div>}
-      sub={
-        unit === "scenarios"
-          ? "Each scenario's outcome across both repeats. Safety classifier: the provider blocked the reply before the model answered."
-          : "Every reply. A blocked repeat counts as a safety-classifier refusal."
-      }
+      title="Scenario outcomes by model"
+      controls={<ModelViewPicker compact />}
+      sub="Each scenario's outcome across both repeats. Safety classifier: the provider blocked the reply before the model answered."
     >
-      <Legend segments={segments} />
+      <Legend segments={SCENARIO_SEGMENTS} />
       <ol className="flex flex-col gap-1.5">
-        {models.map((model) => {
-          const counts: Record<string, number> = unit === "scenarios"
-            ? { ...model.outcomes }
-            : {
-                delivered: model.repeats.delivered,
-                partial: model.repeats.partial,
-                principled: model.repeats.refused + model.repeats.redirected,
-                classifier: model.repeats.classifier,
-              }
-          const total = unit === "scenarios" ? model.decided : model.repeatCount - (model.repeats.unlabelled ?? 0)
-          return <StackedRow key={model.id} model={model} segments={segments} counts={counts} total={total} />
-        })}
+        {models.map((model) => (
+          <StackedRow key={model.id} model={model} segments={SCENARIO_SEGMENTS} counts={{ ...model.outcomes }} total={model.decided} />
+        ))}
       </ol>
-      <p className="mt-5 text-[11px] leading-relaxed text-muted-foreground">
-        {withClassifier.length === 0
-          ? "No provider safety classifier blocked any reply in this run."
-          : `Safety-classifier refusals appear for ${withClassifier
-              .map((m) => `${m.label} (${m.repeats.classifier} of ${m.repeatCount} replies)`)
-              .join(", ")}. Every other refusal came from the model itself.`}
-      </p>
     </Card>
   )
 }
@@ -264,8 +216,8 @@ export function V2Report({ data }: { data: V2Results }) {
               <Section id="leaderboard" label="Leaderboard">
                 <LeaderboardChart models={chartModels} scenarios={data.design.scenarios} />
               </Section>
-              <Section id="refusals" label="Refusals">
-                <Refusals models={models} />
+              <Section id="outcomes" label="Outcomes">
+                <Outcomes models={models} />
               </Section>
               <Section id="modules" label="Modules">
                 <ModuleBreakdownChart models={chartModels} data={data} />

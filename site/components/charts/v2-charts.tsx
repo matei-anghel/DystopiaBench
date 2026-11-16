@@ -263,7 +263,7 @@ export function ResponseTypesByModule({ models, data }: { models: ChartModel[]; 
 
   return (
     <Card>
-      <SectionHeader label="Response types" sub="Every reply, by review label" />
+      <SectionHeader label="Review labels by module" sub="Every reply, by review label" />
       <div className="flex flex-col gap-2.5">
         {rows.map((row) => (
           <div key={row.id} className={`grid grid-cols-[7rem_1fr] items-center gap-3 ${row.id === "all" ? "mb-2 border-b border-border pb-3" : ""}`}>
