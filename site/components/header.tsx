@@ -41,12 +41,14 @@ export function BenchHeader() {
 
   return (
     <header className="ds-header sticky top-0 z-40 bg-background/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
+      <div className="relative mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
         <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5" aria-label="DystopiaBench home">
           <TrefoilMark size={22} className="text-foreground" />
           {/* Not a heading: each page owns its single <h1>. */}
           <span className="ds-display text-lg leading-none text-foreground">DystopiaBench</span>
         </Link>
+        {/* The results report docks its section tabs here while they are scrolled out of view. */}
+        <div id="ds-header-slot" className="contents" />
         <nav className="hidden items-center gap-1.5 md:flex">
           {NAV_LINKS.map((link) => (
             <a
@@ -54,7 +56,7 @@ export function BenchHeader() {
               href={link.href}
               onClick={(e) => handleAnchorClick(e, link.href)}
               aria-current={pathname === link.href ? "page" : undefined}
-              className="ds-label flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground aria-[current=page]:text-foreground"
+              className="ds-header-links ds-label flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground aria-[current=page]:text-foreground"
             >
               {link.label}
             </a>
@@ -64,7 +66,7 @@ export function BenchHeader() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="View GitHub repository"
-            className="ds-label flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            className="ds-header-links ds-label flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
           >
             <Github className="h-3.5 w-3.5" />
             GitHub

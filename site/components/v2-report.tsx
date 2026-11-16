@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import { LabLogo } from "@/components/lab-logo"
 import { ModelViewPicker, ModelViewProvider, getViewModelIds, type ModelViewId, type PresetModelViewId } from "@/components/charts/model-view"
 import {
@@ -143,6 +144,64 @@ function Outcomes({ models }: { models: V2Model[] }) {
   )
 }
 
+/**
+ * True while the in-page section tabs have scrolled up under the top bar and the report is still on screen, so a
+ * copy of the tabs can be shown in the bar. Returns the header slot to render into, or null.
+ */
+function useDockedTabs(): HTMLElement | null {
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const header = document.querySelector<HTMLElement>(".ds-header")
+      const toc = document.getElementById("ds-results-toc")
+      const body = document.querySelector<HTMLElement>(".ds-report-body")
+      const target = document.getElementById("ds-header-slot")
+      if (!header || !toc || !body || !target) return setSlot(null)
+      const line = header.getBoundingClientRect().bottom
+      const docked = toc.getBoundingClientRect().bottom <= line && body.getBoundingClientRect().bottom > line + 48
+      setSlot(docked ? target : null)
+    }
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update)
+    }
+    update()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("resize", onScroll)
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame)
+      window.removeEventListener("scroll", onScroll)
+      window.removeEventListener("resize", onScroll)
+    }
+  }, [])
+  return slot
+}
+
+function SectionTabs({ active, className, id }: { active: string; className: string; id?: string }) {
+  const listRef = useRef<HTMLOListElement | null>(null)
+  // Keep the active tab in view when the strip is narrower than its tabs (phones); never scrolls the page.
+  useEffect(() => {
+    const list = listRef.current
+    const link = list?.querySelector<HTMLElement>("[aria-current]")
+    if (!list || !link || list.scrollWidth <= list.clientWidth) return
+    list.scrollLeft = link.offsetLeft - (list.clientWidth - link.offsetWidth) / 2
+  }, [active])
+  return (
+    <nav id={id} className={className} aria-label="Results sections">
+      <ol ref={listRef}>
+        {SECTIONS.map((s) => (
+          <li key={s.id}>
+            <a href={`#r-${s.id}`} aria-current={active === s.id ? "true" : undefined} className="ds-toc-link ds-label text-[11px]">
+              {s.label}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
 /** The V2 results report. One shared model selection (the Models menu) drives every chart. */
 export function V2Report({ data }: { data: V2Results }) {
   const sorted = useMemo(
@@ -182,23 +241,15 @@ export function V2Report({ data }: { data: V2Results }) {
 
   const ids = useMemo(() => SECTIONS.map((s) => s.id), [])
   const active = useActiveSection(ids)
+  const dockSlot = useDockedTabs()
 
   return (
     <ModelViewProvider value={context}>
       <div className="ds-report">
         <div className="ds-results-bar">
           <h2 className="ds-results-title ds-display text-3xl leading-none text-foreground sm:text-4xl">Results</h2>
-          <nav className="ds-toc" aria-label="Results sections">
-            <ol>
-              {SECTIONS.map((s) => (
-                <li key={s.id}>
-                  <a href={`#r-${s.id}`} aria-current={active === s.id ? "true" : undefined} className="ds-toc-link ds-label text-[11px]">
-                    {s.label}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </nav>
+          <SectionTabs id="ds-results-toc" active={active} className="ds-toc" />
+          {dockSlot ? createPortal(<SectionTabs active={active} className="ds-toc ds-toc-dock" />, dockSlot) : null}
           <div className="ds-results-controls">
             <ModelViewPicker />
           </div>

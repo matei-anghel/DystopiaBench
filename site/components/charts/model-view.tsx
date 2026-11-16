@@ -21,6 +21,7 @@ export const MODEL_VIEWS: Array<{ id: PresetModelViewId; label: string; hint: st
 
 // Per lab, the first of these present is its flagship; labs with none listed use their first model in roster order.
 const FLAGSHIP_PREFERENCE = ["fable-5-2", "gpt-6-1-sol", "gemini-4-argon", "grok-4-7", "muse-wonder", "kimi-k3-1-pro",
+  "deepseek-v4-pro-0813", "qwen-4-max",
   "glm-5-3-prime", "qwen-3-8-max-prime"]
 
 export function getViewModelIds(view: PresetModelViewId, models: readonly DisplayModel[]): string[] {
@@ -153,7 +154,7 @@ export function ModelViewPicker({ compact = false, align = "end" }: { compact?: 
           id={panelId}
           role="dialog"
           aria-label="Models shown in every chart"
-          className={`absolute top-full z-50 mt-1.5 flex max-h-[min(70vh,520px)] w-[min(86vw,320px)] flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-xl ${align === "end" ? "right-0" : "left-0"}`}
+          className={`absolute top-full z-50 mt-1.5 flex max-h-[min(70vh,520px)] w-[min(86vw,320px)] flex-col overflow-hidden rounded-md border border-border bg-background/80 text-popover-foreground shadow-xl backdrop-blur-xl ${align === "end" ? "right-0" : "left-0"}`}
         >
           <div className="border-b border-border p-1.5" role="radiogroup" aria-label="Preset view">
             {MODEL_VIEWS.map((entry) => {

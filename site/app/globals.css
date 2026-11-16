@@ -309,12 +309,7 @@
   order: 3;
   flex-basis: 100%;
   min-width: 0;
-  position: sticky;
-  top: var(--header-h);
-  z-index: 30;
   margin-bottom: 1.5rem;
-  background: hsl(var(--background) / 0.92);
-  backdrop-filter: blur(8px);
 }
 
 @media (min-width: 1200px) {
@@ -324,12 +319,7 @@
     flex-basis: 100%;
     align-items: center;
     gap: 2.5rem;
-    position: sticky;
-    top: var(--header-h);
-    z-index: 30;
     margin-bottom: 1.5rem;
-    background: hsl(var(--background) / 0.92);
-    backdrop-filter: blur(8px);
   }
 
   .ds-report .ds-results-title {
@@ -354,6 +344,7 @@
 }
 
 .ds-toc ol {
+  position: relative;
   display: flex;
   gap: 0.25rem;
   overflow-x: auto;
@@ -387,6 +378,61 @@
 
 .ds-toc-link[aria-current] {
   border-bottom-color: hsl(var(--primary));
+}
+
+/* Section tabs docked in the top bar once the in-page tabs scroll out of view. On narrow screens they sit in a
+   strip under the bar's row; from md up they share the row, and below xl the bar's own links make room. */
+.ds-toc-dock {
+  order: 0;
+  flex-basis: auto;
+  margin-bottom: 0;
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background) / 0.9);
+  backdrop-filter: blur(12px);
+  padding-inline: 1rem;
+}
+
+.ds-toc-dock .ds-toc-link {
+  padding-block: 0.55rem;
+}
+
+@media (min-width: 768px) {
+  .ds-toc-dock {
+    position: static;
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    background: none;
+    backdrop-filter: none;
+    padding-inline: 1.5rem;
+    /* Span the bar's full height (it has 0.625rem vertical padding) so the active underline sits on its edge. */
+    margin-block: -0.625rem;
+    align-self: stretch;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .ds-toc-dock ol {
+    align-items: stretch;
+  }
+
+  .ds-toc-dock .ds-toc-link {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    gap: 1ch;
+    padding-block: 0;
+    margin-bottom: 0;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .ds-header:has(.ds-toc-dock) .ds-header-links {
+    display: none;
+  }
 }
 
 .ds-section-head {
