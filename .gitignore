@@ -1,32 +1,28 @@
-# Dependencies & package manager
-node_modules/
-.pnpm-store/
+# Private: V2 hold-out scenarios, run outputs, grading files and traces. Never publish.
+artifacts/
+/scenarios/
 
-# Next.js
-.next/
-out/
-
-# TypeScript
-tsconfig.tsbuildinfo
-
-# Environment / secrets
+# Secrets
 .env
 .env.*
 !.env.example
 
-# Benchmark artifacts (local / private)
-artifacts/private/
-artifacts/reports/
-outputs/
-exports/
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
 
-# OS & editor temp
+# Site (site/)
+node_modules/
+.pnpm-store/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+
+# OS
 .DS_Store
-.codex-temp/
-.agents
-
-
-app/api/fable-live/
-components/bench/fable-live-dashboard.tsx
-app/fable-live/
-app/kimi-k3-live/
+Thumbs.db

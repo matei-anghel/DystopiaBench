@@ -1,8 +1,0 @@
-allowBuilds:
-  '@openrouter/sdk': true
-  esbuild: true
-  sharp: true
-  unrs-resolver: true
-onlyBuiltDependencies:
-  - esbuild
-  - unrs-resolver

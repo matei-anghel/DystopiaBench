@@ -1,0 +1,435 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Light theme. The theme follows the visitor's system setting unless they pick one in the header
+   (see components/theme.ts); the inline script in app/layout.tsx sets `.dark` before paint. */
+:root {
+  --background: 60 4.3% 95.5%;
+  --foreground: 0 0% 4.3%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4.3%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 4.3%;
+  --primary: 1.7 71.8% 51.4%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 60 5% 92.2%;
+  --secondary-foreground: 0 0% 4.3%;
+  --muted: 60 5% 92.2%;
+  --muted-foreground: 60 1.2% 33.7%;
+  --accent: 1.7 71.8% 51.4%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 1.7 71.8% 51.4%;
+  --destructive-foreground: 0 0% 100%;
+  --danger: 1.7 71.8% 51.4%;
+  --border: 60 4.2% 86.1%;
+  --input: 60 4.2% 86.1%;
+  --ring: 1.7 71.8% 51.4%;
+  --grid: 60 5.9% 90%;
+  --risk-lo: 60 5.3% 92.5%;
+  --risk-hi: 1.8 74.7% 44.9%;
+  --scanline: 0 0% 0% / 0.02;
+  --tone-shade: 40%;
+  --logo-filter: none;
+  --lab-shade: 12%;
+  --lab-neutral: 0 0% 38%;
+  color-scheme: light;
+  --radius: 0.25rem;
+  --warning: 30 90% 36%;
+  --warning-foreground: 0 0% 100%;
+  --terminal: 142 70% 28%;
+  /* V2 refusal sources: a refusal on principle vs a provider safety-classifier block. */
+  --refusal-principled: 215 14% 46%;
+  --refusal-classifier: 217 78% 48%;
+
+  --design-display: var(--font-space-grotesk), system-ui, sans-serif;
+  --design-body: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --design-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --display-weight: 700;
+  --display-tracking: -0.05em;
+  --label-transform: uppercase;
+  --label-tracking: 0.1em;
+  --card-radius: calc(var(--radius) + 2px);
+  /* Faint measurement grid behind every page. */
+  --page-texture:
+    linear-gradient(hsl(var(--grid) / 0.6) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--grid) / 0.6) 1px, transparent 1px);
+  --page-texture-size: 32px 32px;
+  /* Site header height; sticky elements sit below it. */
+  --header-h: 56px;
+}
+
+.dark {
+  --background: 0 0% 3.9%;
+  --foreground: 0 0% 91%;
+  --card: 0 0% 6.7%;
+  --card-foreground: 0 0% 91%;
+  --popover: 0 0% 6.7%;
+  --popover-foreground: 0 0% 91%;
+  --primary: 3.9 86% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 10.2%;
+  --secondary-foreground: 0 0% 91%;
+  --muted: 0 0% 10.2%;
+  --muted-foreground: 0 0% 56.1%;
+  --accent: 3.9 86% 58%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 3.9 86% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --danger: 3.9 86% 58%;
+  --border: 0 0% 14.1%;
+  --input: 0 0% 14.1%;
+  --ring: 3.9 86% 58%;
+  --grid: 0 0% 11.8%;
+  --risk-lo: 0 0% 11%;
+  --risk-hi: 3.9 86% 58%;
+  --scanline: 0 0% 100% / 0.015;
+  --tone-shade: 0%;
+  --logo-filter: invert(1);
+  --lab-shade: 0%;
+  --lab-neutral: 0 0% 64%;
+  color-scheme: dark;
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 4%;
+  --terminal: 120 100% 40%;
+  --refusal-principled: 215 12% 60%;
+  --refusal-classifier: 213 90% 64%;
+}
+
+@theme inline {
+  --font-sans: var(--design-display, var(--font-space-grotesk)), sans-serif;
+  --font-body: var(--design-body, var(--font-jetbrains-mono)), sans-serif;
+  --font-mono: var(--design-mono, var(--font-jetbrains-mono)), ui-monospace, monospace;
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-danger: hsl(var(--danger));
+  --color-terminal: hsl(var(--terminal));
+  --color-grid: hsl(var(--grid));
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--design-body);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-sans);
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Display headings (hero, page titles): family, weight and tracking come from the direction. */
+  .ds-display {
+    font-family: var(--design-display);
+    font-weight: var(--display-weight);
+    letter-spacing: var(--display-tracking);
+  }
+
+  /* Small labels: chart titles, eyebrows, nav. Case and tracking come from the direction. */
+  .ds-label {
+    font-family: var(--design-mono);
+    text-transform: var(--label-transform);
+    letter-spacing: var(--label-tracking);
+  }
+
+  .ds-page {
+    background-color: hsl(var(--background));
+    background-image: var(--page-texture);
+    background-size: var(--page-texture-size);
+  }
+
+  /* Single-colour (black) lab marks: inverted on dark palettes, including dark previews. */
+  .lab-logo-mono {
+    filter: var(--logo-filter, none);
+  }
+
+  [data-slot="card"] {
+    border-radius: var(--card-radius);
+  }
+
+
+}
+
+@layer utilities {
+  .text-terminal {
+    color: hsl(var(--terminal));
+  }
+
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+
+  .text-danger {
+    color: hsl(var(--danger));
+  }
+
+  .bg-danger {
+    background-color: hsl(var(--danger));
+  }
+
+  .border-danger {
+    border-color: hsl(var(--danger));
+  }
+
+  .border-warning {
+    border-color: hsl(var(--warning));
+  }
+
+  .border-terminal {
+    border-color: hsl(var(--terminal));
+  }
+
+  .glow-danger {
+    box-shadow: 0 0 20px hsl(0 72% 51% / 0.3), 0 0 60px hsl(0 72% 51% / 0.1);
+  }
+
+  .glow-warning {
+    box-shadow: 0 0 20px hsl(38 92% 50% / 0.3), 0 0 60px hsl(38 92% 50% / 0.1);
+  }
+
+  .glow-terminal {
+    box-shadow: 0 0 15px hsl(120 100% 40% / 0.2);
+  }
+
+  .scanline {
+    background: repeating-linear-gradient(0deg,
+        transparent,
+        transparent 2px,
+        hsl(var(--scanline)) 2px,
+        hsl(var(--scanline)) 4px);
+  }
+
+  .subtle-x-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.45) transparent;
+  }
+
+  .subtle-x-scrollbar::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .subtle-x-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .subtle-x-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.35);
+    border: 2px solid hsl(var(--card));
+    border-radius: 999px;
+  }
+
+  .subtle-x-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.55);
+  }
+}
+
+/* Results report: sticky section nav above the sections, bracketed mono section labels. */
+.ds-report-body {
+  counter-reset: ds-section;
+}
+
+.ds-section {
+  counter-increment: ds-section;
+  scroll-margin-top: calc(var(--header-h) + 64px);
+}
+
+/* Results header + section nav. Narrow: title and controls on one row, the nav sticky on its own row
+   below (the bar is display: contents so the nav can stick against the whole report, a flex container).
+   Wide: title, nav and controls share one sticky row. */
+.ds-report {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  column-gap: 1rem;
+}
+
+.ds-results-bar {
+  display: contents;
+}
+
+.ds-report .ds-results-title {
+  order: 1;
+  flex: 1 1 auto;
+  margin-bottom: 1.25rem;
+}
+
+.ds-report .ds-results-controls {
+  order: 2;
+  margin-bottom: 1.25rem;
+}
+
+.ds-report-body {
+  order: 4;
+  flex-basis: 100%;
+}
+
+.ds-toc {
+  order: 3;
+  flex-basis: 100%;
+  min-width: 0;
+  position: sticky;
+  top: var(--header-h);
+  z-index: 30;
+  margin-bottom: 1.5rem;
+  background: hsl(var(--background) / 0.92);
+  backdrop-filter: blur(8px);
+}
+
+@media (min-width: 1200px) {
+  .ds-results-bar {
+    order: 1;
+    display: flex;
+    flex-basis: 100%;
+    align-items: center;
+    gap: 2.5rem;
+    position: sticky;
+    top: var(--header-h);
+    z-index: 30;
+    margin-bottom: 1.5rem;
+    background: hsl(var(--background) / 0.92);
+    backdrop-filter: blur(8px);
+  }
+
+  .ds-report .ds-results-title {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  .ds-results-bar .ds-toc {
+    flex: 1 1 auto;
+    align-self: flex-end;
+    position: static;
+    margin: 0;
+    border: 0;
+    background: none;
+    backdrop-filter: none;
+  }
+
+  .ds-report .ds-results-controls {
+    order: 3;
+    margin: 0;
+  }
+}
+
+.ds-toc ol {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  counter-reset: ds-toc;
+  scrollbar-width: none;
+}
+
+.ds-toc li {
+  counter-increment: ds-toc;
+}
+
+.ds-toc-link {
+  display: block;
+  margin-bottom: -1px;
+  padding: 0.7rem 0.75rem;
+  border-bottom: 2px solid transparent;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.ds-toc-link::before {
+  content: "[" counter(ds-toc, decimal-leading-zero) "] ";
+  color: hsl(var(--primary));
+}
+
+.ds-toc-link:hover,
+.ds-toc-link[aria-current] {
+  color: hsl(var(--foreground));
+}
+
+.ds-toc-link[aria-current] {
+  border-bottom-color: hsl(var(--primary));
+}
+
+.ds-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+/* The first section starts right under its own nav tab, so its heading is kept for screen readers only. */
+.ds-report-body > .ds-section:first-child > .ds-section-head {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ds-section-title {
+  font-family: var(--design-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ds-section-title::before {
+  content: "[" counter(ds-section, decimal-leading-zero) "] ";
+  color: hsl(var(--primary));
+}
+
+.ds-section-lede {
+  margin-top: 0;
+  font-size: 0.75rem;
+}
+
+@media (min-width: 1280px) {
+  .ds-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

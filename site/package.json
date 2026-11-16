@@ -1,0 +1,53 @@
+{
+  "name": "dystopiabench-site",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.6.1",
+    "@vercel/speed-insights": "^2.0.0",
+    "lucide-react": "^0.564.0",
+    "next": "16.3.5",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.4",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.5",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "tw-animate-css": "1.3.3",
+    "typescript": "5.7.3"
+  },
+  "description": "Website for DystopiaBench (dystopiabench.com).",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matei-anghel/DystopiaBench.git"
+  },
+  "bugs": {
+    "url": "https://github.com/matei-anghel/DystopiaBench/issues"
+  },
+  "homepage": "https://github.com/matei-anghel/DystopiaBench#readme",
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@^1.1.0": "^1.1.18",
+      "brace-expansion@^5.0.0": "^5.0.9",
+      "flatted": "3.4.2",
+      "lodash": "4.18.0",
+      "picomatch@^2.0.0": "2.3.2",
+      "picomatch@^4.0.0": "4.0.4",
+      "postcss": "^8.5.28"
+    }
+  }
+}
