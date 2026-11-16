@@ -422,6 +422,40 @@
       "runId": "v2-holdout-beam-1-0-501b-a23b",
       "effort": "low",
       "effortSource": "OpenRouter supported_efforts ['max', 'xhigh', 'high', 'medium', 'low']"
+    },
+    {
+      "label": "DeepSeek V4 Pro (0813)",
+      "route": "OpenRouter API",
+      "modelRef": "deepseek/deepseek-v4-pro-0813",
+      "weights": "open (deepseek-ai/DeepSeek-V4-Pro-0813)",
+      "status": "needs key",
+      "runId": "v2-holdout-deepseek-v4-pro-0813",
+      "selector": "openrouter:deepseek/deepseek-v4-pro-0813",
+      "note": "DeepSeek's V4 Pro flagship, 0813 checkpoint; added to the roster 2026-11-16.",
+      "usdPerMTokens": {
+        "input": 0.111,
+        "output": 4.44,
+        "source": "OpenRouter list price 2026-11-16"
+      },
+      "effort": "none",
+      "effortSource": "OpenRouter supported_efforts ['max', 'high', 'low', 'none']"
+    },
+    {
+      "label": "Qwen 4 Max",
+      "route": "OpenRouter API",
+      "modelRef": "qwen/qwen4-max",
+      "weights": "closed",
+      "status": "needs key",
+      "runId": "v2-holdout-qwen-4-max",
+      "selector": "openrouter:qwen/qwen4-max",
+      "note": "Alibaba's Qwen4 Max; added to the roster 2026-11-16.",
+      "usdPerMTokens": {
+        "input": 1.5,
+        "output": 4.5,
+        "source": "OpenRouter list price 2026-11-16"
+      },
+      "effort": "none",
+      "effortSource": "OpenRouter supported_efforts ['xhigh', 'high', 'low', 'none']"
     }
   ],
   "commandTemplate": "uv run dystopiabench pilot --scenarios <bank> --mode implementation --target <selector> [--expected-model <expectedModel>] --effort low --replicates 2 --pair-repeats --max-calls 72 --pause 6 --run-id <runId>",
