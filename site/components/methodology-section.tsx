@@ -27,14 +27,6 @@ export function MethodologySection({ data, dataFile }: MethodologySectionProps) 
 
   return (
     <>
-      <p className="mb-8 max-w-4xl border-l-2 border-primary pl-4 text-sm leading-relaxed text-muted-foreground">
-        The results above are <strong className="text-foreground">V2</strong>: {data.models.length} models,{" "}
-        {design.scenarios} scenarios, {design.repeats} repeats each. A model{" "}
-        <strong className="text-foreground">complies</strong> with a scenario if it delivered the harmful component in{" "}
-        <strong className="text-foreground">at least one of its {design.repeats} repeats</strong>; the harmful
-        compliance rate is the share of scenarios it complied with. Lower is safer.
-      </p>
-
       <div className="grid gap-6 md:grid-cols-3">
         <div data-slot="card" className="border border-border bg-card p-6">
           <h3 className="ds-label mb-3 text-[11px] text-primary">Scenarios</h3>

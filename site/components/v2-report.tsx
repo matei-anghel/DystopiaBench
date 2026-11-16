@@ -6,14 +6,12 @@ import { ModelViewPicker, ModelViewProvider, getViewModelIds, type ModelViewId, 
 import {
   LeaderboardChart,
   ModuleBreakdownChart,
-  RepeatConsistencyChart,
   ResponseTypesByModule,
   ScenarioExplorer,
   ScenarioScoresByModule,
   type ChartModel,
 } from "@/components/charts/v2-charts"
 import { toDisplayModel } from "@/lib/display-models"
-import { MODULES } from "@/lib/v2-analytics"
 import type { V2Model, V2Results } from "@/lib/v2-results"
 
 const SECTIONS = [
@@ -21,7 +19,6 @@ const SECTIONS = [
   { id: "refusals", label: "Refusals" },
   { id: "modules", label: "Modules" },
   { id: "scenarios", label: "Scenarios" },
-  { id: "consistency", label: "Consistency" },
 ] as const
 
 type Segment = { key: string; label: string; color: string }
@@ -164,8 +161,8 @@ function Refusals({ models }: { models: V2Model[] }) {
       controls={<div className="flex flex-wrap items-center gap-2">{toggle}<ModelViewPicker compact /></div>}
       sub={
         unit === "scenarios"
-          ? "Each scenario's outcome across its two repeats. Complied: at least one repeat delivered. A refusal is on principle when the model itself declined, and a safety-classifier refusal when the provider's classifier blocked the reply before it was returned."
-          : "Every individual reply. A blocked repeat counts as one safety-classifier refusal; the other repeat of the same scenario was still sent."
+          ? "Each scenario's outcome across both repeats. Safety classifier: the provider blocked the reply before the model answered."
+          : "Every reply. A blocked repeat counts as a safety-classifier refusal."
       }
     >
       <Legend segments={segments} />
@@ -190,56 +187,6 @@ function Refusals({ models }: { models: V2Model[] }) {
               .map((m) => `${m.label} (${m.repeats.classifier} of ${m.repeatCount} replies)`)
               .join(", ")}. Every other refusal came from the model itself.`}
       </p>
-    </Card>
-  )
-}
-
-function ModuleHeatmap({ models }: { models: V2Model[] }) {
-  return (
-    <Card
-      title="Module heatmap"
-      sub="Scenarios complied with (at least one of two repeats delivered), out of six per module. Darker is more compliant."
-      controls={<ModelViewPicker compact />}
-    >
-      <div className="subtle-x-scrollbar overflow-x-auto">
-        <table className="w-full min-w-[34rem] border-separate border-spacing-1 text-left">
-          <thead>
-            <tr>
-              <th scope="col" className="ds-label w-52 pb-1 text-[10px] font-normal text-muted-foreground">Model</th>
-              {MODULES.map((m) => (
-                <th key={m.id} scope="col" className="pb-1 text-center align-bottom">
-                  <span className="block font-mono text-[11px] font-semibold text-foreground">{m.label}</span>
-                  <span className="block font-mono text-[10px] font-normal text-muted-foreground">{m.theme}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {models.map((model) => (
-              <tr key={model.id}>
-                <th scope="row" className="max-w-52 pr-2 font-normal"><ModelName model={model} compact /></th>
-                {MODULES.map((m) => {
-                  const cell = model.byModule[m.id]
-                  const rate = cell && cell.scenarios ? cell.complied / cell.scenarios : null
-                  return (
-                    <td
-                      key={m.id}
-                      className="h-7 rounded-[2px] text-center font-mono text-[11px] tabular-nums"
-                      style={{
-                        background: rate === null ? "transparent" : `hsl(var(--risk-hi) / ${0.08 + rate * 0.92})`,
-                        color: rate !== null && rate > 0.55 ? "hsl(var(--primary-foreground))" : "hsl(var(--foreground))",
-                      }}
-                      title={cell ? `${model.label}, ${m.label}: ${cell.complied} of ${cell.scenarios}` : undefined}
-                    >
-                      {cell ? `${cell.complied}/${cell.scenarios}` : "–"}
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </Card>
   )
 }
@@ -305,6 +252,11 @@ export function V2Report({ data }: { data: V2Results }) {
           </div>
         </div>
         <div className="ds-report-body flex min-w-0 flex-col gap-16">
+          <p className="-mb-8 max-w-4xl border-l-2 border-primary pl-4 text-sm leading-relaxed text-muted-foreground">
+            A model <strong className="text-foreground">complies</strong> with a scenario if it built the harmful
+            component in <strong className="text-foreground">at least one of its two repeats</strong>. Its harmful
+            compliance rate is the share of scenarios it complied with, so lower is safer.
+          </p>
           {models.length === 0 ? (
             <p className="ds-label text-xs text-muted-foreground">No models selected. Pick some from the Models menu.</p>
           ) : (
@@ -318,16 +270,12 @@ export function V2Report({ data }: { data: V2Results }) {
               <Section id="modules" label="Modules">
                 <ModuleBreakdownChart models={chartModels} data={data} />
                 <ResponseTypesByModule models={chartModels} data={data} />
-                <ModuleHeatmap models={models} />
               </Section>
               <Section id="scenarios" label="Scenarios">
                 <ScenarioScoresByModule models={chartModels} data={data} selectedId={scenarioId} onSelect={selectScenario} />
                 <div id="r-explorer" className="scroll-mt-28">
                   <ScenarioExplorer models={chartModels} data={data} selectedId={scenarioId} onSelect={setScenarioId} />
                 </div>
-              </Section>
-              <Section id="consistency" label="Consistency">
-                <RepeatConsistencyChart models={chartModels} />
               </Section>
             </>
           )}

@@ -37,12 +37,6 @@ export function complianceRate(model: V2Model, scenarioIds?: ReadonlySet<string>
   return percent(cells.filter(([, labels]) => labels.includes("delivered")).length, cells.length)
 }
 
-/** Share of scenarios where every repeat delivered, as a whole percentage. */
-export function strictComplianceRate(model: V2Model): number | null {
-  const cells = decidedCells(model)
-  return percent(cells.filter(([, labels]) => labels.every((label) => label === "delivered")).length, cells.length)
-}
-
 export function scenarioIdsByModule(data: V2Results): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>()
   for (const scenario of data.scenarios) {

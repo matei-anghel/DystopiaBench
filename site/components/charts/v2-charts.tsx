@@ -12,7 +12,6 @@ import {
   moduleLabel,
   scenarioComplianceRate,
   scenarioIdsByModule,
-  strictComplianceRate,
 } from "@/lib/v2-analytics"
 import type { V2Model, V2Results } from "@/lib/v2-results"
 import { getScenarioSummary } from "@/lib/v2-scenarios"
@@ -102,12 +101,15 @@ function ModelBars({
 }) {
   const layout = barLayout(data.length)
   const axisBottom = getModelAxisBottomMargin(data.map((entry) => entry.modelId), modelsById)
+  // The first bar's angled name runs left of the plot; leave room so it is not clipped.
+  const firstLabel = data[0] ? (modelsById.get(data[0].modelId)?.label ?? data[0].modelId).length : 0
+  const axisLeft = Math.max(0, Math.ceil(firstLabel * 6.2 * 1.1 * Math.cos((40 * Math.PI) / 180)) - 40)
   return (
     <div className={heights} style={{ "--axis-h": `${axisBottom}px` } as CSSProperties}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
-          margin={{ left: 0, right: 4, top: 20, bottom: axisBottom }}
+          margin={{ left: axisLeft, right: 4, top: 20, bottom: axisBottom }}
           barGap={layout.barGap}
           barCategoryGap={layout.barCategoryGap}
         >
@@ -148,7 +150,7 @@ export function LeaderboardChart({ models, scenarios }: { models: ChartModel[]; 
     <Card>
       <SectionHeader
         label="Harmful compliance rate"
-        sub={`Share of the ${scenarios} scenarios where the model delivered the harmful component in at least one of its two repeats · lower is safer`}
+        sub={`Share of the ${scenarios} scenarios where the model built the harmful component`}
       />
       <ModelBars
         data={data}
@@ -163,10 +165,6 @@ export function LeaderboardChart({ models, scenarios }: { models: ChartModel[]; 
           Safest: {nameOf(safest.modelId)} ({safest.value}%). Least safe: {nameOf(leastSafe.modelId)} ({leastSafe.value}%).
         </ChartSummary>
       ) : null}
-      <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
-        Claude and GPT models ran through their own coding CLIs on a subscription; the rest through OpenRouter. Every
-        model ran at the lowest reasoning effort it offers.
-      </p>
     </Card>
   )
 }
@@ -176,7 +174,7 @@ export function ModuleBreakdownChart({ models, data }: { models: ChartModel[]; d
   const byModule = useMemo(() => scenarioIdsByModule(data), [data])
   return (
     <Card>
-      <SectionHeader label="Compliance by module" sub="Each model's harmful compliance rate within a module (six scenarios each), safest first" />
+      <SectionHeader label="Compliance by module" sub="Six scenarios per module" />
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
         {MODULES.map((moduleEntry) => {
           const ids = byModule.get(moduleEntry.id)
@@ -265,7 +263,7 @@ export function ResponseTypesByModule({ models, data }: { models: ChartModel[]; 
 
   return (
     <Card>
-      <SectionHeader label="Response types" sub="Share of the selected models' replies labelled delivered, partial, redirected, refused or blocked by a safety classifier" />
+      <SectionHeader label="Response types" sub="Every reply, by review label" />
       <div className="flex flex-col gap-2.5">
         {rows.map((row) => (
           <div key={row.id} className={`grid grid-cols-[7rem_1fr] items-center gap-3 ${row.id === "all" ? "mb-2 border-b border-border pb-3" : ""}`}>
@@ -306,7 +304,7 @@ export function ScenarioScoresByModule({
     <Card>
       <SectionHeader
         label="Compliance by scenario"
-        sub="Share of the selected models that delivered the harmful component in at least one repeat, safest first. Select a scenario to see its detail below."
+        sub="Share of models that built the harmful component. Select a scenario for its detail."
       />
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
         {groups.map((group) => (
@@ -401,11 +399,10 @@ export function ScenarioExplorer({
   const rate = scenarioComplianceRate(raw, scenario.id)
   const complied = raw.filter((m) => (m.cells[scenario.id] ?? []).includes("delivered")).length
   const mix = labelMix(raw, ids)
-  const labelInfo = new Map(REPEAT_LABELS.map((entry) => [entry.key as string, entry]))
 
   return (
     <Card>
-      <SectionHeader label="Scenario detail" sub="How the selected models answered one scenario">
+      <SectionHeader label="Scenario detail">
         <select
           aria-label="Module"
           value={scenario.module}
@@ -456,144 +453,29 @@ export function ScenarioExplorer({
       </div>
 
       <div className="mt-6 flex flex-col gap-8">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <div>
-            <PanelTitle>Response types</PanelTitle>
-            <MixBar mix={mix} title={`Scenario ${scenario.id}`} />
-            <ul className="mt-3 flex flex-col gap-1">
-              {mix.map((m) => (
-                <li key={m.key} className="flex items-center justify-between gap-3 font-mono text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-[1px]" style={{ background: m.color }} aria-hidden />
-                    {m.label}
-                  </span>
-                  <span className="tabular-nums text-foreground">{m.count}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <PanelTitle>By model · share of repeats delivered</PanelTitle>
-            <ModelBars
-              data={bars}
-              modelsById={modelsById}
-              unit="of repeats delivered"
-              heights="h-[calc(200px+var(--axis-h))] md:h-[calc(220px+var(--axis-h))]"
-            />
-          </div>
-        </div>
-
         <div>
-          <PanelTitle>Every reply</PanelTitle>
-          <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-            {models.map((m) => {
-              const labels = m.data.cells[scenario.id] ?? []
-              return (
-                <div key={m.display.id} className="flex min-w-0 items-center justify-between gap-3 py-0.5">
-                  <span className="flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-                    <LabLogo provider={m.display.provider} size={12} />
-                    <span className="truncate">{m.display.label}</span>
-                  </span>
-                  <span className="flex shrink-0 gap-1">
-                    {labels.map((label, index) => {
-                      const info = labelInfo.get(label)
-                      return (
-                        <span
-                          key={index}
-                          className="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]"
-                          style={{ background: info?.color ?? "hsl(var(--muted))", color: info?.ink ?? "hsl(var(--muted-foreground))" }}
-                          title={`Repeat ${index + 1}: ${info?.label ?? label}`}
-                        >
-                          {info?.label ?? label}
-                        </span>
-                      )
-                    })}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+          <PanelTitle>Response types</PanelTitle>
+          <MixBar mix={mix} title={summary?.title ?? scenario.id} />
+          <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
+            {mix.map((m) => (
+              <li key={m.key} className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-[1px]" style={{ background: m.color }} aria-hidden />
+                {m.label}
+                <span className="tabular-nums text-foreground">{m.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <PanelTitle>By model · share of repeats delivered</PanelTitle>
+          <ModelBars
+            data={bars}
+            modelsById={modelsById}
+            unit="of repeats delivered"
+            heights="h-[calc(220px+var(--axis-h))] md:h-[calc(260px+var(--axis-h))]"
+          />
         </div>
       </div>
-    </Card>
-  )
-}
-
-const TICKS = [0, 25, 50, 75, 100]
-
-/**
- * Dumbbell chart: each model's compliance rate under the headline rule (at least one of two repeats delivered)
- * against the strict rule (both repeats delivered). The gap shows how consistent the model is.
- */
-export function RepeatConsistencyChart({ models }: { models: ChartModel[] }) {
-  const rows = useMemo(
-    () =>
-      models
-        .map((m) => ({ model: m.display, any: complianceRate(m.data), both: strictComplianceRate(m.data) }))
-        .filter((row): row is typeof row & { any: number; both: number } => row.any !== null && row.both !== null)
-        .sort((a, b) => compareSafestFirst(a.any, b.any) || a.model.label.localeCompare(b.model.label)),
-    [models],
-  )
-  const meanGap = rows.length ? Math.round(rows.reduce((sum, row) => sum + (row.any - row.both), 0) / rows.length) : null
-
-  return (
-    <Card>
-      <SectionHeader
-        label="One repeat vs. both repeats"
-        sub="Harmful compliance rate when one delivered repeat is enough (the headline rule) against when both repeats must deliver · lower is safer"
-      />
-      <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[11px] text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-foreground" aria-hidden /> At least one repeat delivered
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full border-2 border-foreground" aria-hidden /> Both repeats delivered
-        </span>
-        {meanGap !== null ? <span className="ml-auto text-foreground">Average gap {meanGap}</span> : null}
-      </div>
-      <div className="grid grid-cols-[9.5rem_1fr_3.5rem] items-center gap-x-3">
-        <span />
-        <div className="relative h-5">
-          {TICKS.map((tick) => (
-            <span key={tick} className="absolute top-0 -translate-x-1/2 font-mono text-[10px] text-muted-foreground" style={{ left: `${tick}%` }}>
-              {tick}
-            </span>
-          ))}
-        </div>
-        <span />
-        {rows.map(({ model, any, both }) => (
-          <div key={model.id} className="contents">
-            <span className="flex min-w-0 items-center justify-end gap-1.5 py-1.5 font-mono text-[11px] text-muted-foreground">
-              <span className="truncate">{model.label}</span>
-              <LabLogo provider={model.provider} size={12} />
-            </span>
-            <div className="relative h-6" title={`${model.label}: ${any}% with one repeat, ${both}% with both`}>
-              {TICKS.map((tick) => (
-                <span key={tick} className="absolute inset-y-0 w-px bg-grid" style={{ left: `${tick}%` }} aria-hidden />
-              ))}
-              <span
-                className="absolute top-1/2 h-0.5 -translate-y-1/2"
-                style={{ left: `${both}%`, width: `${any - both}%`, background: model.color }}
-                aria-hidden
-              />
-              <span
-                className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-card"
-                style={{ left: `${both}%`, borderColor: model.color }}
-                aria-hidden
-              />
-              <span
-                className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                style={{ left: `${any}%`, background: model.color }}
-                aria-hidden
-              />
-            </div>
-            <span className="text-right font-mono text-[11px] tabular-nums text-foreground">{any - both > 0 ? `+${any - both}` : any - both}</span>
-          </div>
-        ))}
-      </div>
-      <ChartSummary>
-        {rows.map((row) => `${row.model.label}: ${row.any}% with one repeat, ${row.both}% with both`).join(". ")}
-      </ChartSummary>
     </Card>
   )
 }
