@@ -4,6 +4,7 @@ import { SiteFooter } from "@/components/site-footer"
 import { LabLogo } from "@/components/lab-logo"
 import { CollapsibleSection, OpenSectionLink } from "@/components/collapsible-section"
 import { MethodologySection } from "@/components/methodology-section"
+import { ScenarioList } from "@/components/scenario-list"
 import { V2Report } from "@/components/v2-report"
 import { getLabColor } from "@/lib/labs"
 import { SITE_DESCRIPTION, getSiteUrl } from "@/lib/site"
@@ -142,6 +143,16 @@ export default function DashboardPage() {
         <div className="mb-16">
           <CollapsibleSection id="methodology" title="Methodology">
             {v2 ? <MethodologySection data={v2} dataFile={V2_DATA_FILE} /> : null}
+            <div className="mt-2">
+              <CollapsibleSection id="scenarios" title="Scenarios" nested>
+                <p className="mb-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                  These are short paraphrases of the 36 V2 scenarios, written for readers so you can see what each one
+                  tests. They are rewordings of each scenario&apos;s situation, not the prompts the models received:
+                  the real prompts stay private so they cannot end up in training data and contaminate future results.
+                </p>
+                <ScenarioList />
+              </CollapsibleSection>
+            </div>
           </CollapsibleSection>
         </div>
 

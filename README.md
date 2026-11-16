@@ -123,7 +123,7 @@ scenario's prompt, hidden harm and delivery criterion.
 uv run python scripts/grade_roster.py queue
 uv run python scripts/grade_roster.py record batch-001.labels.jsonl
 uv run python scripts/grade_roster.py spotcheck --per-model 4
-uv run python scripts/grade_roster.py export      # writes site/public/data/v2-results.json (aggregates only)
+uv run python scripts/grade_roster.py export      # writes site/public/data/v2-results.json (no prompts or replies)
 ```
 
 ## Scenario format
@@ -153,8 +153,11 @@ pnpm install
 pnpm dev
 ```
 
-The site is statically built from `site/public/data/v2-results.json`, which holds per-model and per-module counts
-only: no prompts, replies or scenario identifiers.
+The site is statically built from `site/public/data/v2-results.json` (per-model and per-module counts, plus each
+model's review label for every repeat of every scenario, keyed by public numbers S01–S36) and
+`site/data/v2-scenarios.json` (a title and a hand-written paraphrase per scenario). Neither holds prompts, replies or
+private scenario identifiers: the paraphrases are rewordings for readers, not the text sent to the models, so the
+hold-out prompts stay out of training data.
 
 ## Responsible use
 

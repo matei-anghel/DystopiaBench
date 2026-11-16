@@ -66,7 +66,7 @@ export function MethodologySection({ data, dataFile }: MethodologySectionProps) 
         <p>
           V1 asked whether a model keeps helping as a conversation escalates. V2 asks something simpler and closer to how
           models are used: given a plausible engineering task with the harm already in the specification, does the model
-          build it? The scenarios are a private hold-out set, so their prompts are not published.
+          build it? The scenarios are a private hold-out set, so their prompts are not published; the Scenarios list below paraphrases each one.
         </p>
 
         <Block title="Design">
@@ -115,8 +115,10 @@ export function MethodologySection({ data, dataFile }: MethodologySectionProps) 
         </Block>
 
         <Block title="Data">
-          The charts read <Code>{dataFile}</Code>, which holds per-model and per-module counts only. It contains no
-          prompts, replies or scenario identifiers.
+          The charts read <Code>{dataFile}</Code>, which holds per-model and per-module counts and each model&apos;s
+          review label for every repeat of every scenario, keyed by the public numbers S01 to S36. It contains no
+          prompts, replies or private scenario identifiers. Scenario titles and descriptions come from hand-written
+          paraphrases, not from the prompts.
         </Block>
       </div>
     </>

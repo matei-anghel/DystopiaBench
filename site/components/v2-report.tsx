@@ -1,23 +1,27 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { LabLogo } from "@/components/lab-logo"
+import { ModelViewPicker, ModelViewProvider, getViewModelIds, type ModelViewId, type PresetModelViewId } from "@/components/charts/model-view"
+import {
+  LeaderboardChart,
+  ModuleBreakdownChart,
+  RepeatConsistencyChart,
+  ResponseTypesByModule,
+  ScenarioExplorer,
+  ScenarioScoresByModule,
+  type ChartModel,
+} from "@/components/charts/v2-charts"
+import { toDisplayModel } from "@/lib/display-models"
+import { MODULES } from "@/lib/v2-analytics"
 import type { V2Model, V2Results } from "@/lib/v2-results"
-
-/** Display order and names of the six modules (same order as the scenario catalogue). */
-const MODULES: { id: string; label: string; theme: string }[] = [
-  { id: "baudrillard", label: "Baudrillard", theme: "Synthetic persuasion" },
-  { id: "orwell", label: "Orwell", theme: "Surveillance" },
-  { id: "petrov", label: "Petrov", theme: "Irreversible control" },
-  { id: "basaglia", label: "Basaglia", theme: "Coercive care" },
-  { id: "laguardia", label: "LaGuardia", theme: "Civic capture" },
-  { id: "huxley", label: "Huxley", theme: "Conditioning" },
-]
 
 const SECTIONS = [
   { id: "leaderboard", label: "Leaderboard" },
   { id: "refusals", label: "Refusals" },
   { id: "modules", label: "Modules" },
+  { id: "scenarios", label: "Scenarios" },
+  { id: "consistency", label: "Consistency" },
 ] as const
 
 type Segment = { key: string; label: string; color: string }
@@ -36,10 +40,6 @@ const REPEAT_SEGMENTS: Segment[] = [
   { key: "principled", label: "Refused on principle", color: "hsl(var(--refusal-principled))" },
   { key: "classifier", label: "Safety classifier", color: "hsl(var(--refusal-classifier))" },
 ]
-
-function pct(value: number | null): string {
-  return value === null ? "–" : `${Math.round(value * 100)}%`
-}
 
 function ModelName({ model, compact = false }: { model: V2Model; compact?: boolean }) {
   return (
@@ -107,38 +107,6 @@ function useActiveSection(ids: readonly string[]) {
   return active
 }
 
-function Leaderboard({ models, scenarios }: { models: V2Model[]; scenarios: number }) {
-  return (
-    <Card
-      title="Harmful compliance rate"
-      sub={`Share of the ${scenarios} scenarios where the model delivered the harmful component in at least one of its two repeats. Lower is safer.`}
-    >
-      <ol className="flex flex-col gap-1.5" aria-label="Models ranked by harmful compliance rate, safest first">
-        {models.map((model, index) => (
-          <li key={model.id} className="grid grid-cols-[1.5rem_minmax(0,9.5rem)_minmax(0,1fr)_3.25rem] items-center gap-2 sm:grid-cols-[1.5rem_minmax(0,13rem)_minmax(0,1fr)_6.5rem] sm:gap-3">
-            <span className="text-right font-mono text-[10px] tabular-nums text-muted-foreground">{index + 1}</span>
-            <ModelName model={model} />
-            <span className="relative h-4 rounded-[2px] bg-muted/60">
-              <span
-                className="absolute inset-y-0 left-0 rounded-[2px] bg-primary"
-                style={{ width: `${(model.complianceRate ?? 0) * 100}%` }}
-              />
-            </span>
-            <span className="text-right font-mono text-xs tabular-nums text-foreground">
-              <span className="font-semibold">{pct(model.complianceRate)}</span>
-              <span className="hidden text-muted-foreground sm:inline"> {model.outcomes.complied}/{model.decided}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
-      <p className="mt-5 text-[11px] leading-relaxed text-muted-foreground">
-        Route: Claude and GPT models ran through their own coding CLIs on a subscription; the rest through OpenRouter.
-        Every model ran at the lowest reasoning effort it offers.
-      </p>
-    </Card>
-  )
-}
-
 function StackedRow({ model, segments, counts, total }: { model: V2Model; segments: Segment[]; counts: Record<string, number>; total: number }) {
   const summary = segments.map((s) => `${s.label} ${counts[s.key] ?? 0}`).join(", ")
   return (
@@ -193,7 +161,7 @@ function Refusals({ models }: { models: V2Model[] }) {
   return (
     <Card
       title="How each model said no"
-      controls={toggle}
+      controls={<div className="flex flex-wrap items-center gap-2">{toggle}<ModelViewPicker compact /></div>}
       sub={
         unit === "scenarios"
           ? "Each scenario's outcome across its two repeats. Complied: at least one repeat delivered. A refusal is on principle when the model itself declined, and a safety-classifier refusal when the provider's classifier blocked the reply before it was returned."
@@ -229,8 +197,9 @@ function Refusals({ models }: { models: V2Model[] }) {
 function ModuleHeatmap({ models }: { models: V2Model[] }) {
   return (
     <Card
-      title="Compliance by module"
+      title="Module heatmap"
       sub="Scenarios complied with (at least one of two repeats delivered), out of six per module. Darker is more compliant."
+      controls={<ModelViewPicker compact />}
     >
       <div className="subtle-x-scrollbar overflow-x-auto">
         <table className="w-full min-w-[34rem] border-separate border-spacing-1 text-left">
@@ -275,42 +244,95 @@ function ModuleHeatmap({ models }: { models: V2Model[] }) {
   )
 }
 
-/** The V2 results report: leaderboard, refusal sources and the module heatmap, from aggregate counts only. */
+/** The V2 results report. One shared model selection (the Models menu) drives every chart. */
 export function V2Report({ data }: { data: V2Results }) {
-  const models = useMemo(
+  const sorted = useMemo(
     () => [...data.models].sort((a, b) => (a.complianceRate ?? 2) - (b.complianceRate ?? 2) || a.label.localeCompare(b.label)),
     [data.models],
   )
+  const displayModels = useMemo(() => data.models.map(toDisplayModel), [data.models])
+  const [view, setViewState] = useState<ModelViewId>("all")
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => getViewModelIds("all", displayModels))
+  const setView = useCallback(
+    (next: PresetModelViewId) => {
+      setViewState(next)
+      setSelectedIds(getViewModelIds(next, displayModels))
+    },
+    [displayModels],
+  )
+  const setCustom = useCallback((ids: string[]) => {
+    setViewState("custom")
+    setSelectedIds(ids)
+  }, [])
+  const context = useMemo(
+    () => ({ models: displayModels, view, selectedIds, setView, setCustom }),
+    [displayModels, selectedIds, setCustom, setView, view],
+  )
+
+  const selected = useMemo(() => new Set(selectedIds), [selectedIds])
+  const models = useMemo(() => sorted.filter((m) => selected.has(m.id)), [selected, sorted])
+  const chartModels: ChartModel[] = useMemo(
+    () => models.map((m) => ({ display: toDisplayModel(m), data: m })),
+    [models],
+  )
+  const [scenarioId, setScenarioId] = useState(data.scenarios[0]?.id ?? "")
+  const selectScenario = useCallback((id: string) => {
+    setScenarioId(id)
+    document.getElementById("r-explorer")?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }, [])
+
   const ids = useMemo(() => SECTIONS.map((s) => s.id), [])
   const active = useActiveSection(ids)
 
   return (
-    <div className="ds-report">
-      <div className="ds-results-bar">
-        <h2 className="ds-results-title ds-display text-3xl leading-none text-foreground sm:text-4xl">Results</h2>
-        <nav className="ds-toc" aria-label="Results sections">
-          <ol>
-            {SECTIONS.map((s) => (
-              <li key={s.id}>
-                <a href={`#r-${s.id}`} aria-current={active === s.id ? "true" : undefined} className="ds-toc-link ds-label text-[11px]">
-                  {s.label}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
+    <ModelViewProvider value={context}>
+      <div className="ds-report">
+        <div className="ds-results-bar">
+          <h2 className="ds-results-title ds-display text-3xl leading-none text-foreground sm:text-4xl">Results</h2>
+          <nav className="ds-toc" aria-label="Results sections">
+            <ol>
+              {SECTIONS.map((s) => (
+                <li key={s.id}>
+                  <a href={`#r-${s.id}`} aria-current={active === s.id ? "true" : undefined} className="ds-toc-link ds-label text-[11px]">
+                    {s.label}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+          <div className="ds-results-controls">
+            <ModelViewPicker />
+          </div>
+        </div>
+        <div className="ds-report-body flex min-w-0 flex-col gap-16">
+          {models.length === 0 ? (
+            <p className="ds-label text-xs text-muted-foreground">No models selected. Pick some from the Models menu.</p>
+          ) : (
+            <>
+              <Section id="leaderboard" label="Leaderboard">
+                <LeaderboardChart models={chartModels} scenarios={data.design.scenarios} />
+              </Section>
+              <Section id="refusals" label="Refusals">
+                <Refusals models={models} />
+              </Section>
+              <Section id="modules" label="Modules">
+                <ModuleBreakdownChart models={chartModels} data={data} />
+                <ResponseTypesByModule models={chartModels} data={data} />
+                <ModuleHeatmap models={models} />
+              </Section>
+              <Section id="scenarios" label="Scenarios">
+                <ScenarioScoresByModule models={chartModels} data={data} selectedId={scenarioId} onSelect={selectScenario} />
+                <div id="r-explorer" className="scroll-mt-28">
+                  <ScenarioExplorer models={chartModels} data={data} selectedId={scenarioId} onSelect={setScenarioId} />
+                </div>
+              </Section>
+              <Section id="consistency" label="Consistency">
+                <RepeatConsistencyChart models={chartModels} />
+              </Section>
+            </>
+          )}
+        </div>
       </div>
-      <div className="ds-report-body flex min-w-0 flex-col gap-16">
-        <Section id="leaderboard" label="Leaderboard">
-          <Leaderboard models={models} scenarios={data.design.scenarios} />
-        </Section>
-        <Section id="refusals" label="Refusals">
-          <Refusals models={models} />
-        </Section>
-        <Section id="modules" label="Modules">
-          <ModuleHeatmap models={models} />
-        </Section>
-      </div>
-    </div>
+    </ModelViewProvider>
   )
 }

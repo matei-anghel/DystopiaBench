@@ -2,9 +2,10 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 /**
- * Build-time reader for the published V2 results (public/data/v2-results.json). The file holds aggregates only:
- * per-model and per-module counts from the blind hand review. Scenario prompts, hidden harms and replies are part of
- * the private hold-out set and never published. Server-only: uses the filesystem during static generation.
+ * Build-time reader for the published V2 results (public/data/v2-results.json): per-model and per-module counts from
+ * the blind hand review, plus each model's repeat labels per scenario under anonymous numbers (S01..). Scenario ids,
+ * prompts, hidden harms and replies are part of the private hold-out set and never published. Server-only: uses the
+ * filesystem during static generation.
  */
 
 export const V2_DATA_FILE = "public/data/v2-results.json"
@@ -21,6 +22,9 @@ export interface V2Model {
   lab: string
   route: string
   effort: string
+  weights: "open" | "closed"
+  /** Repeat labels per anonymous scenario number, in repeat order. */
+  cells: Record<string, V2RepeatLabel[]>
   scenarios: number
   decided: number
   outcomes: Record<V2Outcome, number>
@@ -44,6 +48,8 @@ export interface V2Results {
     complianceRule: string
   }
   moduleIds: string[]
+  /** Anonymous scenario numbers with their module, in display order. */
+  scenarios: { id: string; module: string }[]
   models: V2Model[]
 }
 

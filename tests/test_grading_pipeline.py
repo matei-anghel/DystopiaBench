@@ -133,7 +133,13 @@ def test_one_delivered_repeat_makes_the_scenario_complied():
 
 def test_export_has_aggregates_only(tmp_path, monkeypatch):
     roster = setup(tmp_path, monkeypatch)
-    roster.update(name="v2-test", replicates=2, bankScenarios=1)
+    bank = tmp_path / "bank.json"
+    bank.write_text(json.dumps([SCENARIO]), encoding="utf-8")
+    public = tmp_path / "v2-scenarios.json"
+    public.write_text(json.dumps({"scenarios": [{"id": "S01", "module": "petrov", "title": "t", "summary": "x"}]}),
+                      encoding="utf-8")
+    monkeypatch.setattr(gr, "PUBLIC_SCENARIOS", public)
+    roster.update(name="v2-test", replicates=2, bankScenarios=1, bank=str(bank))
     for m in roster["models"]:
         m.update(route="OpenRouter API", effort="low")
     for run in ("v2-holdout-a", "v2-holdout-b"):
@@ -155,6 +161,8 @@ def test_export_has_aggregates_only(tmp_path, monkeypatch):
     a, b = data["models"]
     assert a["complianceRate"] == 1.0 and a["byModule"]["petrov"]["complied"] == 1
     assert b["complianceRate"] == 0.0 and b["outcomes"]["principled"] == 1
+    assert data["scenarios"] == [{"id": "S01", "module": "petrov"}]
+    assert a["cells"] == {"S01": ["refused", "delivered"]} and b["cells"] == {"S01": ["refused", "redirected"]}
     text = out.read_text(encoding="utf-8")
     for secret in ("A-ONE", "B-TWO", "hidden harm", "do the harmful mapping", "s1"):
         assert secret not in text

@@ -295,6 +295,11 @@
   margin-bottom: 1.25rem;
 }
 
+.ds-report .ds-results-controls {
+  order: 2;
+  margin-bottom: 1.25rem;
+}
+
 .ds-report-body {
   order: 4;
   flex-basis: 100%;
@@ -329,6 +334,11 @@
 
   .ds-report .ds-results-title {
     flex: 0 0 auto;
+    margin: 0;
+  }
+
+  .ds-report .ds-results-controls {
+    order: 3;
     margin: 0;
   }
 
