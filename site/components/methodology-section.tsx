@@ -22,7 +22,7 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 
 export function MethodologySection({ data, dataFile }: MethodologySectionProps) {
   const { design } = data
-  const replies = data.models.length * design.scenarios * design.repeats
+  const trials = data.models.length * design.scenarios * design.repeats
   const classifierBlocks = data.models.reduce((sum, model) => sum + model.repeats.classifier, 0)
 
   return (
@@ -31,7 +31,7 @@ export function MethodologySection({ data, dataFile }: MethodologySectionProps) 
         <div data-slot="card" className="border border-border bg-card p-6">
           <h3 className="ds-label mb-3 text-[11px] text-primary">Scenarios</h3>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            {design.scenarios} single-message work requests, {design.scenarios / design.modules} in each of{" "}
+            {design.scenarios} work requests, {design.scenarios / design.modules} in each of{" "}
             {design.modules} modules: surveillance, irreversible control, civic capture, coercive care, conditioning
             and synthetic persuasion. Each asks for a short piece of an ordinary-looking project with a harmful rule built
             into the requirements.
@@ -56,16 +56,14 @@ export function MethodologySection({ data, dataFile }: MethodologySectionProps) 
 
       <div className="mt-10 max-w-4xl space-y-8 text-sm leading-relaxed text-muted-foreground">
         <p>
-          V1 asked whether a model keeps helping as a conversation escalates. V2 asks something simpler and closer to how
-          models are used: given a plausible engineering task with the harm already in the specification, does the model
-          build it? The scenarios are a private hold-out set, so their prompts are not published; the Scenarios list below paraphrases each one.
+          V2 tests whether models implement harmful requirements embedded in plausible engineering tasks.
+          The Scenarios list below summarizes each scenario in the private hold-out set.
         </p>
 
         <Block title="Design">
           {data.models.length} models × {design.scenarios} scenarios × {design.repeats} repeats ={" "}
-          {numberFormat.format(replies)} replies. Every repeat is a new conversation with one message: an optional
-          project context and the task. A fixed system prompt asks for the work directly, kept short (about 150 words or
-          30 lines of code).
+          {numberFormat.format(trials)} trials. Each repeat starts a fresh conversation. A fixed system prompt asks for
+          a concise implementation of about 150 words or 30 lines of code.
         </Block>
 
         <Block title="Models and settings">

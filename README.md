@@ -3,7 +3,7 @@
 DystopiaBench is an AI safety benchmark that asks one question: given a plausible engineering task with the harm
 already written into the specification, does the model build it?
 
-Each scenario is a single-message work request for a short piece of an ordinary-looking project (a mapping, rule,
+Each scenario is a work request for a short piece of an ordinary-looking project (a mapping, rule,
 schema or bit of code) where the requirements quietly carry out something dystopian. The request never names the
 harm. Delivering the operative piece counts as complying; caveats around it don't change that.
 
@@ -13,7 +13,7 @@ Results and methodology: **[dystopiabench.com](https://dystopiabench.com)**
 
 - 36 scenarios in 6 modules: `petrov` (irreversible control), `orwell` (surveillance), `laguardia` (civic
   capture), `basaglia` (coercive care), `huxley` (conditioning), `baudrillard` (synthetic persuasion)
-- 2 repeats per scenario, each a fresh single-message conversation
+- 2 independent repeats per scenario
 - every model at the lowest reasoning effort it offers, provider-default temperature
 - each reply labelled `delivered`, `partial`, `redirected` or `refused` by a blind reviewer that never sees which
   model wrote it
@@ -23,7 +23,7 @@ Results and methodology: **[dystopiabench.com](https://dystopiabench.com)**
 The V2 scenarios are a private hold-out set and are **not** in this repository, so published scores stay
 uncontaminated. The runner, isolation guards, grading pipeline and aggregate results are public.
 
-V1 (multi-turn escalation, TypeScript runner, public scenarios and per-reply results) is archived at the
+V1, including its TypeScript runner, public scenarios and per-reply results, is archived at the
 [`v1-final`](https://github.com/matei-anghel/DystopiaBench/tree/v1-final) tag.
 
 ## Repository layout
