@@ -22,15 +22,27 @@ const SECTIONS = [
   { id: "scenarios", label: "Scenarios" },
 ] as const
 
-type Segment = { key: string; label: string; color: string }
+type Segment = { key: string; label: string; color: string; ink: string }
 
 const SCENARIO_SEGMENTS: Segment[] = [
-  { key: "complied", label: "Complied", color: "hsl(var(--primary))" },
-  { key: "partial", label: "Partial", color: "hsl(var(--warning))" },
-  { key: "principled", label: "Refused on principle", color: "hsl(var(--refusal-principled))" },
-  { key: "classifier", label: "Safety classifier", color: "hsl(var(--refusal-classifier))" },
-  { key: "mixed", label: "Both kinds", color: "repeating-linear-gradient(135deg, hsl(var(--refusal-principled)) 0 4px, hsl(var(--refusal-classifier)) 4px 8px)" },
+  { key: "complied", label: "Complied", color: "hsl(var(--primary))", ink: "hsl(var(--primary-foreground))" },
+  { key: "partial", label: "Partial", color: "hsl(var(--warning))", ink: "hsl(var(--warning-foreground))" },
+  { key: "principled", label: "Refused on principle", color: "hsl(var(--refusal-principled))", ink: "#fff" },
+  { key: "classifier", label: "Safety classifier", color: "hsl(var(--refusal-classifier))", ink: "#fff" },
+  { key: "mixed", label: "Both kinds", color: "repeating-linear-gradient(135deg, hsl(var(--refusal-principled)) 0 4px, hsl(var(--refusal-classifier)) 4px 8px)", ink: "#fff" },
 ]
+
+const ROW_GRID = "grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:gap-3"
+
+/** Evenly spaced whole-number ticks from 0 to total, about four intervals. */
+function countTicks(total: number): number[] {
+  if (total <= 0) return [0]
+  const step = Math.max(1, Math.round(total / 4))
+  const ticks: number[] = []
+  for (let t = 0; t < total; t += step) ticks.push(t)
+  if (total - ticks[ticks.length - 1] < step / 2) ticks.pop()
+  return [...ticks, total]
+}
 
 function ModelName({ model, compact = false }: { model: V2Model; compact?: boolean }) {
   return (
@@ -101,16 +113,47 @@ function useActiveSection(ids: readonly string[]) {
 function StackedRow({ model, segments, counts, total }: { model: V2Model; segments: Segment[]; counts: Record<string, number>; total: number }) {
   const summary = segments.map((s) => `${s.label} ${counts[s.key] ?? 0}`).join(", ")
   return (
-    <li className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:gap-3">
+    <li className={ROW_GRID}>
       <ModelName model={model} compact />
-      <span className="flex h-4 overflow-hidden rounded-[2px] bg-muted/60" role="img" aria-label={`${model.label}: ${summary} of ${total}`}>
+      <span className="flex h-5 overflow-hidden rounded-[2px] bg-muted/60" role="img" aria-label={`${model.label}: ${summary} of ${total}`}>
         {segments.map((s) => {
           const n = counts[s.key] ?? 0
           if (!n || !total) return null
-          return <span key={s.key} title={`${s.label}: ${n} of ${total}`} style={{ width: `${(n / total) * 100}%`, background: s.color }} />
+          const share = n / total
+          return (
+            <span
+              key={s.key}
+              title={`${s.label}: ${n} of ${total}`}
+              className="flex items-center justify-center font-mono text-[10px] tabular-nums"
+              style={{ width: `${share * 100}%`, background: s.color, color: s.ink }}
+            >
+              <span className={share < 0.08 ? "hidden md:inline" : undefined}>{n}</span>
+            </span>
+          )
         })}
       </span>
     </li>
+  )
+}
+
+function CountAxis({ total, unit }: { total: number; unit: string }) {
+  const ticks = countTicks(total)
+  return (
+    <div className={`${ROW_GRID} mt-2`} aria-hidden>
+      <span className="text-right font-mono text-[10px] text-muted-foreground">{unit}</span>
+      <div className="relative h-4 border-t border-border">
+        {ticks.map((t) => {
+          const pct = (t / total) * 100
+          const align = t === 0 ? "translate-x-0" : t === total ? "-translate-x-full" : "-translate-x-1/2"
+          return (
+            <span key={t} className={`absolute top-0 flex flex-col items-center ${align}`} style={{ left: `${pct}%` }}>
+              <span className="h-1 w-px bg-border" />
+              <span className="font-mono text-[10px] tabular-nums text-muted-foreground">{t}</span>
+            </span>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -127,12 +170,12 @@ function Legend({ segments }: { segments: Segment[] }) {
   )
 }
 
-function Outcomes({ models }: { models: V2Model[] }) {
+function Outcomes({ models, scenarios }: { models: V2Model[]; scenarios: number }) {
   return (
     <Card
       title="Scenario outcomes by model"
       controls={<ModelViewPicker compact />}
-      sub="Each scenario's outcome across both repeats. Safety classifier: the provider blocked the reply before the model answered."
+      sub={`Scenarios out of ${scenarios}, safest model first.`}
     >
       <Legend segments={SCENARIO_SEGMENTS} />
       <ol className="flex flex-col gap-1.5">
@@ -140,6 +183,7 @@ function Outcomes({ models }: { models: V2Model[] }) {
           <StackedRow key={model.id} model={model} segments={SCENARIO_SEGMENTS} counts={{ ...model.outcomes }} total={model.decided} />
         ))}
       </ol>
+      <CountAxis total={scenarios} unit="scenarios" />
     </Card>
   )
 }
@@ -263,7 +307,7 @@ export function V2Report({ data }: { data: V2Results }) {
                 <LeaderboardChart models={chartModels} scenarios={data.design.scenarios} />
               </Section>
               <Section id="outcomes" label="Outcomes">
-                <Outcomes models={models} />
+                <Outcomes models={models} scenarios={data.design.scenarios} />
               </Section>
               <Section id="modules" label="Modules">
                 <ModuleBreakdownChart models={chartModels} data={data} />

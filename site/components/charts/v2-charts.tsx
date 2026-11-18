@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, type CSSProperties } from "react"
+import { ChevronRight } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { LabLogo, ModelBarXAxisTick, getModelAxisBottomMargin } from "@/components/lab-logo"
 import { indexDisplayModels, type DisplayModel } from "@/lib/display-models"
@@ -263,7 +264,7 @@ export function ResponseTypesByModule({ models, data }: { models: ChartModel[]; 
 
   return (
     <Card>
-      <SectionHeader label="Review labels by module" sub="Every reply, by review label" />
+      <SectionHeader label="Review labels by module" sub={`Percent of all ${rows[0].mix.reduce((n, m) => n + m.count, 0).toLocaleString("en-US")} graded replies from the selected models.`} />
       <div className="flex flex-col gap-2.5">
         {rows.map((row) => (
           <div key={row.id} className={`grid grid-cols-[7rem_1fr] items-center gap-3 ${row.id === "all" ? "mb-2 border-b border-border pb-3" : ""}`}>
@@ -304,7 +305,7 @@ export function ScenarioScoresByModule({
     <Card>
       <SectionHeader
         label="Compliance by scenario"
-        sub="Share of models that built the harmful component. Select a scenario for its detail."
+        sub="Percent of models that built the harmful component. Click any scenario to open it in the explorer below."
       />
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
         {groups.map((group) => (
@@ -324,9 +325,11 @@ export function ScenarioScoresByModule({
                       onClick={() => onSelect(id)}
                       aria-pressed={active}
                       title={summary ? `${id} · ${summary.title}` : id}
-                      className={`grid w-full grid-cols-[minmax(0,14rem)_1fr] items-center gap-2 rounded-sm px-1 py-1 text-left transition-colors hover:bg-muted ${active ? "bg-muted" : ""}`}
+                      className={`group grid w-full cursor-pointer grid-cols-[minmax(0,14rem)_1fr_auto] items-center gap-2 rounded-sm border-l-2 px-1 py-1 text-left transition-colors hover:bg-muted ${active ? "border-primary bg-muted" : "border-transparent"}`}
                     >
-                      <span className={`truncate text-[11px] ${active ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                      <span
+                        className={`truncate text-[11px] underline-offset-2 group-hover:text-foreground group-hover:underline ${active ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                      >
                         {summary?.title ?? id}
                       </span>
                       <span className="flex h-3 min-w-0 items-center gap-1.5">
@@ -346,6 +349,10 @@ export function ScenarioScoresByModule({
                           </>
                         )}
                       </span>
+                      <ChevronRight
+                        aria-hidden
+                        className={`h-3.5 w-3.5 transition-colors group-hover:text-foreground ${active ? "text-primary" : "text-muted-foreground/50"}`}
+                      />
                     </button>
                   </li>
                 )
