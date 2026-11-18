@@ -42,7 +42,6 @@ export interface V2Results {
     scenarios: number
     modules: number
     repeats: number
-    mode: string
     effort: string
     grading: string
     complianceRule: string
